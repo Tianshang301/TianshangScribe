@@ -1,43 +1,41 @@
-# 天殇·书契（TianshangScribe）
+# 天殇·书契 TianshangScribe
 
-跨平台命令行 Office 文档处理工具，支持 Word、Excel、PowerPoint 的创建、编辑、模板填充、格式转换，融入 LaTeX 风格排版标记。
+跨平台命令行 Office 文档处理工具。支持 Word、Excel、PowerPoint 的创建、编辑、模板填充、格式转换，内置 LaTeX 风格排版标记与数学公式渲染引擎。
 
 ## 安装
 
 ```bash
-pip install tianshang-scribe
-
-# 含 PDF 转换支持
-pip install tianshang-scribe[pdf]
-
-# 开发依赖
-pip install tianshang-scribe[dev]
+git clone https://github.com/Tianshang301/TianshangScribe.git
+cd TianshangScribe
+pip install -e ".[dev]"
 ```
+
+依赖：Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · jinja2 · lxml
 
 ## 快速开始
 
 ```bash
-# 创建空白 Word 文档并添加文本
-tianshang-scribe -w --create --add "Hello World" -o hello.docx
+# 创建 Word 文档并添加文本
+tianshang-scribe -w --create -a "Hello World" -o hello.docx
 
-# 打开已有文件，替换文本
-tianshang-scribe input.docx --replace "旧文本" --replace-new "新文本" -o output.docx
+# 打开已有文件，替换文本（支持 --regex 正则）
+tianshang-scribe input.docx -r "旧文本" --replace-new "新文本" -o output.docx
 
-# 样式 + LaTeX 标记
-tianshang-scribe -w --create \
-  --style "font=Times,size=14,bold" \
-  --add "普通文本 \bfseries{加粗} \itshape{斜体}" \
-  --latex-style \
+# LaTeX 样式标记 + 嵌套
+tianshang-scribe -w --create --latex-style \
+  -s "font=Times New Roman,size=14" \
+  -a "\bfseries{\itshape{加粗斜体}} \fontsize{18}{大号字} \color{FF0000}{红色}" \
   -o styled.docx
 
-# 添加数学公式
+# 数学公式 —— 自动转为 Word 原生 OMML
 tianshang-scribe -w --create \
-  --math "E=mc^2" \
-  --math "\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}" \
+  --math "x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}" \
+  --math "\sum_{i=0}^{n} i^2" \
+  --math "\int_{0}^{\infty} e^{-x} dx" \
   -o formulas.docx
 
-# 模板填充
-tianshang-scribe template.docx --template data.json -o filled.docx
+# 模板填充（JSON / CSV / YAML → {{placeholder}}）
+tianshang-scribe template.docx -t data.json -o filled.docx
 
 # 转换为 PDF
 tianshang-scribe input.docx --topdf -o output.pdf
@@ -45,140 +43,176 @@ tianshang-scribe input.docx --topdf -o output.pdf
 
 ## 全局选项
 
-| 短选项 | 长选项 | 说明 |
-|--------|--------|------|
-| `-w` | `--word` | 处理 Word 文档 |
-| `-e` | `--excel` | 处理 Excel 工作簿 |
-| `-p` | `--ppt` | 处理 PowerPoint 演示文稿 |
-| `-o` | `--output` | 输出文件路径 |
-| `--force` | | 允许覆盖已有文件 |
-| `--topdf` | | 输出为 PDF |
+| 参数 | 说明 |
+|------|------|
+| `input_file` | 输入文档路径（与 `--create` 互斥） |
+| `-w` `--word` | 处理 Word 文档 |
+| `-e` `--excel` | 处理 Excel 工作簿 |
+| `-p` `--ppt` | 处理 PowerPoint 演示文稿 |
+| `-o` `--output` | 输出文件路径 |
+| `--force` | 允许覆盖已有文件 |
+| `--topdf` | 输出为 PDF |
+| `--stdin` | 从标准输入读取 |
+| `--stdout` | 输出到标准输出 |
 
-若不指定 `-w/-e/-p`，工具根据输入文件扩展名自动推断文档类型。
+不指定 `-w/-e/-p` 时，根据输入文件扩展名自动推断类型。
 
-## 通用操作
+## 操作参数
 
-| 短选项 | 长选项 | 参数示例 | 说明 |
-|--------|--------|----------|------|
-| `-cr` | `--create` | `--create` | 创建空白文档（需配合 `-w/-e/-p`） |
-| `-a` | `--add` | `--add "内容"` | 添加内容 |
-| `-s` | `--style` | `--style "font=Times,size=12,bold"` | 设置默认样式 |
-| `-r` | `--replace` | `--replace "旧值" --replace-new "新值"` | 查找替换（加 `--regex` 启用正则） |
-| `-d` | `--delete` | `--delete "关键词"` | 删除指定内容 |
-| `-m` | `--modify` | `--modify "旧值" --modify-new "新值"` | 修改指定对象 |
-| `-t` | `--template` | `--template data.json` | 数据填充模板 `{{placeholder}}` |
-| `--meta` | | `--meta title="报告",author="张三"` | 设置文档属性 |
-
-## LaTeX 风格标记
-
-通过 `--latex-style` 启用，可在 `--add` 中嵌入以下标记：
-
-| 标记语法 | 效果 |
-|----------|------|
-| `\bfseries{text}` | 加粗 |
-| `\itshape{text}` | 斜体 |
-| `\underline{text}` | 下划线 |
-| `\rmfamily{text}` | 衬线字体 |
-| `\sffamily{text}` | 无衬线字体 |
-| `\ttfamily{text}` | 等宽字体 |
-| `\fontfamily{Arial}{text}` | 指定字体 |
-| `\fontsize{18}{text}` | 字号（pt） |
-| `\color{FF0000}{text}` | 文本颜色（十六进制） |
-| `\heading{2}{标题}` | 插入标题 |
-| `\newpage` | 分页符 |
-| `\includegraphics{path}` | 插入图片 |
-
-支持嵌套：`\bfseries{\itshape{bold italic}}`
-
-## 数学公式（Word）
-
-通过 `--math` 直接插入 LaTeX 数学公式，内部转换为 Word 原生 OMML 数学公式：
-
-```bash
-tianshang-scribe -w --create \
-  --math "x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}" \
-  --math "\sum_{i=0}^{n} i^2" \
-  --math "\int_{0}^{\infty} e^{-x} dx" \
-  -o math.docx
-```
-
-支持：上标/下标、分式、根号、求和/积分/连乘、希腊字母、数学符号、重音、绝对值等。
-
-## Word 专属操作
-
-| 选项 | 参数 | 说明 |
+| 参数 | 说明 | 示例 |
 |------|------|------|
-| `--heading` | `level:1 text:标题` | 添加指定级别的标题 |
-| `--math` | `\frac{a}{b}` | 添加 LaTeX 数学公式 |
-| `--latex-style` | | 启用 LaTeX 风格标记解析 |
-| `--tomd` | | 输出为 Markdown |
-| `--tohtml` | | 输出为 HTML |
+| `-cr` `--create` | 创建空白文档 | `--create -w` |
+| `-a` `--add` | 添加文本 | `-a "Hello"` |
+| `-r` `--replace` | 查找文本 | `-r "foo" --replace-new "bar"` |
+| `-d` `--delete` | 删除文本 | `-d "关键词"` |
+| `-m` `--modify` | 修改文本 | `-m "旧值" --modify-new "新值"` |
+| `-s` `--style` | 设置样式 | `-s "font=Times,size=14,bold"` |
+| `-t` `--template` | 模板填充 | `-t data.json` |
+| `-x` `--extract` | 提取数据 | `-x metadata` |
+| `--meta` | 设置属性 | `--meta "title=报告,author=张三"` |
+| `--latex-style` | 启用 LaTeX 标记解析 | |
+| `--math` | 添加数学公式（Word） | `--math "\frac{a}{b}"` |
+| `--heading` | 添加标题（Word） | `--heading "level:1 text:引言"` |
+| `--regex` | 正则替换 | 配合 `--replace` `--delete` 使用 |
+| `--merge` | 合并多个文件 | `--merge "a.docx,b.docx"` |
 
-## Excel 专属操作
+## LaTeX 样式标记
 
-| 选项 | 参数 | 说明 |
+在 `--add` 中嵌入下列标记，启用 `--latex-style` 后自动解析。支持嵌套。
+
+| 标记 | 效果 | 示例 |
 |------|------|------|
-| `--sheet-add` | `SheetName` | 添加工作表 |
-| `--sheet-delete` | `SheetName` | 删除工作表 |
-| `--sheet-rename` | `Old New` | 重命名工作表 |
-| `--column-width` | `col=width` | 设置列宽 |
-| `--row-height` | `row=height` | 设置行高 |
-| `--formula` | `A1 "=SUM(B1:B10)"` | 设置公式 |
-| `--to-csv` | | 导出为 CSV |
-| `--to-json` | | 导出为 JSON |
-| `--from-csv` | `data.csv` | 从 CSV 导入 |
+| `\bfseries{text}` | 加粗 | `\bfseries{重要}` |
+| `\itshape{text}` | 斜体 | `\itshape{强调}` |
+| `\underline{text}` | 下划线 | |
+| `\rmfamily{text}` | 衬线（Roman） | |
+| `\sffamily{text}` | 无衬线（Sans-serif） | |
+| `\ttfamily{text}` | 等宽（Monospace） | |
+| `\fontfamily{Arial}{text}` | 指定字体 | |
+| `\fontsize{18}{text}` | 字号（pt） | `\fontsize{24}{大标题}` |
+| `\color{FF0000}{text}` | 颜色（十六进制） | |
+| `\centering{...}` | 居中 | |
+| `\raggedright{...}` | 左对齐 | |
+| `\raggedleft{...}` | 右对齐 | |
+| `\heading{2}{标题}` | 插入标题 | |
+| `\newpage` | 分页符 | |
+| `\includegraphics{path}` | 插入图片 | |
 
-## PPT 专属操作
+### 字体配置
 
-| 选项 | 参数 | 说明 |
+| 命令 | 效果 |
+|------|------|
+| `\setmainfont{Name}` | 西文默认字体 |
+| `\setCJKmainfont{Name}` | CJK（中日韩）默认字体 |
+| `\setsansfont{Name}` | 无衬线字体 |
+| `\setmonofont{Name}` | 等宽字体 |
+
+Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，中西文混排自动切换。
+
+## 数学公式
+
+通过 `--math` 支持完整的 LaTeX 数学公式，内部转换为 Word 原生 OMML（Office Math Markup Language）。
+
+### 公式语法
+
+| 类别 | 支持的命令 |
+|------|----------|
+| 分式 | `\frac{分子}{分母}` |
+| 根号 | `\sqrt{内容}` `\sqrt[次幂]{内容}` |
+| 上下标 | `x^{2}` `x_{i}` `x_{i}^{n}` |
+| 求和/积分 | `\sum` `\int` `\oint` `\prod` `\coprod` `\bigcup` `\bigcap` `\bigvee` `\bigwedge` |
+| 极限 | `\lim_{x \to 0}` `\max` `\min` `\sup` `\inf` |
+| 标准函数 | `\sin` `\cos` `\tan` `\cot` `\sec` `\csc` `\log` `\ln` `\det` `\Pr` `\gcd` `\deg` `\dim` `\hom` `\ker` `\arg` |
+| 希腊字母 | `\alpha` `\beta` `\gamma` … `\Gamma` `\Delta` `\Theta` … |
+| 符号 | `\pm` `\times` `\div` `\cdot` `\infty` `\partial` `\nabla` `\forall` `\exists` … |
+| 关系符 | `\leq` `\geq` `\neq` `\approx` `\equiv` `\propto` `\subset` `\supset` `\in` … |
+| 箭头 | `\to` `\rightarrow` `\leftarrow` `\mapsto` `\uparrow` … |
+| 重音 | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` … |
+| 括号 | `\left( \right)` `\left[ \right]` `\left\{ \right\}` |
+| 数学字体 | `\mathrm{abc}` `\mathbf{abc}` `\mathit{abc}` `\mathcal{ABC}` `\mathbb{ABC}` `\mathsf{abc}` `\mathtt{abc}` |
+
+### 数学字体规范
+
+遵循主流数学期刊（AMS、Elsevier、Springer）排版标准：
+
+| 内容 | 样式 | 示例 |
 |------|------|------|
-| `--slide-add` | | 添加幻灯片 |
-| `--slide-delete` | `3` | 删除指定幻灯片 |
-| `--slide-move` | `2 4` | 移动幻灯片位置 |
-| `--toimg` | `output_dir/` | 导出为图片序列 |
+| 单字母变量 | *斜体* | `a` `b` `x` `y` |
+| 数字 | **正体** | `0` `1` `2` … |
+| 标准函数 | **正体** | `\sin` `\cos` `\log` |
+| 希腊小写 | *斜体* | `\alpha` `\beta` `\gamma` |
+| 希腊大写 | **正体** | `\Gamma` `\Delta` `\Theta` |
+
+### 数学命令自动识别
+
+在 `--add` 文本中，以下命令即使未被 `$...$` 包裹也会自动识别为数学公式：
+
+- 带参数：`\frac` `\sqrt` `\sum` `\int` `\prod` `\lim`
+- 重音：`\hat{x}` `\bar{x}` `\vec{x}` 等
+- 无参运算符：`\sin` `\cos` `\tan` `\log` `\ln` 等
+
+文本中的 `H_{2}O` 和 `m^{2}` 自动转为 Unicode 下标/上标（H₂O / m²）。
 
 ## 样式语法
 
-`--style` 使用逗号分隔的键值对：
+`--style` 采用逗号分隔的键值对：
 
 ```bash
-# 完整语法
 --style "font=Times New Roman,size=14,bold,italic,color=FF0000,align=center"
-
-# 布尔简写（出现即 True）
---style "font=Arial,bold,underline"
-
-# 别名
---style "font-family=Times,font-size=18pt"
 ```
 
-支持的键：
+| 键 | 别名 | 值 | 说明 |
+|----|------|-----|------|
+| `font` | `font_name` | 字体名 | 西文字体 |
+| `cjk-font` | `cjk_font_name` | 字体名 | CJK 字体 |
+| `size` | `font_size` | pt 值 | 字号 |
+| `bold` | | 标志 | 加粗 |
+| `italic` | | 标志 | 斜体 |
+| `underline` | | 标志 | 下划线 |
+| `color` | `font_color` | `FF0000` | 十六进制颜色 |
+| `align` | `alignment` | `left`/`center`/`right`/`justify` | 对齐 |
 
-| 键 | 别名 | 类型 | 说明 |
-|----|------|------|------|
-| `font` | `font_name`, `font-family` | string | 字体名称 |
-| `size` | `font_size`, `font-size` | int | 字号（pt） |
-| `bold` | | bool | 加粗 |
-| `italic` | | bool | 斜体 |
-| `underline` | `underlined` | bool | 下划线 |
-| `color` | `font_color`, `font-color` | hex | 颜色（`FF0000`） |
-| `align` | `alignment` | string | 对齐：`left`/`center`/`right`/`justify` |
+布尔键（`bold` `italic` `underline`）出现即为 `True`。
 
 ## 模板填充
 
-支持 JSON、CSV、YAML 数据源，填充文档中的 `{{placeholder}}`：
+支持 JSON、CSV、YAML 数据源，填充文档中的 `{{placeholder}}` 占位符。嵌套对象以点号展开。
 
 ```json
 {
   "name": "张三",
   "date": "2026-07-28",
-  "user": {
-    "city": "北京"
-  }
+  "user": { "city": "北京" }
 }
 ```
 
-嵌套对象以点号展开：`{{user.city}}` 替换为 `北京`。
+```
+{{name}}         →  张三
+{{user.city}}    →  北京
+```
+
+## Excel 操作
+
+后端支持但不限于（CLI 接线进行中）：
+
+| 方法 | 说明 |
+|------|------|
+| `add_sheet` / `delete_sheet` / `rename_sheet` | 工作表增删改 |
+| `set_column_width` / `set_row_height` | 列宽 / 行高 |
+| `set_formula` | 公式写入 |
+| `import_csv` / `export_csv` | CSV 导入导出 |
+| `set_protection` / `unprotect` | 密码保护 |
+| `get_metadata` / `set_metadata` | 文档属性 |
+
+## PPT 操作
+
+后端支持但不限于（CLI 接线进行中）：
+
+| 方法 | 说明 |
+|------|------|
+| `add_slide` / `delete_slide` / `move_slide` | 幻灯片增删移 |
+| `apply_layout` | 应用版式 |
+| `add_notes` | 演讲者备注 |
 
 ## 退出码
 
@@ -189,27 +223,54 @@ tianshang-scribe -w --create \
 | `2` | 参数错误 |
 | `3` | 功能未实现 |
 
-## 技术栈
+## 架构
 
-- **语言**：Python 3.12（向下兼容 3.10+）
-- **CLI**：Typer + Rich
-- **Word**：python-docx
-- **Excel**：openpyxl
-- **PPT**：python-pptx
-- **数学公式**：自研 LaTeX → OMML 转换器
-- **质量**：pytest（99 测试）、ruff、mypy
+```
+src/
+├── cli/               # Typer CLI 入口
+│   ├── main.py        # 命令解析与分发
+│   └── global_opts.py # 文件路径 / 类型推断
+├── core/              # 文档引擎抽象层
+│   ├── document.py    # DocumentABC 统一接口
+│   ├── word_engine.py # Word 引擎 (python-docx)
+│   ├── excel_engine.py# Excel 引擎 (openpyxl)
+│   └── ppt_engine.py  # PPT 引擎 (python-pptx)
+├── rendering/         # 样式与公式渲染
+│   ├── styles.py      # TextStyle 数据类
+│   ├── latex_parser.py # LaTeX 标记解析器
+│   ├── math_omml.py   # LaTeX → OMML 数学公式转换
+│   └── template.py    # 模板填充引擎
+├── transform/         # 格式转换
+│   └── pdf.py         # PDF 导出（LibreOffice）
+└── utils/             # 工具函数
+    └── file_utils.py
+```
+
+### 技术栈
+
+| 组件 | 核心技术 |
+|------|---------|
+| CLI | Typer + Rich |
+| Word | python-docx |
+| Excel | openpyxl |
+| PPT | python-pptx |
+| 数学公式 | 自研递归下降解析器 → OMML XML |
+| 模板 | Jinja2 + docxtpl |
+| PDF | LibreOffice headless |
+| 测试 | pytest（121 用例）· ruff · mypy |
 
 ## 开发
 
 ```bash
-git clone https://github.com/yourname/tianshang-scribe.git
-cd tianshang-scribe
+git clone https://github.com/Tianshang301/TianshangScribe.git
+cd TianshangScribe
 pip install -e ".[dev]"
 
-# 运行测试
-pytest tests/ -v
-
-# 代码检查
-ruff check src/ tests/
-mypy src/
+pytest tests/ -v      # 运行测试
+ruff check src/ tests/ # 代码检查
+mypy src/             # 类型检查
 ```
+
+## 许可
+
+Apache-2.0

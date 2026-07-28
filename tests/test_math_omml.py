@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from src.rendering.math_omml import _tokenize, latex_to_omml
 from docx.oxml.ns import qn
+
+from src.rendering.math_omml import _tokenize, latex_to_omml
 
 
 class TestMathTokenize:

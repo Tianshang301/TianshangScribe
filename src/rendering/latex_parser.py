@@ -218,15 +218,15 @@ def preprocess_text(text: str) -> str:
 
     merged = _merge_regions(math_regions)
 
-    parts: list[str] = []
+    wrapped_parts: list[str] = []
     last_end = 0
     for start, end in merged:
-        parts.append(_apply_preprocessing(text[last_end:start]))
-        parts.append(text[start:end])
+        wrapped_parts.append(_apply_preprocessing(text[last_end:start]))
+        wrapped_parts.append(text[start:end])
         last_end = end
-    parts.append(_apply_preprocessing(text[last_end:]))
+    wrapped_parts.append(_apply_preprocessing(text[last_end:]))
 
-    return _unescape_dollar(''.join(parts))
+    return _unescape_dollar(''.join(wrapped_parts))
 
 
 def _find_math_regions(text: str) -> list[tuple[int, int]]:

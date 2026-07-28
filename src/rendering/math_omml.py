@@ -309,10 +309,12 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                 elif cmd in ('hat', 'widehat', 'bar', 'tilde', 'widetilde',
                              'dot', 'ddot', 'vec', 'check', 'acute', 'grave', 'breve'):
                     if cmd_end < length and latex[cmd_end] == '{':
-                        args = _extract_one_arg(latex, cmd_end)
-                        if args:
-                            tokens.append({'type': 'accent', 'accent': cmd, 'content': args[0]})
-                            i = args[1]
+                        accent_args = _extract_one_arg(latex, cmd_end)
+                        if accent_args:
+                            tokens.append({
+                                'type': 'accent', 'accent': cmd, 'content': accent_args[0],
+                            })
+                            i = accent_args[1]
                             continue
                     i = cmd_end
                     continue
@@ -338,14 +340,14 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                         'mathbb': 'double-struck',
                         'text': 'normal', 'mathcal': 'script',
                     }
-                    args = _extract_one_arg(latex, cmd_end)
-                    if args:
+                    style_args = _extract_one_arg(latex, cmd_end)
+                    if style_args:
                         tokens.append({
                             'type': 'styled',
                             'style': style_map_cmd.get(cmd, 'normal'),
-                            'content': args[0],
+                            'content': style_args[0],
                         })
-                        i = args[1]
+                        i = style_args[1]
                         continue
 
                 else:
@@ -361,10 +363,10 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
             op_type = 'sup' if ch == '^' else 'sub'
             if i + 1 < length:
                 if latex[i + 1] == '{':
-                    args = _extract_one_arg(latex, i + 1)
-                    if args:
-                        tokens.append({'type': op_type, 'content': args[0]})
-                        i = args[1]
+                    ss_args = _extract_one_arg(latex, i + 1)
+                    if ss_args:
+                        tokens.append({'type': op_type, 'content': ss_args[0]})
+                        i = ss_args[1]
                         continue
                 else:
                     end = i + 1
@@ -444,7 +446,7 @@ def _extract_sqrt_args(s: str, start: int) -> tuple[str, str, int] | None:
     return None
 
 
-def _extract_delim(s: str, start: int) -> tuple[str, int] | None:
+def _extract_delim(s: str, start: int) -> tuple[str | None, int] | None:
     if start >= len(s):
         return None
 
@@ -473,7 +475,7 @@ def _extract_delim(s: str, start: int) -> tuple[str, int] | None:
     return None
 
 
-def _extract_limits(s: str, start: int) -> tuple[str, str, int] | None:
+def _extract_limits(s: str, start: int) -> tuple[str | None, str | None, int] | None:
     sub_val = None
     sup_val = None
     pos = start
@@ -514,7 +516,7 @@ def _rpr_equivalent(a: Any, b: Any) -> bool:
         return True
     if a is None or b is None:
         return False
-    return etree.tostring(a) == etree.tostring(b)
+    return bool(etree.tostring(a) == etree.tostring(b))
 
 
 def _build_omath_elements(tokens: list[dict[str, Any]]) -> list[Any]:

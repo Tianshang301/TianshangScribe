@@ -267,9 +267,10 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Slide management | Add, delete, reorder slides (`--slide-add`, `--slide-delete`, `--slide-move`) |
 | Layouts | Apply slide layouts by name or index (`--layout`) |
 | Speaker notes | Add presenter notes (`--notes`) |
+| Math formulas | `$...$` / `$$...$$` rendered as native OMML |
 | Transitions | Set slide transitions — fade, push, wipe, etc. (`--transition`) |
 | Export | Save slides as images (`--toimg`), convert to PDF (`--topdf`) |
-| Protection | Set/remove password protection (`--protect`, `--unprotect`) |
+| Protection | Set/remove password (`--protect`, `--unprotect`) |
 
 ## Exit Codes
 
@@ -314,7 +315,30 @@ src/
 | Math | Custom recursive descent parser → OMML XML |
 | Templates | Jinja2 + docxtpl |
 | PDF | LibreOffice headless |
-| Quality | pytest (156 tests) · ruff · mypy |
+| Quality | pytest (160 tests) · ruff · mypy |
+
+## Build EXE
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._writer --hidden-import openpyxl.cell.read_only --hidden-import openpyxl.styles --hidden-import openpyxl.chart --hidden-import openpyxl.comments src/cli/main.py
+# dist/tianshang-scribe.exe (~35 MB)
+```
+
+## Demo
+
+```bash
+python -m demo.generate_demos
+# demo/demo_word.docx   — LaTeX + math + TOC + watermark
+# demo/demo_excel.xlsx  — CSV import + formulas + chart + protection
+# demo/demo_ppt.pptx    — slides + notes + transitions + math formulas
+```
+
+CLI compliance test:
+
+```bash
+python demo/test_cli.py
+```
 
 ## Development
 

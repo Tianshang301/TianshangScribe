@@ -268,8 +268,9 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 幻灯片管理 | 增删移（`--slide-add`、`--slide-delete`、`--slide-move`） |
 | 版式 | 按名称或索引应用版式（`--layout`） |
 | 演讲者备注 | 添加备注（`--notes`） |
-| 切换效果 | 设置切换动画 — fade、push、wipe 等（`--transition`） |
-| 导出 | 导出图片序列（`--toimg`）、转 PDF（`--topdf`） |
+| 数学公式 | `$...$` / `$$...$$` 转为原生 OMML |
+| 切换效果 | fade、push、wipe 等 17 种（`--transition`） |
+| 导出 | 图片序列（`--toimg`）、PDF（`--topdf`） |
 | 保护 | 设置/解除密码（`--protect`、`--unprotect`） |
 
 ## 退出码
@@ -315,7 +316,30 @@ src/
 | 数学公式 | 自研递归下降解析器 → OMML XML |
 | 模板 | Jinja2 + docxtpl |
 | PDF | LibreOffice headless |
-| 质量 | pytest（156 用例）· ruff · mypy |
+| 质量 | pytest（160 用例）· ruff · mypy |
+
+## 构建 EXE
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._writer --hidden-import openpyxl.cell.read_only --hidden-import openpyxl.styles --hidden-import openpyxl.chart --hidden-import openpyxl.comments src/cli/main.py
+# dist/tianshang-scribe.exe (~35 MB)
+```
+
+## 演示
+
+```bash
+python -m demo.generate_demos
+# demo/demo_word.docx   — LaTeX + 数学公式 + 目录 + 水印
+# demo/demo_excel.xlsx  — CSV 导入 + 公式 + 图表 + 保护
+# demo/demo_ppt.pptx    — 幻灯片 + 备注 + 切换效果 + 数学公式
+```
+
+CLI 合规测试：
+
+```bash
+python demo/test_cli.py
+```
 
 ## 开发
 

@@ -430,9 +430,18 @@ def main(
             engine.to_pdf(output_path)
             console.print(f'[green]PDF saved:[/green] {output_path}')
         elif to_md:
+            import tempfile
+
             from src.transform.pdf import word_to_markdown
-            engine.save()
-            word_to_markdown(str(engine._path), str(output_path))
+            with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tf:
+                engine.save(tf.name)
+                try:
+                    word_to_markdown(tf.name, str(output_path))
+                except Exception as e:
+                    console.print(f'[yellow]Markdown conversion skipped:[/yellow] {e}')
+                    engine.save(output_path)
+            import os
+            os.unlink(tf.name)
             console.print(f'[green]Markdown saved:[/green] {output_path}')
         elif to_csv and hasattr(engine, 'export_csv'):
             engine.export_csv(output_path)
@@ -445,9 +454,18 @@ def main(
                 engine.export_html(output_path)
                 console.print(f'[green]HTML saved:[/green] {output_path}')
             else:
+                import tempfile
+
                 from src.transform.pdf import word_to_html
-                engine.save()
-                word_to_html(str(engine._path), str(output_path))
+                with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tf:
+                    engine.save(tf.name)
+                    try:
+                        word_to_html(tf.name, str(output_path))
+                    except Exception as e:
+                        console.print(f'[yellow]HTML conversion skipped:[/yellow] {e}')
+                        engine.save(output_path)
+                import os
+                os.unlink(tf.name)
                 console.print(f'[green]HTML saved:[/green] {output_path}')
         elif stdout:
             import atexit

@@ -21,7 +21,7 @@ class TemplateEngine:
         path = Path(self._data_path)
 
         if path.suffix.lower() in ('.json',):
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, 'r', encoding='utf-8-sig') as f:
                 self._data = json.load(f)
         elif path.suffix.lower() in ('.csv',):
             with open(path, 'r', encoding='utf-8') as f:

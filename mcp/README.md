@@ -260,26 +260,14 @@ SSE mode endpoints:
 
 How AI agents discover and call TianshangScribe tools in practice.
 
-### Architecture
-
-```
-Agent (Claude / Cursor / Dify)          TianshangScribe MCP Server
-┌─────────────────────────┐   stdio/SSE   ┌──────────────────────┐
-│ User: "Convert CSV to   │ ────────────→ │ mcp/server.py        │
-│        PDF"             │               │   ↓ dispatch         │
-│       ↓                 │ ←──────────── │   → excel_engine     │
-│ Agent picks tool,       │  JSON-RPC 2.0 │   → pdf.py           │
-│ fills params, returns   │               └──────────────────────┘
-│ result to user          │
-└─────────────────────────┘
-```
-
 **Protocol flow:**
 1. Agent sends `initialize` → server responds with server info & protocol version
 2. Agent sends `tools/list` → server responds with 5 tools and their schemas
 3. User makes a request → Agent selects tool + fills parameters
 4. Agent sends `tools/call` → server executes and returns result
 5. Agent presents result to user in natural language
+
+> See the [Architecture](#architecture) section below for Mermaid diagrams.
 
 ### stdio Mode (Local)
 
@@ -408,24 +396,72 @@ python mcp/test_agent.py     # 11/11 scenarios
 | "CONVERSION_FAILED" on PDF | No PDF engine | Install `office2pdf` (~2MB) or LibreOffice |
 | Tool returns "DOCUMENT_NOT_FOUND" | Wrong file path | Use absolute paths or paths relative to `cwd` |
 
-## Architecture
+### Architecture
 
-```
-MCP Client (Claude Code / Cursor / Agent)
-    ↕ stdio JSON-RPC 2.0
-mcp/server.py          ← Protocol dispatch
-    ↕
-mcp/tools/
-    ├── create.py      ← WordEngine / ExcelEngine / PptEngine
-    ├── edit.py        ← replace_text / set_style / clear_content
-    ├── template.py    ← TemplateEngine
-    └── convert.py     ← pdf.py / export methods
-    ↕
-src/core/              ← Document engines (python-docx, openpyxl, python-pptx)
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent<br/>(Claude/Cursor/Dify)
+    participant MCP as MCP Server<br/>(mcp/server.py)
+    participant Tools as Tool Layer<br/>(mcp/tools/)
+    participant Engine as Document Engines<br/>(src/core/)
+
+    Agent->>MCP: initialize
+    MCP-->>Agent: protocolVersion, serverInfo, capabilities
+
+    Agent->>MCP: tools/list
+    MCP-->>Agent: 5 tools with schemas
+
+    Note over Agent: User asks "Convert CSV to PDF"
+
+    Agent->>MCP: tools/call {name: "convert_document", args: {...}}
+    MCP->>Tools: dispatch(convert, args)
+    Tools->>Engine: open_document() → to_pdf()
+    Engine-->>Tools: result
+    Tools-->>MCP: success_response
+    MCP-->>Agent: {content: [{type: "text", text: "..."}]}
 ```
 
-- **Zero external MCP dependency** — pure stdio JSON-RPC 2.0
-- **Transport**: stdio + SSE (HTTP)
+```mermaid
+graph LR
+    subgraph "Transport"
+        A[stdio] 
+        B[SSE / HTTP]
+    end
+
+    subgraph "mcp/server.py"
+        C[JSON-RPC 2.0 Dispatch]
+    end
+
+    subgraph "mcp/tools/"
+        D1[create]
+        D2[edit]
+        D3[template]
+        D4[convert]
+        D5[extract]
+    end
+
+    subgraph "src/core/"
+        E1[WordEngine]
+        E2[ExcelEngine]
+        E3[PptEngine]
+    end
+
+    A --> C
+    B --> C
+    C --> D1
+    C --> D2
+    C --> D3
+    C --> D4
+    C --> D5
+    D1 & D2 & D3 & D4 & D5 --> E1
+    D2 & D3 & D4 & D5 --> E2
+    D2 & D3 & D4 & D5 --> E3
+```
+
+**Key design points:**
+- **Zero external MCP dependency** — pure `asyncio` JSON-RPC 2.0 implementation
+- **Stateless tools** — each `tools/call` is independent, enabling horizontal scaling
+- **Transport-agnostic** — same `_handle_request()` serves both stdio and SSE
 - **Protocol**: MCP 2024-11-05
 
 ## License

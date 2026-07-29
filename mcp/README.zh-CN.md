@@ -255,24 +255,14 @@ SSE 模式端点:
 
 AI Agent 如何在实际使用中发现和调用 TianshangScribe 工具。
 
-### 架构原理
-
-```
-Agent (Claude / Cursor / Dify)          TianshangScribe MCP Server
-┌─────────────────────────┐  stdio/SSE   ┌──────────────────────┐
-│ 用户："把这份CSV转成PDF"  │ ──────────→ │ mcp/server.py        │
-│       ↓                 │              │   ↓ 分发             │
-│ Agent 选择合适的工具，    │ ←────────── │   → excel_engine     │
-│ 填写参数，返回结果给用户  │  JSON-RPC 2.0│   → pdf.py           │
-└─────────────────────────┘              └──────────────────────┘
-```
-
 **协议交互过程：**
 1. Agent 发送 `initialize` → 服务端返回协议版本和服务信息
 2. Agent 发送 `tools/list` → 服务端返回 5 个工具及其参数 schema
 3. 用户提出请求 → Agent 选择合适的工具 + 填写参数
 4. Agent 发送 `tools/call` → 服务端执行并返回结果
 5. Agent 将结果以自然语言呈现给用户
+
+> 完整的 Mermaid 架构图见下方 [架构](#架构) 章节。
 
 ### stdio 模式（本地 Agent）
 
@@ -401,24 +391,72 @@ python mcp/test_agent.py     # 11/11 场景
 | PDF 转换失败 (CONVERSION_FAILED) | 缺少 PDF 引擎 | 安装 office2pdf（~2MB）或 LibreOffice |
 | DOCUMENT_NOT_FOUND | 文件路径错误 | 使用绝对路径或相对于 `cwd` 的路径 |
 
-## 架构
+### 架构
 
-```
-MCP Client (Claude Code / Cursor / Agent)
-    ↕ stdio JSON-RPC 2.0
-mcp/server.py          ← 协议分发
-    ↕
-mcp/tools/
-    ├── create.py      ← WordEngine / ExcelEngine / PptEngine
-    ├── edit.py        ← replace_text / set_style / clear_content
-    ├── template.py    ← TemplateEngine
-    └── convert.py     ← pdf.py / export 方法
-    ↕
-src/core/              ← 文档引擎（python-docx / openpyxl / python-pptx）
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent<br/>(Claude/Cursor/Dify)
+    participant MCP as MCP Server<br/>(mcp/server.py)
+    participant Tools as 工具层<br/>(mcp/tools/)
+    participant Engine as 文档引擎<br/>(src/core/)
+
+    Agent->>MCP: initialize
+    MCP-->>Agent: 协议版本、服务信息、能力声明
+
+    Agent->>MCP: tools/list
+    MCP-->>Agent: 5 个工具及参数 schema
+
+    Note over Agent: 用户说"把 CSV 转成 PDF"
+
+    Agent->>MCP: tools/call {name: "convert_document", args: {...}}
+    MCP->>Tools: dispatch(convert, args)
+    Tools->>Engine: open_document() → to_pdf()
+    Engine-->>Tools: 结果
+    Tools-->>MCP: success_response
+    MCP-->>Agent: {content: [{type: "text", text: "..."}]}
 ```
 
-- **零外部 MCP 依赖** — 纯 stdio JSON-RPC 2.0 实现
-- **传输层**：stdio + SSE（HTTP）
+```mermaid
+graph LR
+    subgraph "传输层"
+        A[stdio] 
+        B[SSE / HTTP]
+    end
+
+    subgraph "mcp/server.py"
+        C[JSON-RPC 2.0 协议分发]
+    end
+
+    subgraph "mcp/tools/ 工具层"
+        D1[create<br/>创建]
+        D2[edit<br/>编辑]
+        D3[template<br/>模板]
+        D4[convert<br/>转换]
+        D5[extract<br/>提取]
+    end
+
+    subgraph "src/core/ 引擎层"
+        E1[WordEngine]
+        E2[ExcelEngine]
+        E3[PptEngine]
+    end
+
+    A --> C
+    B --> C
+    C --> D1
+    C --> D2
+    C --> D3
+    C --> D4
+    C --> D5
+    D1 & D2 & D3 & D4 & D5 --> E1
+    D2 & D3 & D4 & D5 --> E2
+    D2 & D3 & D4 & D5 --> E3
+```
+
+**设计要点：**
+- **零外部 MCP 依赖** — 纯 `asyncio` JSON-RPC 2.0 自研实现
+- **无状态工具** — 每次 `tools/call` 独立，天然支持水平扩展
+- **传输无关** — 同一 `_handle_request()` 同时服务 stdio 和 SSE
 - **协议**：MCP 2024-11-05
 
 ## 许可

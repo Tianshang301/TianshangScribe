@@ -2,11 +2,18 @@
 
 > [中文版](./readme/README.zh-CN.md)
 
+[![PyPI](https://img.shields.io/badge/pypi-tianshang--scribe-blue)](https://pypi.org/project/tianshang-scribe/)
+[![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+
 Cross-platform CLI Office document processing tool. Create, edit, template-fill, and convert Word, Excel, and PowerPoint documents — with a built-in LaTeX style markup engine and native math formula renderer.
 
 ## Install
 
 ```bash
+pip install tianshang-scribe
+
+# Or from source:
 git clone https://github.com/Tianshang301/TianshangScribe.git
 cd TianshangScribe
 pip install -e ".[dev]"

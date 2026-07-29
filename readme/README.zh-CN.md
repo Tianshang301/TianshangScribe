@@ -2,11 +2,18 @@
 
 > [English](../README.md)
 
+[![PyPI](https://img.shields.io/badge/pypi-tianshang--scribe-blue)](https://pypi.org/project/tianshang-scribe/)
+[![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+
 跨平台命令行 Office 文档处理工具。支持 Word、Excel、PowerPoint 的创建、编辑、模板填充、格式转换，内置 LaTeX 风格排版标记与数学公式渲染引擎。
 
 ## 安装
 
 ```bash
+pip install tianshang-scribe
+
+# 或从源码安装：
 git clone https://github.com/Tianshang301/TianshangScribe.git
 cd TianshangScribe
 pip install -e ".[dev]"

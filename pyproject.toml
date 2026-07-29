@@ -4,11 +4,36 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tianshang-scribe"
-version = "0.1.0"
-description = "天殇·书契 - Cross-platform CLI Office document processing tool"
+version = "0.1.1"
+description = "Cross-platform CLI Office document processing tool with LaTeX math & MCP Server"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
+authors = [
+    {name = "TianshangScribe Contributors"},
+]
+keywords = [
+    "office", "word", "excel", "powerpoint", "docx", "xlsx", "pptx",
+    "latex", "math", "omml", "mcp", "cli", "document", "report",
+    "template", "pdf", "automation", "agent",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: Markup :: LaTeX",
+    "Topic :: Utilities",
+]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -21,6 +46,12 @@ dependencies = [
     "Pillow>=10.0.0",
     "mammoth>=1.6.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Tianshang301/TianshangScribe"
+Documentation = "https://github.com/Tianshang301/TianshangScribe#readme"
+Repository = "https://github.com/Tianshang301/TianshangScribe.git"
+Issues = "https://github.com/Tianshang301/TianshangScribe/issues"
 
 [project.scripts]
 tianshang-scribe = "src.cli.main:main_cli"

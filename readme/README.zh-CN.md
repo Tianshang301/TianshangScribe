@@ -289,6 +289,28 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | `2` | 参数错误 |
 | `3` | 功能未实现 |
 
+## MCP Server
+
+TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent 可通过 stdio JSON-RPC 创建、编辑、填充模板、格式转换和提取 Office 文档数据。
+
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "command": "python",
+      "args": ["-m", "mcp.server"]
+    }
+  }
+}
+```
+
+5 个 tools：`create_office_document` / `edit_office_document` / `fill_template` / `convert_document` / `extract_document_data`。详细文档：[mcp/README.zh-CN.md](mcp/README.zh-CN.md)。
+
+```bash
+python mcp/test_server.py     # 7/7 基础测试
+python mcp/test_agent.py      # 11 场景 Agent 模拟测试
+```
+
 ## 架构
 
 ```
@@ -308,6 +330,9 @@ src/
 │   └── template.py    # 模板填充引擎
 ├── transform/         # 格式转换
 │   └── pdf.py         # PDF 导出（LibreOffice）
+├── mcp/               # MCP Server
+│   ├── server.py      # stdio JSON-RPC 入口
+│   └── tools/         # 5 个 Agent tools
 └── utils/             # 工具函数
     └── file_utils.py
 ```

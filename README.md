@@ -288,6 +288,28 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | `2` | Argument error |
 | `3` | Not implemented |
 
+## MCP Server
+
+TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents can create, edit, fill templates, convert, and extract data from Office documents via stdio JSON-RPC.
+
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "command": "python",
+      "args": ["-m", "mcp.server"]
+    }
+  }
+}
+```
+
+5 tools available: `create_office_document`, `edit_office_document`, `fill_template`, `convert_document`, `extract_document_data`. Full documentation: [mcp/README.md](mcp/README.md).
+
+```bash
+python mcp/test_server.py     # 7/7 quick tests
+python mcp/test_agent.py      # 11-scenario Agent simulation
+```
+
 ## Architecture
 
 ```
@@ -307,6 +329,9 @@ src/
 │   └── template.py    # Template filling engine
 ├── transform/         # Format conversion
 │   └── pdf.py         # PDF export (LibreOffice)
+├── mcp/               # MCP Server (Model Context Protocol)
+│   ├── server.py      # stdio JSON-RPC entry
+│   └── tools/         # 5 Agent tools
 └── utils/             # Utility functions
     └── file_utils.py
 ```

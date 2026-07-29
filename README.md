@@ -6,7 +6,7 @@
 [![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-Cross-platform CLI Office document processing tool. Create, edit, template-fill, and convert Word, Excel, and PowerPoint documents — with a built-in LaTeX style markup engine and native math formula renderer.
+Cross-platform CLI Office document processing tool. Create, edit, template-fill, and convert Word, Excel, and PowerPoint documents — with a built-in LaTeX style markup engine, native math formula renderer, and MCP Server for AI Agent integration.
 
 ## Install
 
@@ -45,8 +45,14 @@ tianshang-scribe -w --create \
 # Template filling (JSON / CSV / YAML → {{placeholder}})
 tianshang-scribe template.docx -t data.json -o filled.docx
 
-# Convert to PDF
+# Convert to PDF (office2pdf ~2MB, or LibreOffice fallback)
 tianshang-scribe input.docx --topdf -o output.pdf
+
+# MCP Server — stdio mode (Claude Code / Cursor)
+python -m mcp.server
+
+# MCP Server — SSE mode (Dify / Coze / FastGPT)
+python -m mcp.server --transport sse --port 8080
 
 # Excel: import CSV, sort, export JSON
 tianshang-scribe -e --create --from-csv data.csv --sort "A1:A10 asc" --to-json -o out.json
@@ -290,7 +296,9 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 
 ## MCP Server
 
-TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents can create, edit, fill templates, convert, and extract data from Office documents via stdio JSON-RPC.
+TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents can create, edit, fill templates, convert, and extract data from Office documents.
+
+### stdio Mode (Claude Code, Cursor)
 
 ```json
 {
@@ -303,10 +311,30 @@ TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents ca
 }
 ```
 
-5 tools available: `create_office_document`, `edit_office_document`, `fill_template`, `convert_document`, `extract_document_data`. Full documentation: [mcp/README.md](mcp/README.md).
+### SSE Mode (Dify, Coze, FastGPT)
 
 ```bash
-python mcp/test_server.py     # 7/7 quick tests
+python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+```
+
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "url": "http://localhost:8080/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+**Endpoints**: `GET /sse` (SSE event stream) · `POST /message?session_id=X` (JSON-RPC request)
+
+5 tools available: `create_office_document`, `edit_office_document`, `fill_template`, `convert_document`, `extract_document_data`. SSE transport uses pure `asyncio` stdlib — zero external HTTP dependencies. Full documentation: [mcp/README.md](mcp/README.md).
+
+```bash
+python mcp/test_server.py     # 7/7 quick tests (stdio)
+python mcp/test_sse.py        # 3/3 SSE transport tests
 python mcp/test_agent.py      # 11-scenario Agent simulation
 ```
 
@@ -328,9 +356,10 @@ src/
 │   ├── math_omml.py   # LaTeX → OMML math converter
 │   └── template.py    # Template filling engine
 ├── transform/         # Format conversion
-│   └── pdf.py         # PDF export (LibreOffice)
+│   └── pdf.py         # PDF export (office2pdf + LibreOffice)
 ├── mcp/               # MCP Server (Model Context Protocol)
-│   ├── server.py      # stdio JSON-RPC entry
+│   ├── server.py      # stdio + SSE JSON-RPC entry
+│   ├── transport_sse.py # Async HTTP+SSE transport
 │   └── tools/         # 5 Agent tools
 └── utils/             # Utility functions
     └── file_utils.py
@@ -346,7 +375,7 @@ src/
 | PPT | python-pptx |
 | Math | Custom recursive descent parser → OMML XML |
 | Templates | Jinja2 + docxtpl |
-| PDF | LibreOffice headless |
+| PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
 | Quality | pytest (160 tests) · ruff · mypy |
 
 ## Build EXE

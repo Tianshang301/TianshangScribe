@@ -6,7 +6,7 @@
 [![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-跨平台命令行 Office 文档处理工具。支持 Word、Excel、PowerPoint 的创建、编辑、模板填充、格式转换，内置 LaTeX 风格排版标记与数学公式渲染引擎。
+跨平台命令行 Office 文档处理工具。支持 Word、Excel、PowerPoint 的创建、编辑、模板填充、格式转换，内置 LaTeX 风格排版标记、数学公式渲染引擎与 MCP Server（AI Agent 集成）。
 
 ## 安装
 
@@ -45,8 +45,14 @@ tianshang-scribe -w --create \
 # 模板填充（JSON / CSV / YAML → {{placeholder}}）
 tianshang-scribe template.docx -t data.json -o filled.docx
 
-# 转换为 PDF
+# 转换为 PDF（office2pdf ~2MB，或 LibreOffice 回退）
 tianshang-scribe input.docx --topdf -o output.pdf
+
+# MCP Server — stdio 模式（Claude Code / Cursor）
+python -m mcp.server
+
+# MCP Server — SSE 模式（Dify / Coze / FastGPT）
+python -m mcp.server --transport sse --port 8080
 
 # Excel：导入 CSV、排序、导出 JSON
 tianshang-scribe -e --create --from-csv data.csv --sort "A1:A10 asc" --to-json -o out.json
@@ -291,7 +297,9 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## MCP Server
 
-TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent 可通过 stdio JSON-RPC 创建、编辑、填充模板、格式转换和提取 Office 文档数据。
+TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent 可创建、编辑、填充模板、格式转换和提取 Office 文档数据。
+
+### stdio 模式（Claude Code、Cursor）
 
 ```json
 {
@@ -304,10 +312,30 @@ TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent �
 }
 ```
 
-5 个 tools：`create_office_document` / `edit_office_document` / `fill_template` / `convert_document` / `extract_document_data`。详细文档：[mcp/README.zh-CN.md](mcp/README.zh-CN.md)。
+### SSE 模式（Dify、Coze、FastGPT）
 
 ```bash
-python mcp/test_server.py     # 7/7 基础测试
+python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+```
+
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "url": "http://localhost:8080/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+**端点**：`GET /sse`（SSE 事件流） · `POST /message?session_id=X`（JSON-RPC 请求）
+
+5 个 tools：`create_office_document` / `edit_office_document` / `fill_template` / `convert_document` / `extract_document_data`。SSE 传输层使用纯 `asyncio` 标准库，零外部 HTTP 依赖。详细文档：[mcp/README.zh-CN.md](mcp/README.zh-CN.md)。
+
+```bash
+python mcp/test_server.py     # 7/7 基础测试（stdio）
+python mcp/test_sse.py        # 3/3 SSE 传输测试
 python mcp/test_agent.py      # 11 场景 Agent 模拟测试
 ```
 
@@ -329,9 +357,10 @@ src/
 │   ├── math_omml.py   # LaTeX → OMML 数学公式转换
 │   └── template.py    # 模板填充引擎
 ├── transform/         # 格式转换
-│   └── pdf.py         # PDF 导出（LibreOffice）
+│   └── pdf.py         # PDF 导出（office2pdf + LibreOffice）
 ├── mcp/               # MCP Server
-│   ├── server.py      # stdio JSON-RPC 入口
+│   ├── server.py      # stdio + SSE JSON-RPC 入口
+│   ├── transport_sse.py # 异步 HTTP+SSE 传输层
 │   └── tools/         # 5 个 Agent tools
 └── utils/             # 工具函数
     └── file_utils.py
@@ -347,7 +376,7 @@ src/
 | PPT | python-pptx |
 | 数学公式 | 自研递归下降解析器 → OMML XML |
 | 模板 | Jinja2 + docxtpl |
-| PDF | LibreOffice headless |
+| PDF | office2pdf（~2MB Rust 二进制，零依赖）+ LibreOffice 回退 |
 | 质量 | pytest（160 用例）· ruff · mypy |
 
 ## 构建 EXE

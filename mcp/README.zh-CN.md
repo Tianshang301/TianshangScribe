@@ -251,6 +251,156 @@ SSE 模式端点:
 - `GET  /sse`           — SSE 事件流
 - `POST /message?session_id=X` — JSON-RPC 请求
 
+## Agent 接入指南
+
+AI Agent 如何在实际使用中发现和调用 TianshangScribe 工具。
+
+### 架构原理
+
+```
+Agent (Claude / Cursor / Dify)          TianshangScribe MCP Server
+┌─────────────────────────┐  stdio/SSE   ┌──────────────────────┐
+│ 用户："把这份CSV转成PDF"  │ ──────────→ │ mcp/server.py        │
+│       ↓                 │              │   ↓ 分发             │
+│ Agent 选择合适的工具，    │ ←────────── │   → excel_engine     │
+│ 填写参数，返回结果给用户  │  JSON-RPC 2.0│   → pdf.py           │
+└─────────────────────────┘              └──────────────────────┘
+```
+
+**协议交互过程：**
+1. Agent 发送 `initialize` → 服务端返回协议版本和服务信息
+2. Agent 发送 `tools/list` → 服务端返回 5 个工具及其参数 schema
+3. 用户提出请求 → Agent 选择合适的工具 + 填写参数
+4. Agent 发送 `tools/call` → 服务端执行并返回结果
+5. Agent 将结果以自然语言呈现给用户
+
+### stdio 模式（本地 Agent）
+
+#### Claude Code
+
+**配置文件**：`%USERPROFILE%\.claude.json`（全局）或 `.claude/mcp.json`（项目级）
+
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "command": "python",
+      "args": ["-m", "mcp.server"],
+      "cwd": "F:\\Projects\\Project20"
+    }
+  }
+}
+```
+
+> `cwd` **必须**指向项目根目录，确保 Python 能找到 `src/` 和 `mcp/` 模块。Linux/macOS 使用正斜杠：`"/home/user/TianshangScribe"`。
+
+**验证**：重启 Claude Code。在对话框中输入：
+
+> "你现在有哪些工具可用？"
+
+Claude 应列出 5 个工具，包括 `create_office_document`。
+
+**试用**：
+
+> "用 create_office_document 创建一个 docx，包含一个标题 Hello 和一个段落 World"
+
+#### Cursor
+
+**配置文件**：`.cursor/mcp.json`（项目根目录）
+
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "command": "python",
+      "args": ["-m", "mcp.server"],
+      "cwd": "/绝对路径/TianshangScribe"
+    }
+  }
+}
+```
+
+**验证**：`Ctrl+Shift+P` → "MCP: List Tools" → 应显示 5 个工具。
+
+#### VS Code（安装 MCP 扩展后）
+
+**配置文件**：`.vscode/mcp.json`
+
+格式同上。需先安装 MCP 兼容扩展。
+
+### SSE 模式（云端 Agent 平台）
+
+#### 启动服务端
+
+```bash
+cd TianshangScribe
+python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+```
+
+- 公网访问用 `--host 0.0.0.0`，本地测试用 `--host 127.0.0.1`
+- 端口可自定义：`--port 8080`
+
+#### 验证 SSE 端点
+
+```bash
+# 终端 1：启动服务
+python -m mcp.server --transport sse --port 8080
+
+# 终端 2：测试 SSE 连接
+curl -N "http://localhost:8080/sse"
+# 预期输出：
+#   event: endpoint
+#   data: http://localhost:8080/message?session_id=abc123...
+
+# 测试 JSON-RPC 请求
+curl -X POST "http://localhost:8080/message?session_id=abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+# 预期：返回 5 个工具的 JSON
+```
+
+#### Dify 接入
+
+1. 进入 **工具 → MCP 工具 → 添加**
+2. 选择 **SSE** 传输方式
+3. 输入 URL：`http://your-server:8080/sse`
+4. 点击 **测试连接** → 应发现 5 个工具
+5. 在 Workflow 中将 `create_office_document` 拖入节点即可使用
+
+#### Coze / FastGPT
+
+在插件/工具市场中添加 **MCP Server**：
+- **URL**：`http://your-server:8080/sse`
+- **Transport**：SSE
+
+平台会通过 SSE 握手自动发现 5 个工具。
+
+### 验证方法
+
+```bash
+# stdio 协议握手（模拟 Agent 的完整调用链）
+python mcp/test_server.py    # 7/7：initialize → list → call → 返回结果
+
+# SSE 传输层测试
+python mcp/test_sse.py       # 3/3：生命周期、非法 session、CORS
+
+# Agent 全场景模拟 — 11 个端到端场景：
+#   创建文档 → 编辑内容 → 模板填充 → 格式转换 → 数据提取
+python mcp/test_agent.py     # 11/11 场景
+```
+
+### 常见问题
+
+| 问题 | 原因 | 解决方法 |
+|------|------|----------|
+| Claude Code 提示"未找到 MCP server" | `cwd` 路径错误或 Python 环境问题 | 确认在项目根目录执行 `python -m mcp.server` 能单独启动 |
+| `ImportError: No module named 'src'` | 当前目录不是项目根目录 | 配置 `cwd` 为 TianshangScribe 目录，或执行 `pip install -e .` |
+| Dify 发现不了工具 | 服务端不可达 | 先用 `curl http://.../sse` 测试；检查防火墙/端口 |
+| SSE 连接被拒绝 | 错误的 host 或端口 | 远程访问用 `--host 0.0.0.0` |
+| 浏览器 CORS 报错 | 缺少 CORS 头 | SSE 传输层内置 CORS 支持，确认使用 v0.2.0+ |
+| PDF 转换失败 (CONVERSION_FAILED) | 缺少 PDF 引擎 | 安装 office2pdf（~2MB）或 LibreOffice |
+| DOCUMENT_NOT_FOUND | 文件路径错误 | 使用绝对路径或相对于 `cwd` 的路径 |
+
 ## 架构
 
 ```
@@ -268,7 +418,7 @@ src/core/              ← 文档引擎（python-docx / openpyxl / python-pptx�
 ```
 
 - **零外部 MCP 依赖** — 纯 stdio JSON-RPC 2.0 实现
-- **传输层**：stdio（Phase 1），SSE 计划中（Phase 2）
+- **传输层**：stdio + SSE（HTTP）
 - **协议**：MCP 2024-11-05
 
 ## 许可

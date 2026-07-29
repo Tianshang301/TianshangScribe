@@ -263,14 +263,14 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## PPT 功能
 
-| 参数 | 说明 |
+| 功能 | 说明 |
 |------|------|
-| `--slide-add` | 添加幻灯片 |
-| `--slide-delete` | 删除幻灯片 |
-| `--slide-move` | 移动幻灯片 |
-| `--layout` | 应用版式 |
-| `--notes` | 演讲者备注 |
-| `--toimg` | 导出为图片序列 |
+| 幻灯片管理 | 增删移（`--slide-add`、`--slide-delete`、`--slide-move`） |
+| 版式 | 按名称或索引应用版式（`--layout`） |
+| 演讲者备注 | 添加备注（`--notes`） |
+| 切换效果 | 设置切换动画 — fade、push、wipe 等（`--transition`） |
+| 导出 | 导出图片序列（`--toimg`）、转 PDF（`--topdf`） |
+| 保护 | 设置/解除密码（`--protect`、`--unprotect`） |
 
 ## 退出码
 

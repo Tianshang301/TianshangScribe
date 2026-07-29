@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from lxml import etree
 from pptx import Presentation
 from pptx.util import Pt
 
@@ -58,6 +59,8 @@ class PptEngine(DocumentABC):
         text_style: TextStyle | None = None,
         **kwargs: Any,
     ) -> Any:
+        import re
+
         inline = TextStyle(
             bold=bold or None,
             italic=italic or None,
@@ -75,8 +78,41 @@ class PptEngine(DocumentABC):
         slide = self.prs.slides.add_slide(slide_layout)
         shapes = slide.shapes
         title_shape = shapes.title
-        if title_shape:
-            tf = title_shape.text_frame
+
+        if not title_shape:
+            return slide
+
+        tf = title_shape.text_frame
+        has_math = '$$' in text or ('$' in text and re.search(r'\$[^$]+\$', text))
+
+        if has_math:
+            parts = re.split(r'(\$\$|\$)'.format(), text)
+            p = tf.paragraphs[0]
+            in_math = False
+            math_display = False
+            buffer = ''
+            for part in parts:
+                if part == '$$':
+                    if in_math and math_display and buffer:
+                        self._add_omath_to_paragraph(p, buffer)
+                        buffer = ''
+                    math_display = not math_display
+                    in_math = math_display
+                elif part == '$':
+                    if in_math and not math_display and buffer:
+                        self._add_omath_to_paragraph(p, buffer)
+                        buffer = ''
+                    math_display = False
+                    in_math = not in_math
+                elif in_math:
+                    buffer += part
+                else:
+                    run = p.add_run()
+                    run.text = part
+                    self._apply_run_style(run, final)
+            if buffer and in_math:
+                self._add_omath_to_paragraph(p, buffer)
+        else:
             tf.text = text
             for paragraph in tf.paragraphs:
                 for run in paragraph.runs:
@@ -131,6 +167,10 @@ class PptEngine(DocumentABC):
                     h_content = token.get('content', '')
                     self._append_text_to_slide(slide, h_content, current_style, heading=True)
                     continue
+                if cmd == 'math':
+                    latex = token.get('latex', '')
+                    self._add_omath_to_slide(slide, latex, current_style)
+                    continue
                 token_style = TextStyle.from_latex_token(token)
                 merged = current_style.merge(token_style)
                 inner = token.get('content', '')
@@ -138,6 +178,29 @@ class PptEngine(DocumentABC):
                     self._append_text_to_slide(slide, inner, merged)
 
         return slide
+
+    def _add_omath_to_slide(
+        self, slide: Any, latex: str, style: TextStyle
+    ) -> None:
+        from pptx.util import Inches
+
+        from src.rendering.math_omml import latex_to_omml
+
+        textbox = slide.shapes.add_textbox(
+            Inches(1), Inches(1), Inches(8), Inches(1)
+        )
+        tf = textbox.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        omml = latex_to_omml(latex)
+        if omml is not None:
+            p._p.append(omml)
+
+    def _add_omath_to_paragraph(self, paragraph: Any, latex: str) -> None:
+        from src.rendering.math_omml import latex_to_omml
+        omml = latex_to_omml(latex)
+        if omml is not None:
+            paragraph._p.append(omml)
 
     def _append_text_to_slide(
         self, slide: Any, text: str, style: TextStyle, heading: bool = False
@@ -217,7 +280,18 @@ class PptEngine(DocumentABC):
                     f'Available: {[lo.name for lo in self.prs.slide_layouts]}'
                 )
         if slide_index < len(self.prs.slides):
-            self.prs.slides[slide_index].slide_layout = slide_layout
+            slide = self.prs.slides[slide_index]
+            ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+            r_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+            layout_part = slide_layout.part
+            r_id = slide.part.relate_to(layout_part, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout')
+            csld = slide.element.find(f'{{{ns}}}cSld')
+            if csld is not None:
+                layout_node = csld.find(f'{{{ns}}}sldLayout')
+                if layout_node is not None:
+                    csld.remove(layout_node)
+                layout_node = etree.SubElement(csld, f'{{{ns}}}sldLayout')
+                layout_node.set(f'{{{r_ns}}}id', r_id)
 
     def delete_slide(self, index: int) -> None:
         r_id = self.prs.slides._sldIdLst[index].attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']
@@ -258,8 +332,15 @@ class PptEngine(DocumentABC):
             elif key_lower == 'comments':
                 props.comments = value
 
-    def add_comment(self, text: str, range_start: int = 0, range_end: int = 0) -> None:
-        pass
+    def add_comment(self, text: str, slide_index: int = 0) -> None:
+        if slide_index >= len(self.prs.slides):
+            raise ValueError(f'Slide index {slide_index} out of range.')
+        slide = self.prs.slides[slide_index]
+        notes_slide = slide.notes_slide
+        tf = notes_slide.notes_text_frame
+        if tf.text:
+            tf.text += '\n---\n'
+        tf.text += text
 
     def add_notes(self, slide_index: int, text: str) -> None:
         if slide_index >= len(self.prs.slides):
@@ -302,8 +383,46 @@ class PptEngine(DocumentABC):
 
         return sorted(output_dir.glob('*.png'))
 
+    def set_transition(self, transition_type: str, slide_index: int | None = None) -> None:
+        ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        valid_transitions = {
+            'fade', 'push', 'wipe', 'cover', 'uncover', 'dissolve',
+            'random', 'split', 'strips', 'blinds', 'checker', 'comb',
+            'zoom', 'glitter', 'vortex', 'ripple', 'honeycomb',
+        }
+        ttype = transition_type.lower()
+        if ttype not in valid_transitions:
+            raise ValueError(
+                f'Unsupported transition: {transition_type}. '
+                f'Use one of: {", ".join(sorted(valid_transitions))}'
+            )
+        slides = [self.prs.slides[slide_index]] if slide_index is not None \
+            else list(self.prs.slides)
+        for slide in slides:
+            existing = slide.element.findall(f'{{{ns}}}transition')
+            for el in existing:
+                slide.element.remove(el)
+            trans_el = etree.SubElement(slide.element, f'{{{ns}}}transition')
+            etree.SubElement(trans_el, f'{{{ns}}}{ttype}')
+
     def set_protection(self, password: str) -> None:
-        pass
+        ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        pres_elem = self.prs.part._element
+        existing = pres_elem.findall(f'{{{ns}}}modifyVerifier')
+        for el in existing:
+            pres_elem.remove(el)
+        verifier = etree.SubElement(pres_elem, f'{{{ns}}}modifyVerifier')
+        verifier.set('cryptProviderType', 'rsaAES')
+        verifier.set('cryptAlgorithmClass', 'hash')
+        verifier.set('cryptAlgorithmType', 'typeAny')
+        verifier.set('cryptAlgorithmSid', '14')
+        verifier.set('cryptSpinCount', '100000')
+        verifier.set('hashData', password)
+        verifier.set('saltData', password)
 
     def unprotect(self) -> None:
-        pass
+        ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        pres_elem = self.prs.part._element
+        existing = pres_elem.findall(f'{{{ns}}}modifyVerifier')
+        for el in existing:
+            pres_elem.remove(el)

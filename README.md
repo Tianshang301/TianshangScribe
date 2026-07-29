@@ -264,10 +264,12 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 
 | Feature | Description |
 |---------|-------------|
-| Slide management | Add, delete, reorder slides |
-| Layouts | Apply slide layouts |
-| Speaker notes | Add presenter notes |
-| Export | Save as images (`--toimg`) |
+| Slide management | Add, delete, reorder slides (`--slide-add`, `--slide-delete`, `--slide-move`) |
+| Layouts | Apply slide layouts by name or index (`--layout`) |
+| Speaker notes | Add presenter notes (`--notes`) |
+| Transitions | Set slide transitions — fade, push, wipe, etc. (`--transition`) |
+| Export | Save slides as images (`--toimg`), convert to PDF (`--topdf`) |
+| Protection | Set/remove password protection (`--protect`, `--unprotect`) |
 
 ## Exit Codes
 

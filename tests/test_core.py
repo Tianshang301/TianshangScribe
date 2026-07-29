@@ -453,3 +453,30 @@ class TestPptEngine:
         engine.add_notes(0, 'Speaker note')
         notes = engine.prs.slides[0].notes_slide
         assert notes.notes_text_frame.text == 'Speaker note'
+
+    def test_set_transition(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        engine.set_transition('fade')
+        slide = engine.prs.slides[0]
+        ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        trans = slide.element.find(f'{{{ns}}}transition')
+        assert trans is not None
+        assert trans.find(f'{{{ns}}}fade') is not None
+
+    def test_set_transition_invalid_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(ValueError, match='Unsupported transition'):
+            engine.set_transition('nonexistent')
+
+    def test_set_protection(self, engine: PptEngine) -> None:
+        engine.set_protection('secret')
+        ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        pres = engine.prs.part._element
+        assert pres.find(f'{{{ns}}}modifyVerifier') is not None
+
+    def test_unprotect(self, engine: PptEngine) -> None:
+        engine.set_protection('secret')
+        engine.unprotect()
+        ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
+        pres = engine.prs.part._element
+        assert pres.find(f'{{{ns}}}modifyVerifier') is None

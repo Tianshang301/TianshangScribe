@@ -31,6 +31,11 @@ Thumbs.db
 test_input.txt
 test_output*.docx
 
+# Demo outputs
+demo/demo_*.docx
+demo/demo_*.xlsx
+demo/demo_*.pptx
+
 # Environment
 .env
 .env.local

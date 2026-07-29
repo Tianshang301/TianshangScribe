@@ -220,6 +220,13 @@ def main(
         bool,
         typer.Option('--toimg', help='Export PPT slides as images'),
     ] = False,
+    transition: Annotated[
+        Optional[str],
+        typer.Option(
+            '--transition',
+            help='Set slide transition (name or "slide_index name")',
+        ),
+    ] = None,
     toc: Annotated[
         bool,
         typer.Option('--toc', help='Generate Table of Contents (Word)'),
@@ -391,6 +398,14 @@ def main(
                 console.print(
                     f'[green]Layout "{parts[1]}" applied to slide {parts[0]}.[/green]'
                 )
+
+        if transition and hasattr(engine, 'set_transition'):
+            parts = transition.split()
+            if len(parts) == 2 and parts[0].isdigit():
+                engine.set_transition(parts[1], slide_index=int(parts[0]))
+            else:
+                engine.set_transition(transition)
+            console.print(f'[green]Transition "{transition}" applied.[/green]')
 
         if toc and hasattr(engine, 'add_toc'):
             engine.add_toc()

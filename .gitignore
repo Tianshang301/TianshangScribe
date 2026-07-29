@@ -2,6 +2,8 @@
 *.md
 !README.md
 !readme/README.zh-CN.md
+!mcp/README.md
+!mcp/README.zh-CN.md
 
 # Python
 __pycache__/

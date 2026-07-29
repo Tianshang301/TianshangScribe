@@ -55,6 +55,8 @@ class TextStyle:
             style.underline = value.lower() in ('true', '1', 'yes')
         elif key in ('color', 'font_color', 'font-color'):
             style.color = value.strip('#')
+        elif key in ('cjk-font', 'cjk_font_name', 'cjk-font-family'):
+            style.cjk_font_name = value
         elif key in ('align', 'alignment'):
             style.alignment = value.lower()
 
@@ -131,7 +133,7 @@ class TextStyle:
 
     @classmethod
     def default_word(cls) -> 'TextStyle':
-        return cls(font_name='Times New Roman', font_size=12)
+        return cls(font_name='Times New Roman', cjk_font_name='SimSun', font_size=12)
 
     @classmethod
     def default_excel(cls) -> 'TextStyle':
@@ -146,7 +148,7 @@ class TextStyle:
         if self.font_name:
             parts.append(f'font={self.font_name}')
         if self.cjk_font_name:
-            parts.append(f'cjkfont={self.cjk_font_name}')
+            parts.append(f'cjk-font={self.cjk_font_name}')
         if self.font_size:
             parts.append(f'size={self.font_size}')
         if self.bold:

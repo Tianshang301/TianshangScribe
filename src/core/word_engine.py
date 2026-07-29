@@ -184,8 +184,13 @@ class WordEngine(DocumentABC):
                         para_format.first_line_indent = Cm(0)
                     inner = token.get('content', '')
                     if inner:
-                        run = paragraph.add_run(inner)
-                        self._apply_run_style(run, current_style)
+                        if '\\' in inner:
+                            from src.rendering.latex_parser import parse_structured
+                            inner_tokens = parse_structured(inner)
+                            self._render_tokens_inline(paragraph, inner_tokens, current_style)
+                        elif inner.strip():
+                            run = paragraph.add_run(inner)
+                            self._apply_run_style(run, current_style)
                     paragraph = self.doc.add_paragraph()
                     continue
 

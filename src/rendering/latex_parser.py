@@ -141,17 +141,21 @@ def _merge_adjacent_math(text: str) -> str:
     return result
 
 
+_BRACED_CONTENT = r'\{((?:[^{}]|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*)\}'
+
 _SIMPLE_CMDS = (
-    r'\\(bfseries|itshape|scshape|rmfamily|sffamily|ttfamily|underline|noindent)'
-    r'\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
+    r'\\(bfseries|itshape|scshape|rmfamily|sffamily|ttfamily|underline|noindent'
+    r'|centering|raggedright|raggedleft|indent)'
+    + _BRACED_CONTENT
 )
 
 _PARAM_CMDS = (
-    r'\\(fontfamily|fontsize|color|linespread|centering|raggedright|raggedleft|indent)'
-    r'\{([^}]+)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
+    r'\\(fontfamily|fontsize|color|linespread)'
+    r'\{([^{}]+)\}'
+    + _BRACED_CONTENT
 )
 
-_HEADING_CMD = r'\\(heading)\{(\d+)\}\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
+_HEADING_CMD = r'\\(heading)\{(\d+)\}' + _BRACED_CONTENT
 
 _NEWPAGE_CMD = r'\\(newpage)'
 

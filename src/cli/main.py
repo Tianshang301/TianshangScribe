@@ -138,6 +138,61 @@ def main(
         Optional[str],
         typer.Option('--meta', help='Set metadata (format: key=value,key=value...)'),
     ] = None,
+    sheet_add: Annotated[
+        Optional[str],
+        typer.Option('--sheet-add', help='Add worksheet by name'),
+    ] = None,
+    sheet_delete: Annotated[
+        Optional[str],
+        typer.Option('--sheet-delete', help='Delete worksheet by name'),
+    ] = None,
+    sheet_rename: Annotated[
+        Optional[str],
+        typer.Option('--sheet-rename', help='Rename worksheet (format: "OldName NewName")'),
+    ] = None,
+    column_width: Annotated[
+        Optional[str],
+        typer.Option('--column-width', help='Set column width (format: "col=width")'),
+    ] = None,
+    row_height: Annotated[
+        Optional[str],
+        typer.Option('--row-height', help='Set row height (format: "row=height")'),
+    ] = None,
+    formula: Annotated[
+        Optional[str],
+        typer.Option('--formula', help='Set formula (format: "A1 =SUM(B1:B10)")'),
+    ] = None,
+    from_csv: Annotated[
+        Optional[str],
+        typer.Option('--from-csv', help='Import data from CSV file'),
+    ] = None,
+    sort_range: Annotated[
+        Optional[str],
+        typer.Option('--sort', help='Sort range (format: "A1:A10 asc")'),
+    ] = None,
+    chart_add: Annotated[
+        Optional[str],
+        typer.Option(
+            '--chart-add',
+            help='Add chart (format: "type=bar data=B1:C10 pos=E2")',
+        ),
+    ] = None,
+    protect: Annotated[
+        Optional[str],
+        typer.Option('--protect', help='Set workbook password protection'),
+    ] = None,
+    unprotect: Annotated[
+        bool,
+        typer.Option('--unprotect', help='Remove workbook password protection'),
+    ] = False,
+    clear: Annotated[
+        bool,
+        typer.Option('--clear', help='Clear all cell content'),
+    ] = False,
+    column: Annotated[
+        int,
+        typer.Option('--column', help='Target column for --add (1-indexed, default 1)'),
+    ] = 1,
 ) -> None:
     if not create and not input_file and not stdin:
         console.print(app.get_help())
@@ -181,9 +236,9 @@ def main(
 
         if add_text:
             if latex_style:
-                _add_latex_content(engine, add_text)
+                _add_latex_content(engine, add_text, column)
             else:
-                engine.add_text(add_text)
+                engine.add_text(add_text, column=column)
 
         if math_formula:
             _add_math_formula(engine, math_formula)
@@ -212,9 +267,49 @@ def main(
         if meta:
             _apply_meta(engine, meta)
 
+        if sheet_add and hasattr(engine, 'add_sheet'):
+            engine.add_sheet(sheet_add)
+        if sheet_delete and hasattr(engine, 'delete_sheet'):
+            engine.delete_sheet(sheet_delete)
+        if sheet_rename and hasattr(engine, 'rename_sheet'):
+            parts = sheet_rename.split(None, 1)
+            if len(parts) == 2:
+                engine.rename_sheet(parts[0], parts[1])
+        if column_width and hasattr(engine, 'set_column_width'):
+            col, w = column_width.split('=', 1)
+            engine.set_column_width(int(col), float(w))
+        if row_height and hasattr(engine, 'set_row_height'):
+            row, h = row_height.split('=', 1)
+            engine.set_row_height(int(row), float(h))
+        if formula and hasattr(engine, 'set_formula'):
+            ref, expr = formula.split(' ', 1)
+            engine.set_formula(ref, expr.strip('"').strip("'"))
+        if from_csv and hasattr(engine, 'import_csv'):
+            engine.import_csv(from_csv)
+        if sort_range and hasattr(engine, 'sort'):
+            parts = sort_range.rsplit(' ', 1)
+            engine.sort(parts[0], parts[1] if len(parts) == 2 else 'asc')
+        if chart_add and hasattr(engine, 'add_chart'):
+            engine.add_chart(**_parse_chart_opts(chart_add))
+        if protect and hasattr(engine, 'set_protection'):
+            engine.set_protection(protect)
+        if unprotect and hasattr(engine, 'unprotect'):
+            engine.unprotect()
+        if clear and hasattr(engine, 'clear_content'):
+            engine.clear_content()
+
         if topdf:
             engine.to_pdf(output_path)
             console.print(f'[green]PDF saved:[/green] {output_path}')
+        elif to_csv and hasattr(engine, 'export_csv'):
+            engine.export_csv(output_path)
+            console.print(f'[green]CSV saved:[/green] {output_path}')
+        elif to_json and hasattr(engine, 'export_json'):
+            engine.export_json(output_path)
+            console.print(f'[green]JSON saved:[/green] {output_path}')
+        elif to_html and hasattr(engine, 'export_html'):
+            engine.export_html(output_path)
+            console.print(f'[green]HTML saved:[/green] {output_path}')
         else:
             engine.save(output_path)
             console.print(f'[green]Saved:[/green] {output_path}')
@@ -233,7 +328,7 @@ def main(
         raise typer.Exit(code=1)
 
 
-def _add_latex_content(engine, text: str) -> None:
+def _add_latex_content(engine, text: str, column: int = 1) -> None:
     if hasattr(engine, 'add_latex_content'):
         engine.add_latex_content(text)
         console.print('[green]LaTeX content added with style parsing.[/green]')
@@ -242,7 +337,7 @@ def _add_latex_content(engine, text: str) -> None:
             '[yellow]Warning:[/yellow] '
             'LaTeX style parsing not supported for this document type.'
         )
-        engine.add_text(text)
+        engine.add_text(text, column=column)
 
 
 def _add_math_formula(engine, latex: str) -> None:
@@ -282,6 +377,15 @@ def _apply_meta(engine, meta_str: str) -> None:
             key, _, value = pair.partition('=')
             kwargs[key.strip()] = value.strip()
     engine.set_metadata(**kwargs)
+
+
+def _parse_chart_opts(opts_str: str) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for pair in opts_str.replace(' ', ',').split(','):
+        if '=' in pair:
+            k, v = pair.split('=', 1)
+            result[k] = v
+    return result
 
 
 def main_cli() -> None:

@@ -63,6 +63,7 @@ class DocumentABC(ABC):
         color: str | None = None,
         alignment: str | None = None,
         text_style: 'TextStyle | None' = None,
+        **kwargs: Any,
     ) -> Any:
         ...
 

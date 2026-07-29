@@ -57,7 +57,9 @@ class ExcelEngine(DocumentABC):
         color: str | None = None,
         alignment: str | None = None,
         text_style: TextStyle | None = None,
+        **kwargs: Any,
     ) -> Any:
+        column = int(kwargs.get('column', 1))
         inline = TextStyle(
             bold=bold or None,
             italic=italic or None,
@@ -76,26 +78,32 @@ class ExcelEngine(DocumentABC):
             row = 1
         else:
             row = ws.max_row + 1
-        cell = ws.cell(row=row, column=1, value=text)
 
-        font_kwargs: dict[str, Any] = {}
-        if final.font_name:
-            font_kwargs['name'] = final.font_name
-        if final.font_size:
-            font_kwargs['size'] = final.font_size
-        if final.bold is not None:
-            font_kwargs['bold'] = final.bold
-        if final.italic is not None:
-            font_kwargs['italic'] = final.italic
-        if final.color:
-            font_kwargs['color'] = final.color.lstrip('#')
-        cell.font = Font(**font_kwargs)
+        last_cell = None
+        for line in text.split('\n'):
+            cell = ws.cell(row=row, column=column, value=line)
+            font_kwargs: dict[str, Any] = {}
+            if final.font_name:
+                font_kwargs['name'] = final.font_name
+            if final.font_size:
+                font_kwargs['size'] = final.font_size
+            if final.bold is not None:
+                font_kwargs['bold'] = final.bold
+            if final.italic is not None:
+                font_kwargs['italic'] = final.italic
+            if final.color:
+                font_kwargs['color'] = final.color.lstrip('#')
+            cell.font = Font(**font_kwargs)
+            if final.alignment:
+                align_map = {
+                    'left': 'left', 'center': 'center',
+                    'right': 'right', 'justify': 'justify',
+                }
+                cell.alignment = Alignment(horizontal=align_map.get(final.alignment, 'left'))
+            last_cell = cell
+            row += 1
 
-        if final.alignment:
-            align_map = {'left': 'left', 'center': 'center', 'right': 'right', 'justify': 'justify'}
-            cell.alignment = Alignment(horizontal=align_map.get(final.alignment, 'left'))
-
-        return cell
+        return last_cell
 
     def add_styled_content(
         self,
@@ -171,7 +179,8 @@ class ExcelEngine(DocumentABC):
 
     def to_pdf(self, output_path: str | Path) -> None:
         self.save()
-        raise NotImplementedError('Excel to PDF conversion requires LibreOffice or similar tool.')
+        from src.transform.pdf import excel_to_pdf
+        excel_to_pdf(str(self._path), str(output_path))
 
     def add_sheet(self, name: str) -> Any:
         return self.wb.create_sheet(title=name)
@@ -240,11 +249,113 @@ class ExcelEngine(DocumentABC):
             elif key_lower == 'comments':
                 props.description = value
 
-    def add_comment(self, text: str, range_start: int = 0, range_end: int = 0) -> None:
-        pass
+    def add_comment(self, cell_ref: str, text: str) -> None:
+        from openpyxl.comments import Comment
+        ws = self.wb.active
+        ws[cell_ref].comment = Comment(text, 'TianshangScribe')
 
     def set_protection(self, password: str) -> None:
         self.wb.security.workbook_password = password
 
     def unprotect(self) -> None:
         self.wb.security.workbook_password = ''
+
+    def export_json(self, output_path: str | Path) -> None:
+        import json
+        ws = self.wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            with open(output_path, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+            return
+        headers = [str(c) if c is not None else f'col_{i + 1}' for i, c in enumerate(rows[0])]
+        data = [
+            {headers[j]: str(c) if c is not None else '' for j, c in enumerate(r)}
+            for r in rows[1:]
+        ]
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def export_html(self, output_path: str | Path) -> None:
+        ws = self.wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        html_parts = [
+            '<!DOCTYPE html><html><head><meta charset="utf-8"><title>',
+            self.wb.properties.title or 'Excel Export',
+            '</title><style>table{border-collapse:collapse}',
+            'td,th{border:1px solid #ccc;padding:4px 8px}</style>',
+            '</head><body><table>',
+        ]
+        first = True
+        for row in rows:
+            html_parts.append('<tr>')
+            for cell in row:
+                tag = 'th' if first else 'td'
+                html_parts.append(f'<{tag}>{cell or ""}</{tag}>')
+            html_parts.append('</tr>')
+            first = False
+        html_parts.append('</table></body></html>')
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(''.join(html_parts))
+
+    def sort(self, cell_range: str, order: str = 'asc') -> None:
+        import re
+        ws = self.wb.active
+        match = re.match(r'([A-Z]+)(\d+):([A-Z]+)(\d+)', cell_range)
+        if not match:
+            raise ValueError(f'Invalid cell range: {cell_range}')
+        c1, r1_s, c2, r2_s = match.groups()
+        r1 = int(r1_s)
+        r2 = int(r2_s)
+        data = []
+        for row in range(r1, r2 + 1):
+            val = ws[f'{c1}{row}'].value
+            data.append((val, row))
+        data.sort(reverse=(order == 'desc'), key=lambda x: (x[0] is None, x[0] or ''))
+        for i, (val, _orig_row) in enumerate(data, start=r1):
+            ws[f'{c1}{i}'].value = val
+
+    def add_chart(self, chart_type: str, data_range: str, position: str = 'E2') -> None:
+        from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+        ws = self.wb.active
+        chart_classes = {'bar': BarChart, 'line': LineChart, 'pie': PieChart}
+        chart_cls = chart_classes.get(chart_type)
+        if chart_cls is None:
+            raise ValueError(
+                f'Unsupported chart type: {chart_type}. Use bar, line, or pie.'
+            )
+        chart = chart_cls()
+        data = Reference(ws, range_string=data_range)
+        chart.add_data(data, titles_from_data=True)
+        ws.add_chart(chart, position)
+
+    def merge_workbooks(self, paths: list[str]) -> None:
+        for p in paths:
+            src = load_workbook(p)
+            for sheet in src.worksheets:
+                new_sheet = self.wb.create_sheet(title=sheet.title)
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        new_sheet[cell.coordinate] = cell.value
+
+    def split_by_sheet(self, output_dir: str | Path) -> list[Path]:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        results: list[Path] = []
+        for sheet in self.wb.worksheets:
+            new_wb = Workbook()
+            new_ws = new_wb.active
+            new_ws.title = sheet.title
+            for row in sheet.iter_rows():
+                for cell in row:
+                    new_ws[cell.coordinate] = cell.value
+            out_path = output_dir / f'{sheet.title}.xlsx'
+            new_wb.save(str(out_path))
+            results.append(out_path)
+        return results
+
+    def clear_content(self) -> None:
+        for ws in self.wb.worksheets:
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.value = None

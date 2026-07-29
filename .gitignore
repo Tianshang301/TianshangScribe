@@ -1,6 +1,6 @@
 # Markdown files except README
-AGENTS.md
-SKILL.md
+*.md
+!README.md
 
 # Python
 __pycache__/

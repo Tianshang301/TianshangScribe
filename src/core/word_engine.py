@@ -67,6 +67,7 @@ class WordEngine(DocumentABC):
         color: str | None = None,
         alignment: str | None = None,
         text_style: TextStyle | None = None,
+        **kwargs: Any,
     ) -> Any:
         inline = TextStyle(
             bold=bold or None,

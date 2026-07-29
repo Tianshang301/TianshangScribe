@@ -337,14 +337,8 @@ class WordEngine(DocumentABC):
 
     def to_pdf(self, output_path: str | Path) -> None:
         self.save()
-        try:
-            from docx2pdf import convert
-            convert(str(self._path), str(output_path))
-        except ImportError:
-            raise ImportError(
-                'docx2pdf is required for PDF conversion. '
-                'Install with: pip install tianshang-scribe[pdf]'
-            )
+        from src.transform.pdf import word_to_pdf
+        word_to_pdf(str(self._path), str(output_path))
 
     def add_heading(self, text: str, level: int = 1) -> Any:
         return self.doc.add_heading(text, level=level)

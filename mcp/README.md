@@ -221,6 +221,41 @@ All tools support `options`:
 - `backup`: Create `.bak` copy before modifying
 - `deterministic_id`: Trackable operation ID for audit
 
+## Transport Modes
+
+### stdio (default)
+For local Agent tools (Claude Code, Cursor):
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "command": "python",
+      "args": ["-m", "mcp.server"]
+    }
+  }
+}
+```
+
+### SSE (HTTP)
+For cloud Agent platforms (Dify, Coze, FastGPT):
+```bash
+python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+```
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "url": "http://localhost:8080/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+SSE mode endpoints:
+- `GET  /sse`           — SSE event stream
+- `POST /message?session_id=X` — JSON-RPC request
+
 ## Architecture
 
 ```

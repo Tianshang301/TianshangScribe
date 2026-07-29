@@ -33,7 +33,7 @@ ERROR_DESCRIPTIONS = {
     ),
     McpErrorCode.CONVERSION_FAILED: (
         'Document conversion failed.',
-        'Ensure LibreOffice or pandoc is installed for this conversion.',
+        'Install office2pdf (~2MB) or LibreOffice for PDF conversion.',
     ),
     McpErrorCode.INVALID_PARAMETER: (
         'A required parameter is missing or invalid.',

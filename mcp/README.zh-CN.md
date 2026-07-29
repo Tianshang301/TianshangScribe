@@ -216,6 +216,41 @@ Agent：  create_office_document(format="docx", content=[...])
 - `backup`：修改前创建 `.bak` 备份
 - `deterministic_id`：可追踪的操作 ID
 
+## 传输模式
+
+### stdio（默认）
+本地 Agent 工具（Claude Code、Cursor）：
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "command": "python",
+      "args": ["-m", "mcp.server"]
+    }
+  }
+}
+```
+
+### SSE（HTTP）
+云端 Agent 平台（Dify、Coze、FastGPT）：
+```bash
+python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+```
+```json
+{
+  "mcpServers": {
+    "tianshang-scribe": {
+      "url": "http://localhost:8080/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+SSE 模式端点:
+- `GET  /sse`           — SSE 事件流
+- `POST /message?session_id=X` — JSON-RPC 请求
+
 ## 架构
 
 ```

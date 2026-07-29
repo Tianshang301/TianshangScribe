@@ -307,6 +307,35 @@ def _handle_request(request: dict) -> dict | None:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='TianshangScribe MCP Server',
+    )
+    parser.add_argument(
+        '--transport',
+        choices=['stdio', 'sse'],
+        default='stdio',
+        help='Transport protocol (default: stdio)',
+    )
+    parser.add_argument(
+        '--host',
+        default='127.0.0.1',
+        help='SSE server host (default: 127.0.0.1)',
+    )
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8080,
+        help='SSE server port (default: 8080)',
+    )
+    args = parser.parse_args()
+
+    if args.transport == 'sse':
+        from mcp.transport_sse import run_sse
+        run_sse(args.host, args.port)
+        return
+
     import io
 
     sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')

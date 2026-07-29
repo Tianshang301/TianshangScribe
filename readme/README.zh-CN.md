@@ -70,6 +70,7 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 |------|------|------|
 | `-cr` `--create` | 创建空白文档 | `--create -w` |
 | `-a` `--add` | 添加文本 | `-a "Hello"` |
+| `--column` | 指定 `--add` 目标列 | `--column 2` |
 | `-r` `--replace` | 查找替换 | `-r "foo" --replace-new "bar"` |
 | `-d` `--delete` | 删除内容 | `-d "关键词"` |
 | `-m` `--modify` | 修改内容 | `-m "旧值" --modify-new "新值"` |
@@ -82,6 +83,23 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--heading` | 添加标题（Word） | `--heading "level:1 text:引言"` |
 | `--regex` | 正则模式 | 配合 `--replace` `--delete` 使用 |
 | `--merge` | 合并文件 | `--merge "a.docx,b.docx"` |
+| `--stdin` | 从标准输入读取 | |
+| `--stdout` | 输出到标准输出 | |
+
+## Word 专属操作
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `--heading` | 添加标题 | `--heading "level:1 text:引言"` |
+| `--math` | 数学公式 | `--math "\frac{a}{b}"` |
+| `--latex-style` | LaTeX 标记 | |
+| `--toc` | 生成目录 | `--toc` |
+| `--section-break` | 插入分节符 | `--section-break` |
+| `--header` | 设置页眉 | `--header "第一章"` |
+| `--footer` | 设置页脚 | `--footer "第 X 页"` |
+| `--watermark` | 文字水印 | `--watermark "草稿"` |
+| `--tomd` | 转为 Markdown | `--tomd` |
+| `--tohtml` | 转为 HTML | `--tohtml` |
 
 ## Excel 专属操作
 
@@ -111,6 +129,7 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 |------|------|
 | `\bfseries{text}` | 加粗 |
 | `\itshape{text}` | 斜体 |
+| `\scshape{text}` | 小型大写 |
 | `\underline{text}` | 下划线 |
 | `\rmfamily{text}` | 衬线（Roman） |
 | `\sffamily{text}` | 无衬线（Sans-serif） |
@@ -118,12 +137,16 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `\fontfamily{Arial}{text}` | 指定字体 |
 | `\fontsize{18}{text}` | 字号（pt） |
 | `\color{FF0000}{text}` | 颜色（十六进制） |
-| `\centering{...}` | 居中 |
-| `\raggedright{...}` | 左对齐 |
-| `\raggedleft{...}` | 右对齐 |
+| `\centering{...}` | 居中 **†** |
+| `\raggedright{...}` | 左对齐 **†** |
+| `\raggedleft{...}` | 右对齐 **†** |
+| `\linespread{1.5}{...}` | 行距 **†** |
+| `\indent{...}` / `\noindent{...}` | 缩进 **†** |
 | `\heading{2}{标题}` | 插入标题 |
 | `\newpage` | 分页符 |
 | `\includegraphics{path}` | 插入图片 |
+
+**†** 段落级格式（创建新段落）。
 
 ### 字体配置
 
@@ -202,19 +225,26 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## 模板填充
 
-支持 JSON、CSV、YAML 数据源，填充 `{{placeholder}}` 占位符。嵌套对象以点号展开。
+支持 JSON、CSV、YAML 数据源，填充 `{{placeholder}}` 占位符。嵌套对象以点号展开。列表值支持循环展开。
 
 ```json
 {
   "name": "张三",
   "date": "2026-07-28",
-  "user": { "city": "北京" }
+  "user": { "city": "北京" },
+  "items": [
+    { "product": "部件", "price": "10" },
+    { "product": "配件", "price": "20" }
+  ]
 }
 ```
 
 ```
-{{name}}         →  张三
-{{user.city}}    →  北京
+{{name}}              →  张三
+{{user.city}}         →  北京
+{{#each items}}       →  循环展开每个元素
+  {{product}}: {{price}}
+{{/each}}
 ```
 
 ## Excel 功能
@@ -233,12 +263,14 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## PPT 功能
 
-| 功能 | 说明 |
+| 参数 | 说明 |
 |------|------|
-| 幻灯片管理 | 增删移幻灯片 |
-| 版式 | 应用幻灯片版式 |
-| 演讲者备注 | 添加备注 |
-| 导出 | 另存为图片序列（`--toimg`） |
+| `--slide-add` | 添加幻灯片 |
+| `--slide-delete` | 删除幻灯片 |
+| `--slide-move` | 移动幻灯片 |
+| `--layout` | 应用版式 |
+| `--notes` | 演讲者备注 |
+| `--toimg` | 导出为图片序列 |
 
 ## 退出码
 
@@ -283,7 +315,7 @@ src/
 | 数学公式 | 自研递归下降解析器 → OMML XML |
 | 模板 | Jinja2 + docxtpl |
 | PDF | LibreOffice headless |
-| 质量 | pytest（147 用例）· ruff · mypy |
+| 质量 | pytest（156 用例）· ruff · mypy |
 
 ## 开发
 

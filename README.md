@@ -70,18 +70,36 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 |--------|-------------|---------|
 | `-cr` `--create` | Create blank document | `--create -w` |
 | `-a` `--add` | Add text | `-a "Hello"` |
+| `--column` | Target column for `--add` | `--column 2` |
 | `-r` `--replace` | Find and replace | `-r "foo" --replace-new "bar"` |
 | `-d` `--delete` | Delete content | `-d "keyword"` |
 | `-m` `--modify` | Modify content | `-m "old" --modify-new "new"` |
 | `-s` `--style` | Set style | `-s "font=Times,size=14,bold"` |
 | `-t` `--template` | Template filling | `-t data.json` |
-| `-x` `--extract` | Extract data | `-x metadata` |
+| `-x` `--extract` | Extract data (`metadata`) | `-x metadata` |
 | `--meta` | Set properties | `--meta "title=Report,author=John"` |
 | `--latex-style` | Enable LaTeX parsing | |
 | `--math` | Add math formula (Word) | `--math "\frac{a}{b}"` |
 | `--heading` | Add heading (Word) | `--heading "level:1 text:Intro"` |
 | `--regex` | Regex mode | Use with `--replace` `--delete` |
 | `--merge` | Merge files | `--merge "a.docx,b.docx"` |
+| `--stdin` | Read from stdin | |
+| `--stdout` | Write to stdout | |
+
+## Word-Specific Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--heading` | Add heading | `--heading "level:1 text:Intro"` |
+| `--math` | Add math formula | `--math "\frac{a}{b}"` |
+| `--latex-style` | Enable LaTeX markup | |
+| `--toc` | Generate table of contents | `--toc` |
+| `--section-break` | Insert section break | `--section-break` |
+| `--header` | Set page header | `--header "Chapter 1"` |
+| `--footer` | Set page footer | `--footer "Page X"` |
+| `--watermark` | Text watermark | `--watermark "DRAFT"` |
+| `--tomd` | Convert to Markdown | `--tomd` |
+| `--tohtml` | Convert to HTML | `--tohtml` |
 
 ## Excel-Specific Options
 
@@ -111,6 +129,7 @@ Embed the following markup in `--add` content. Enable with `--latex-style`. Supp
 |--------|--------|
 | `\bfseries{text}` | Bold |
 | `\itshape{text}` | Italic |
+| `\scshape{text}` | Small caps |
 | `\underline{text}` | Underline |
 | `\rmfamily{text}` | Roman (serif) |
 | `\sffamily{text}` | Sans-serif |
@@ -118,12 +137,16 @@ Embed the following markup in `--add` content. Enable with `--latex-style`. Supp
 | `\fontfamily{Arial}{text}` | Specific font |
 | `\fontsize{18}{text}` | Font size (pt) |
 | `\color{FF0000}{text}` | Color (hex) |
-| `\centering{...}` | Center align |
-| `\raggedright{...}` | Left align |
-| `\raggedleft{...}` | Right align |
+| `\centering{...}` | Center align **†** |
+| `\raggedright{...}` | Left align **†** |
+| `\raggedleft{...}` | Right align **†** |
+| `\linespread{1.5}{...}` | Line spacing **†** |
+| `\indent{...}` / `\noindent{...}` | Indent **†** |
 | `\heading{2}{Title}` | Insert heading |
 | `\newpage` | Page break |
 | `\includegraphics{path}` | Insert image |
+
+**†** Paragraph-level formatting (creates a new paragraph).
 
 ### Font Configuration
 
@@ -201,19 +224,26 @@ Boolean keys (`bold` `italic` `underline`) are `True` when present.
 
 ## Template Filling
 
-Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documents. Nested objects expand with dot notation.
+Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documents. Nested objects expand with dot notation. Loops iterate over list values.
 
 ```json
 {
   "name": "John Doe",
   "date": "2026-07-28",
-  "user": { "city": "Beijing" }
+  "user": { "city": "Beijing" },
+  "items": [
+    { "product": "Widget", "price": "10" },
+    { "product": "Gadget", "price": "20" }
+  ]
 }
 ```
 
 ```
-{{name}}         →  John Doe
-{{user.city}}    →  Beijing
+{{name}}              →  John Doe
+{{user.city}}         →  Beijing
+{{#each items}}       →  repeats the block for each item
+  {{product}}: {{price}}
+{{/each}}
 ```
 
 ## Excel Features
@@ -282,7 +312,7 @@ src/
 | Math | Custom recursive descent parser → OMML XML |
 | Templates | Jinja2 + docxtpl |
 | PDF | LibreOffice headless |
-| Quality | pytest (147 tests) · ruff · mypy |
+| Quality | pytest (156 tests) · ruff · mypy |
 
 ## Development
 

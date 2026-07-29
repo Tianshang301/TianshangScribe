@@ -18,6 +18,10 @@ build/
 dist/
 build/
 *.spec
+
+# Sub-agent outputs
+mcp/subagent_output/
+demo/run_subagent.py
 .venv/
 env/
 

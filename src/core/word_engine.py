@@ -298,6 +298,8 @@ class WordEngine(DocumentABC):
                 )
             except (ValueError, IndexError):
                 pass
+        if style.small_caps is not None:
+            run.font.small_caps = style.small_caps
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
         count = 0
@@ -434,6 +436,53 @@ class WordEngine(DocumentABC):
             elements = section._sectPr.findall(qn('w:documentProtection'))
             for el in elements:
                 section._sectPr.remove(el)
+
+    def add_toc(self) -> None:
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        paragraph = self.doc.add_paragraph()
+        run = paragraph.add_run()
+        fld_char = OxmlElement('w:fldChar')
+        fld_char.set(qn('w:fldCharType'), 'begin')
+        run._r.append(fld_char)
+        run2 = paragraph.add_run()
+        instr_text = OxmlElement('w:instrText')
+        instr_text.set(qn('xml:space'), 'preserve')
+        instr_text.text = ' TOC \\o "1-3" \\h \\z '
+        run2._r.append(instr_text)
+        run3 = paragraph.add_run()
+        fld_char_end = OxmlElement('w:fldChar')
+        fld_char_end.set(qn('w:fldCharType'), 'end')
+        run3._r.append(fld_char_end)
+
+    def add_section_break(self) -> None:
+        self.doc.add_section()
+
+    def set_header(self, text: str) -> None:
+        section = self.doc.sections[-1]
+        header = section.header
+        if not header.paragraphs:
+            header.add_paragraph()
+        header.paragraphs[0].add_run(text)
+
+    def set_footer(self, text: str) -> None:
+        section = self.doc.sections[-1]
+        footer = section.footer
+        if not footer.paragraphs:
+            footer.add_paragraph()
+        footer.paragraphs[0].add_run(text)
+
+    def add_watermark(self, text: str) -> None:
+        from docx.shared import RGBColor
+        section = self.doc.sections[-1]
+        header = section.header
+        if not header.paragraphs:
+            header.add_paragraph()
+        paragraph = header.paragraphs[0]
+        paragraph.alignment = 1
+        run = paragraph.add_run(text)
+        run.font.size = 72000
+        run.font.color.rgb = RGBColor(0xD9, 0xD9, 0xD9)
 
 
 def _apply_font_config(engine: 'WordEngine', token: dict[str, Any]) -> None:

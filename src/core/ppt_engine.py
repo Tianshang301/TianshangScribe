@@ -202,9 +202,9 @@ class PptEngine(DocumentABC):
         return self.prs.slides.add_slide(slide_layout)
 
     def delete_slide(self, index: int) -> None:
-        slide_id = self.prs.slides[index].slide_id
-        r_id = self.prs.part.rel_hashtable[slide_id]
-        del self.prs.slides._sldIdLst[r_id]
+        r_id = self.prs.slides._sldIdLst[index].attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']
+        self.prs.part.drop_rel(r_id)
+        del self.prs.slides._sldIdLst[index]
 
     def move_slide(self, from_index: int, to_index: int) -> None:
         slides = list(self.prs.slides._sldIdLst)
@@ -249,6 +249,40 @@ class PptEngine(DocumentABC):
         notes_slide = self.prs.slides[slide_index].notes_slide
         tf = notes_slide.notes_text_frame
         tf.text = text
+
+    def to_images(self, output_dir: str | Path) -> list[Path]:
+        import shutil
+        import subprocess
+        from pathlib import Path
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        lo_bin = None
+        lo_paths = [
+            'libreoffice', 'soffice',
+            '/usr/bin/libreoffice', '/usr/bin/soffice',
+            r'C:\Program Files\LibreOffice\program\soffice.exe',
+        ]
+        for p in lo_paths:
+            if shutil.which(p):
+                lo_bin = p
+                break
+
+        if not lo_bin:
+            raise RuntimeError(
+                'LibreOffice is required for slide image export. '
+                'Install from https://www.libreoffice.org/download/'
+            )
+
+        self.save()
+        subprocess.run(
+            [lo_bin, '--headless', '--convert-to', 'png',
+             '--outdir', str(output_dir), str(self._path)],
+            check=True, capture_output=True,
+        )
+
+        return sorted(output_dir.glob('*.png'))
 
     def set_protection(self, password: str) -> None:
         pass

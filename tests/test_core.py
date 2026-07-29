@@ -160,6 +160,37 @@ class TestWordEngine:
         assert 'Hello' in paragraph.text
         assert 'Bold' in paragraph.text
 
+    def test_add_toc(self, engine: WordEngine) -> None:
+        engine.add_text('Intro')
+        engine.add_toc()
+        full_text = '\n'.join(p.text for p in engine.doc.paragraphs)
+        assert 'TOC' in full_text or len(engine.doc.paragraphs) >= 2
+
+    def test_add_section_break(self, engine: WordEngine) -> None:
+        engine.add_text('Sec1')
+        engine.add_section_break()
+        assert len(engine.doc.sections) >= 2
+
+    def test_set_header(self, engine: WordEngine) -> None:
+        engine.set_header('My Header')
+        section = engine.doc.sections[0]
+        assert section.header.paragraphs[0].text == 'My Header'
+
+    def test_set_footer(self, engine: WordEngine) -> None:
+        engine.set_footer('Page X')
+        section = engine.doc.sections[0]
+        assert section.footer.paragraphs[0].text == 'Page X'
+
+    def test_add_watermark(self, engine: WordEngine) -> None:
+        engine.add_watermark('DRAFT')
+        section = engine.doc.sections[0]
+        assert section.header.paragraphs[0].text == 'DRAFT'
+
+    def test_small_caps_via_latex(self, engine: WordEngine) -> None:
+        engine.add_latex_content(r'\scshape{Small Caps Text}')
+        text = engine.doc.paragraphs[0].text
+        assert 'Small Caps Text' in text
+
 
 class TestExcelEngine:
     @pytest.fixture
@@ -401,3 +432,24 @@ class TestPptEngine:
             assert path.exists()
             reopened = open_document(path)
             assert isinstance(reopened, PptEngine)
+
+    def test_delete_slide(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        engine.add_slide()
+        engine.add_slide()
+        initial = len(engine.prs.slides)
+        engine.delete_slide(0)
+        assert len(engine.prs.slides) == initial - 1
+
+    def test_move_slide(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        engine.add_slide()
+        engine.add_slide()
+        engine.move_slide(0, 1)
+        assert len(engine.prs.slides) == 3
+
+    def test_add_notes(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        engine.add_notes(0, 'Speaker note')
+        notes = engine.prs.slides[0].notes_slide
+        assert notes.notes_text_frame.text == 'Speaker note'

@@ -14,6 +14,7 @@ class TextStyle:
     underline: bool | None = None
     color: str | None = None
     alignment: str | None = None
+    small_caps: bool | None = None
 
     @classmethod
     def from_string(cls, s: str) -> 'TextStyle':
@@ -86,6 +87,8 @@ class TextStyle:
                 result.color = other.color
             if other.alignment is not None:
                 result.alignment = other.alignment
+            if other.small_caps is not None:
+                result.small_caps = other.small_caps
         return result
 
     @classmethod
@@ -99,7 +102,7 @@ class TextStyle:
         elif cmd == 'itshape':
             instance.italic = True
         elif cmd == 'scshape':
-            pass
+            instance.small_caps = True
         elif cmd == 'rmfamily':
             instance.font_name = 'Times New Roman'
         elif cmd == 'sffamily':

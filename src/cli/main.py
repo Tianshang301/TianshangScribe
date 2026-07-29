@@ -209,6 +209,30 @@ def main(
         Optional[str],
         typer.Option('--notes', help='Add speaker notes (format: "slide_index text")'),
     ] = None,
+    to_image: Annotated[
+        bool,
+        typer.Option('--toimg', help='Export PPT slides as images'),
+    ] = False,
+    toc: Annotated[
+        bool,
+        typer.Option('--toc', help='Generate Table of Contents (Word)'),
+    ] = False,
+    section_break: Annotated[
+        bool,
+        typer.Option('--section-break', help='Insert section break (Word)'),
+    ] = False,
+    header_text: Annotated[
+        Optional[str],
+        typer.Option('--header', help='Set page header text (Word)'),
+    ] = None,
+    footer_text: Annotated[
+        Optional[str],
+        typer.Option('--footer', help='Set page footer text (Word)'),
+    ] = None,
+    watermark: Annotated[
+        Optional[str],
+        typer.Option('--watermark', help='Add text watermark (Word)'),
+    ] = None,
 ) -> None:
     if not create and not input_file and not stdin:
         console.print(app.get_help())
@@ -353,7 +377,26 @@ def main(
                 engine.add_notes(int(parts[0]), parts[1])
                 console.print(f'[green]Notes added to slide {parts[0]}.[/green]')
 
-        if topdf:
+        if toc and hasattr(engine, 'add_toc'):
+            engine.add_toc()
+            console.print('[green]TOC generated.[/green]')
+        if section_break and hasattr(engine, 'add_section_break'):
+            engine.add_section_break()
+            console.print('[green]Section break added.[/green]')
+        if header_text and hasattr(engine, 'set_header'):
+            engine.set_header(header_text)
+            console.print('[green]Header set.[/green]')
+        if footer_text and hasattr(engine, 'set_footer'):
+            engine.set_footer(footer_text)
+            console.print('[green]Footer set.[/green]')
+        if watermark and hasattr(engine, 'add_watermark'):
+            engine.add_watermark(watermark)
+            console.print(f'[green]Watermark "{watermark}" added.[/green]')
+
+        if to_image and hasattr(engine, 'to_images'):
+            results = engine.to_images(output)
+            console.print(f'[green]{len(results)} slide images saved to {output}/.[/green]')
+        elif topdf:
             engine.to_pdf(output_path)
             console.print(f'[green]PDF saved:[/green] {output_path}')
         elif to_md:

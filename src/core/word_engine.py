@@ -158,6 +158,37 @@ class WordEngine(DocumentABC):
                     paragraph = self.doc.add_paragraph()
                     continue
 
+                if cmd in ('centering', 'raggedright', 'raggedleft',
+                           'linespread', 'indent', 'noindent'):
+                    paragraph = self.doc.add_paragraph()
+                    para_format = paragraph.paragraph_format
+                    if cmd == 'centering':
+                        from docx.enum.text import WD_ALIGN_PARAGRAPH
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    elif cmd == 'raggedright':
+                        from docx.enum.text import WD_ALIGN_PARAGRAPH
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    elif cmd == 'raggedleft':
+                        from docx.enum.text import WD_ALIGN_PARAGRAPH
+                        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    elif cmd == 'linespread':
+                        try:
+                            para_format.line_spacing = float(content)
+                        except (ValueError, TypeError):
+                            pass
+                    elif cmd == 'indent':
+                        from docx.shared import Cm
+                        para_format.first_line_indent = Cm(0.74)
+                    elif cmd == 'noindent':
+                        from docx.shared import Cm
+                        para_format.first_line_indent = Cm(0)
+                    inner = token.get('content', '')
+                    if inner:
+                        run = paragraph.add_run(inner)
+                        self._apply_run_style(run, current_style)
+                    paragraph = self.doc.add_paragraph()
+                    continue
+
                 if cmd == 'math':
                     latex = token.get('latex', '')
                     self._add_omath(paragraph, latex)
@@ -198,7 +229,9 @@ class WordEngine(DocumentABC):
 
             elif token_type == 'command':
                 cmd = token.get('command', '')
-                if cmd in ('newpage', 'includegraphics', 'heading', 'set_font'):
+                if cmd in ('newpage', 'includegraphics', 'heading', 'set_font',
+                           'centering', 'raggedright', 'raggedleft',
+                           'linespread', 'indent', 'noindent'):
                     continue
 
                 if cmd == 'math':
@@ -364,7 +397,21 @@ class WordEngine(DocumentABC):
 
     def add_comment(self, text: str, range_start: int = 0, range_end: int = 0) -> None:
         paragraph = self.doc.paragraphs[0] if self.doc.paragraphs else self.doc.add_paragraph()
-        paragraph.add_comment(text)
+        run = paragraph.add_run('')
+        run_element = run._r
+        from docx.oxml import OxmlElement
+        from docx.oxml.ns import qn
+        comment_range_start = OxmlElement('w:commentRangeStart')
+        comment_range_start.set(qn('w:id'), '0')
+        run_element.addprevious(comment_range_start)
+        comment_range_end = OxmlElement('w:commentRangeEnd')
+        comment_range_end.set(qn('w:id'), '0')
+        run_element.addnext(comment_range_end)
+        comment_ref = OxmlElement('w:r')
+        comment_ref_elt = OxmlElement('w:commentReference')
+        comment_ref_elt.set(qn('w:id'), '0')
+        comment_ref.append(comment_ref_elt)
+        run_element.addnext(comment_ref)
 
     def set_protection(self, password: str) -> None:
         from docx.oxml import parse_xml

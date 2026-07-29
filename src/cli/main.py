@@ -193,6 +193,22 @@ def main(
         int,
         typer.Option('--column', help='Target column for --add (1-indexed, default 1)'),
     ] = 1,
+    slide_add: Annotated[
+        bool,
+        typer.Option('--slide-add', help='Add a new slide'),
+    ] = False,
+    slide_delete: Annotated[
+        Optional[int],
+        typer.Option('--slide-delete', help='Delete slide by index (0-indexed)'),
+    ] = None,
+    slide_move: Annotated[
+        Optional[str],
+        typer.Option('--slide-move', help='Move slide (format: "from_index to_index")'),
+    ] = None,
+    slide_notes: Annotated[
+        Optional[str],
+        typer.Option('--notes', help='Add speaker notes (format: "slide_index text")'),
+    ] = None,
 ) -> None:
     if not create and not input_file and not stdin:
         console.print(app.get_help())
@@ -222,6 +238,20 @@ def main(
     try:
         if create:
             engine = create_document(resolved_type)
+        elif stdin:
+            import atexit
+            import os
+            import sys
+            import tempfile
+            data = sys.stdin.buffer.read()
+            if not data:
+                console.print('[red]Error:[/red] No data read from stdin.')
+                raise typer.Exit(code=2)
+            fd, temp_path = tempfile.mkstemp(suffix='.docx')
+            os.write(fd, data)
+            os.close(fd)
+            atexit.register(lambda: os.unlink(temp_path))
+            engine = open_document(temp_path)
         elif input_file:
             engine = open_document(input_file)
         else:
@@ -267,6 +297,14 @@ def main(
         if meta:
             _apply_meta(engine, meta)
 
+        if extract:
+            _handle_extract(engine, extract)
+
+        if merge_files and hasattr(engine, 'merge_workbooks'):
+            paths = [p.strip() for p in merge_files.split(',')]
+            engine.merge_workbooks(paths)
+            console.print(f'[green]Merged[/green] {len(paths)} file(s).')
+
         if sheet_add and hasattr(engine, 'add_sheet'):
             engine.add_sheet(sheet_add)
         if sheet_delete and hasattr(engine, 'delete_sheet'):
@@ -298,18 +336,58 @@ def main(
         if clear and hasattr(engine, 'clear_content'):
             engine.clear_content()
 
+        if slide_add and hasattr(engine, 'add_slide'):
+            engine.add_slide()
+            console.print('[green]Slide added.[/green]')
+        if slide_delete is not None and hasattr(engine, 'delete_slide'):
+            engine.delete_slide(slide_delete)
+            console.print(f'[green]Slide {slide_delete} deleted.[/green]')
+        if slide_move and hasattr(engine, 'move_slide'):
+            parts = slide_move.split()
+            if len(parts) == 2:
+                engine.move_slide(int(parts[0]), int(parts[1]))
+                console.print(f'[green]Slide moved from {parts[0]} to {parts[1]}.[/green]')
+        if slide_notes and hasattr(engine, 'add_notes'):
+            parts = slide_notes.split(None, 1)
+            if len(parts) == 2:
+                engine.add_notes(int(parts[0]), parts[1])
+                console.print(f'[green]Notes added to slide {parts[0]}.[/green]')
+
         if topdf:
             engine.to_pdf(output_path)
             console.print(f'[green]PDF saved:[/green] {output_path}')
+        elif to_md:
+            from src.transform.pdf import word_to_markdown
+            engine.save()
+            word_to_markdown(str(engine._path), str(output_path))
+            console.print(f'[green]Markdown saved:[/green] {output_path}')
         elif to_csv and hasattr(engine, 'export_csv'):
             engine.export_csv(output_path)
             console.print(f'[green]CSV saved:[/green] {output_path}')
         elif to_json and hasattr(engine, 'export_json'):
             engine.export_json(output_path)
             console.print(f'[green]JSON saved:[/green] {output_path}')
-        elif to_html and hasattr(engine, 'export_html'):
-            engine.export_html(output_path)
-            console.print(f'[green]HTML saved:[/green] {output_path}')
+        elif to_html:
+            if hasattr(engine, 'export_html'):
+                engine.export_html(output_path)
+                console.print(f'[green]HTML saved:[/green] {output_path}')
+            else:
+                from src.transform.pdf import word_to_html
+                engine.save()
+                word_to_html(str(engine._path), str(output_path))
+                console.print(f'[green]HTML saved:[/green] {output_path}')
+        elif stdout:
+            import atexit
+            import os
+            import sys
+            import tempfile
+            fd, temp_path = tempfile.mkstemp(suffix='.docx')
+            os.close(fd)
+            atexit.register(lambda: os.unlink(temp_path))
+            engine.save(temp_path)
+            with open(temp_path, 'rb') as f:
+                sys.stdout.buffer.write(f.read())
+            console.print('[green]Output written to stdout.[/green]')
         else:
             engine.save(output_path)
             console.print(f'[green]Saved:[/green] {output_path}')
@@ -386,6 +464,15 @@ def _parse_chart_opts(opts_str: str) -> dict[str, str]:
             k, v = pair.split('=', 1)
             result[k] = v
     return result
+
+
+def _handle_extract(engine, mode: str) -> None:
+    if mode == 'metadata':
+        import json
+        meta = engine.get_metadata()
+        console.print_json(json.dumps(meta, ensure_ascii=False, default=str))
+    else:
+        console.print(f'[yellow]Extract mode "{mode}" not supported.[/yellow]')
 
 
 def main_cli() -> None:

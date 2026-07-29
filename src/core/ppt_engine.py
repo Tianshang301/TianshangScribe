@@ -194,7 +194,8 @@ class PptEngine(DocumentABC):
 
     def to_pdf(self, output_path: str | Path) -> None:
         self.save()
-        raise NotImplementedError('PPT to PDF conversion requires LibreOffice or similar tool.')
+        from src.transform.pdf import ppt_to_pdf
+        ppt_to_pdf(str(self._path), str(output_path))
 
     def add_slide(self) -> Any:
         slide_layout = self.prs.slide_layouts[1]
@@ -241,6 +242,13 @@ class PptEngine(DocumentABC):
 
     def add_comment(self, text: str, range_start: int = 0, range_end: int = 0) -> None:
         pass
+
+    def add_notes(self, slide_index: int, text: str) -> None:
+        if slide_index >= len(self.prs.slides):
+            raise ValueError(f'Slide index {slide_index} out of range.')
+        notes_slide = self.prs.slides[slide_index].notes_slide
+        tf = notes_slide.notes_text_frame
+        tf.text = text
 
     def set_protection(self, password: str) -> None:
         pass

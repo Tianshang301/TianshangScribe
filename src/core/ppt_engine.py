@@ -426,3 +426,10 @@ class PptEngine(DocumentABC):
         existing = pres_elem.findall(f'{{{ns}}}modifyVerifier')
         for el in existing:
             pres_elem.remove(el)
+
+    def merge_workbooks(self, paths: list[str]) -> None:
+        from pptx import Presentation
+        for p in paths:
+            src = Presentation(p)
+            for slide in src.slides:
+                self.prs.slides.add_slide(slide.slide_layout)

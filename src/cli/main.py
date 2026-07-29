@@ -134,6 +134,14 @@ def main(
         Optional[str],
         typer.Option('--merge', help='Merge multiple files (comma-separated)'),
     ] = None,
+    split_mode: Annotated[
+        Optional[str],
+        typer.Option('--split', help='Split document (by-page/by-sheet/by-slide)'),
+    ] = None,
+    comment: Annotated[
+        Optional[str],
+        typer.Option('--comment', help='Add comment/notes (format: "cell_or_index text")'),
+    ] = None,
     meta: Annotated[
         Optional[str],
         typer.Option('--meta', help='Set metadata (format: key=value,key=value...)'),
@@ -187,7 +195,7 @@ def main(
     ] = False,
     clear: Annotated[
         bool,
-        typer.Option('--clear', help='Clear all cell content'),
+        typer.Option('-cl', '--clear', help='Clear all cell content'),
     ] = False,
     column: Annotated[
         int,
@@ -342,6 +350,28 @@ def main(
             paths = [p.strip() for p in merge_files.split(',')]
             engine.merge_workbooks(paths)
             console.print(f'[green]Merged[/green] {len(paths)} file(s).')
+        elif merge_files:
+            console.print('[yellow]Merge not supported for this document type.[/yellow]')
+
+        if split_mode and hasattr(engine, 'split_by_sheet'):
+            results = engine.split_by_sheet(split_mode)
+            console.print(f'[green]Split[/green] {len(results)} sheet(s) to {split_mode}/.')
+        elif split_mode and hasattr(engine, 'split_by_sheet'):
+            pass
+        elif split_mode:
+            console.print('[yellow]Split not supported for this document type.[/yellow]')
+
+        if comment and hasattr(engine, 'add_comment'):
+            parts = comment.split(None, 1)
+            if len(parts) == 2:
+                try:
+                    engine.add_comment(int(parts[0]), parts[1])
+                except ValueError:
+                    engine.add_comment(parts[0], parts[1])
+                console.print('[green]Comment added.[/green]')
+            else:
+                engine.add_comment(0, comment)
+                console.print('[green]Comment added.[/green]')
 
         if sheet_add and hasattr(engine, 'add_sheet'):
             engine.add_sheet(sheet_add)

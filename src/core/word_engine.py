@@ -458,6 +458,14 @@ class WordEngine(DocumentABC):
     def add_section_break(self) -> None:
         self.doc.add_section()
 
+    def merge_workbooks(self, paths: list[str]) -> None:
+        from lxml import etree
+
+        for p in paths:
+            merge_doc = Document(str(p))
+            for element in merge_doc.element.body:
+                self.doc.element.body.append(etree.fromstring(etree.tostring(element)))
+
     def set_header(self, text: str) -> None:
         section = self.doc.sections[-1]
         header = section.header

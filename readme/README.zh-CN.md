@@ -1,6 +1,6 @@
 # TianshangScribe
 
-> [English](./README.md)
+> [English](../README.md)
 
 跨平台命令行 Office 文档处理工具。支持 Word、Excel、PowerPoint 的创建、编辑、模板填充、格式转换，内置 LaTeX 风格排版标记与数学公式渲染引擎。
 

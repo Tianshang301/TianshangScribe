@@ -197,9 +197,27 @@ class PptEngine(DocumentABC):
         from src.transform.pdf import ppt_to_pdf
         ppt_to_pdf(str(self._path), str(output_path))
 
-    def add_slide(self) -> Any:
-        slide_layout = self.prs.slide_layouts[1]
+    def add_slide(self, layout_index: int = 1) -> Any:
+        slide_layout = self.prs.slide_layouts[layout_index]
         return self.prs.slides.add_slide(slide_layout)
+
+    def apply_layout(self, slide_index: int, layout_spec: str) -> None:
+        try:
+            layout_idx = int(layout_spec)
+            slide_layout = self.prs.slide_layouts[layout_idx]
+        except ValueError:
+            slide_layout = None
+            for lo in self.prs.slide_layouts:
+                if lo.name.lower() == layout_spec.lower():
+                    slide_layout = lo
+                    break
+            if slide_layout is None:
+                raise ValueError(
+                    f'Layout "{layout_spec}" not found. '
+                    f'Available: {[lo.name for lo in self.prs.slide_layouts]}'
+                )
+        if slide_index < len(self.prs.slides):
+            self.prs.slides[slide_index].slide_layout = slide_layout
 
     def delete_slide(self, index: int) -> None:
         r_id = self.prs.slides._sldIdLst[index].attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']

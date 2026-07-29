@@ -209,6 +209,13 @@ def main(
         Optional[str],
         typer.Option('--notes', help='Add speaker notes (format: "slide_index text")'),
     ] = None,
+    slide_layout: Annotated[
+        Optional[str],
+        typer.Option(
+            '--layout',
+            help='Apply slide layout (format: "slide_index layout_name_or_index")',
+        ),
+    ] = None,
     to_image: Annotated[
         bool,
         typer.Option('--toimg', help='Export PPT slides as images'),
@@ -376,6 +383,14 @@ def main(
             if len(parts) == 2:
                 engine.add_notes(int(parts[0]), parts[1])
                 console.print(f'[green]Notes added to slide {parts[0]}.[/green]')
+
+        if slide_layout and hasattr(engine, 'apply_layout'):
+            parts = slide_layout.split(None, 1)
+            if len(parts) == 2:
+                engine.apply_layout(int(parts[0]), parts[1])
+                console.print(
+                    f'[green]Layout "{parts[1]}" applied to slide {parts[0]}.[/green]'
+                )
 
         if toc and hasattr(engine, 'add_toc'):
             engine.add_toc()

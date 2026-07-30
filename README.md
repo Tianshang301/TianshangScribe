@@ -19,7 +19,7 @@ cd TianshangScribe
 pip install -e ".[dev]"
 ```
 
-Requires Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · jinja2 · lxml
+Requires Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · lxml
 
 ## Quick Start
 

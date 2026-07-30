@@ -19,7 +19,7 @@ cd TianshangScribe
 pip install -e ".[dev]"
 ```
 
-依赖：Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · jinja2 · lxml
+依赖：Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · lxml
 
 ## 快速开始
 
@@ -233,7 +233,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | `bold` | | 标志 | 加粗 |
 | `italic` | | 标志 | 斜体 |
 | `underline` | | 标志 | 下划线 |
-| `color` | `font_color` | `FF0000` | 十六进制颜色 |
+| `color` | `font_color`、`font-color` | `FF0000` | 十六进制颜色 |
 | `align` | `alignment` | `left`/`center`/`right`/`justify` | 对齐 |
 
 布尔键（`bold` `italic` `underline`）出现即为 `True`。

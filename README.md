@@ -86,6 +86,7 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `--column` | Target column for `--add` | `--column 2` |
 | `-r` `--replace` | Find and replace | `-r "foo" --replace-new "bar"` |
 | `-d` `--delete` | Delete content | `-d "keyword"` |
+| `-cl` `--clear` | Clear content / formats / links | `--clear formats` |
 | `-m` `--modify` | Modify content | `-m "old" --modify-new "new"` |
 | `-s` `--style` | Set style | `-s "font=Times,size=14,bold"` |
 | `-t` `--template` | Template filling | `-t data.json` |
@@ -129,7 +130,6 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `--chart-add` | Add chart | `--chart-add "type=bar data=B1:C10"` |
 | `--protect` | Set password | `--protect "p@ss"` |
 | `--unprotect` | Remove password | `--unprotect` |
-| `--clear` | Clear cell content | `--clear` |
 | `--to-csv` | Export as CSV | |
 | `--to-json` | Export as JSON | |
 | `--to-html` | Export as HTML | |
@@ -168,7 +168,9 @@ Embed the following markup in `--add` content. Enable with `--latex-style`. Supp
 | `\setmainfont{Name}` | Default Western font |
 | `\setCJKmainfont{Name}` | Default CJK font |
 | `\setsansfont{Name}` | Sans-serif font |
+| `\setCJKsansfont{Name}` | CJK sans-serif font |
 | `\setmonofont{Name}` | Monospace font |
+| `\setCJKmonofont{Name}` | CJK monospace font |
 
 Word OOXML natively separates `w:ascii` (Western) and `w:eastAsia` (CJK) fonts, enabling automatic font switching in mixed-script text.
 
@@ -224,26 +226,28 @@ Commands in `--add` text are automatically recognized as math even without `$...
 
 | Key | Aliases | Value | Description |
 |-----|---------|-------|-------------|
-| `font` | `font_name` | Font name | Western font |
-| `cjk-font` | `cjk_font_name` | Font name | CJK font |
-| `size` | `font_size` | pt | Font size |
+| `font` | `font_name`, `font-family` | Font name | Western font |
+| `cjk-font` | `cjk_font_name`, `cjk-font-family` | Font name | CJK font |
+| `size` | `font_size`, `font-size` | pt | Font size |
 | `bold` | | flag | Bold |
 | `italic` | | flag | Italic |
 | `underline` | | flag | Underline |
-| `color` | `font_color` | `FF0000` | Hex color |
+| `color` | `font_color`, `font-color` | `FF0000` | Hex color |
 | `align` | `alignment` | `left`/`center`/`right`/`justify` | Alignment |
 
 Boolean keys (`bold` `italic` `underline`) are `True` when present.
 
 ## Template Filling
 
-Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documents. Nested objects expand with dot notation. Loops iterate over list values.
+Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documents. Nested objects expand with dot notation. Loops iterate over list values. Conditionals show/hide blocks.
 
 ```json
 {
   "name": "John Doe",
   "date": "2026-07-28",
   "user": { "city": "Beijing" },
+  "show": true,
+  "paid": false,
   "items": [
     { "product": "Widget", "price": "10" },
     { "product": "Gadget", "price": "20" }
@@ -257,6 +261,15 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 {{#each items}}       →  repeats the block for each item
   {{product}}: {{price}}
 {{/each}}
+{{#if show}}          →  shown only when show is truthy
+  Confidential content
+{{/if}}
+{{#if role=admin}}    →  shown only when role equals "admin"
+  Admin dashboard
+{{/if}}
+{{#unless paid}}      →  shown only when paid is falsy
+  Payment required
+{{/unless}}
 ```
 
 ## Excel Features
@@ -271,7 +284,6 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Sorting | `--sort "A1:A10 asc"` |
 | Charts | `--chart-add "type=bar data=B1:C10"` |
 | Protection | `--protect` `--unprotect` |
-| Clear content | `--clear` |
 
 ## PPT Features
 
@@ -374,9 +386,9 @@ src/
 | Excel | openpyxl |
 | PPT | python-pptx |
 | Math | Custom recursive descent parser → OMML XML |
-| Templates | Jinja2 + docxtpl |
+| Templates | Custom engine ({{placeholder}}, {{#each}}, {{#if}}) |
 | PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
-| Quality | pytest (160 tests) · ruff · mypy |
+| Quality | pytest (165 tests) · ruff · mypy |
 
 ## Build EXE
 

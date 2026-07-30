@@ -86,6 +86,7 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--column` | 指定 `--add` 目标列 | `--column 2` |
 | `-r` `--replace` | 查找替换 | `-r "foo" --replace-new "bar"` |
 | `-d` `--delete` | 删除内容 | `-d "关键词"` |
+| `-cl` `--clear` | 清除内容/格式/链接 | `--clear formats` |
 | `-m` `--modify` | 修改内容 | `-m "旧值" --modify-new "新值"` |
 | `-s` `--style` | 设置样式 | `-s "font=Times,size=14,bold"` |
 | `-t` `--template` | 模板填充 | `-t data.json` |
@@ -129,7 +130,6 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--chart-add` | 添加图表 | `--chart-add "type=bar data=B1:C10"` |
 | `--protect` | 设置密码 | `--protect "p@ss"` |
 | `--unprotect` | 解除密码 | `--unprotect` |
-| `--clear` | 清除内容 | `--clear` |
 | `--to-csv` | 导出 CSV | |
 | `--to-json` | 导出 JSON | |
 | `--to-html` | 导出 HTML | |
@@ -168,7 +168,9 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `\setmainfont{Name}` | 西文默认字体 |
 | `\setCJKmainfont{Name}` | CJK 默认字体 |
 | `\setsansfont{Name}` | 无衬线字体 |
+| `\setCJKsansfont{Name}` | CJK 无衬线字体 |
 | `\setmonofont{Name}` | 等宽字体 |
+| `\setCJKmonofont{Name}` | CJK 等宽字体 |
 
 Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，中西文混排自动切换。
 
@@ -225,9 +227,9 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 | 键 | 别名 | 值 | 说明 |
 |----|------|-----|------|
-| `font` | `font_name` | 字体名 | 西文字体 |
-| `cjk-font` | `cjk_font_name` | 字体名 | CJK 字体 |
-| `size` | `font_size` | pt 值 | 字号 |
+| `font` | `font_name`、`font-family` | 字体名 | 西文字体 |
+| `cjk-font` | `cjk_font_name`、`cjk-font-family` | 字体名 | CJK 字体 |
+| `size` | `font_size`、`font-size` | pt 值 | 字号 |
 | `bold` | | 标志 | 加粗 |
 | `italic` | | 标志 | 斜体 |
 | `underline` | | 标志 | 下划线 |
@@ -238,13 +240,15 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## 模板填充
 
-支持 JSON、CSV、YAML 数据源，填充 `{{placeholder}}` 占位符。嵌套对象以点号展开。列表值支持循环展开。
+支持 JSON、CSV、YAML 数据源，填充 `{{placeholder}}` 占位符。嵌套对象以点号展开。列表值支持循环展开。条件块支持显隐控制。
 
 ```json
 {
   "name": "张三",
   "date": "2026-07-28",
   "user": { "city": "北京" },
+  "show": true,
+  "paid": false,
   "items": [
     { "product": "部件", "price": "10" },
     { "product": "配件", "price": "20" }
@@ -258,6 +262,15 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 {{#each items}}       →  循环展开每个元素
   {{product}}: {{price}}
 {{/each}}
+{{#if show}}          →  show 为真时显示
+  机密内容
+{{/if}}
+{{#if role=admin}}    →  role 等于 "admin" 时显示
+  管理仪表盘
+{{/if}}
+{{#unless paid}}      →  paid 为假时显示
+  需付款
+{{/unless}}
 ```
 
 ## Excel 功能
@@ -272,7 +285,6 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 排序 | `--sort "A1:A10 asc"` |
 | 图表 | `--chart-add "type=bar data=B1:C10"` |
 | 保护 | `--protect` `--unprotect` |
-| 清除内容 | `--clear` |
 
 ## PPT 功能
 
@@ -375,9 +387,9 @@ src/
 | Excel | openpyxl |
 | PPT | python-pptx |
 | 数学公式 | 自研递归下降解析器 → OMML XML |
-| 模板 | Jinja2 + docxtpl |
+| 模板 | 自研引擎（{{placeholder}}、{{#each}}、{{#if}}） |
 | PDF | office2pdf（~2MB Rust 二进制，零依赖）+ LibreOffice 回退 |
-| 质量 | pytest（160 用例）· ruff · mypy |
+| 质量 | pytest（165 用例）· ruff · mypy |
 
 ## 构建 EXE
 

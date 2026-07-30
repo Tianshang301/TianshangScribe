@@ -55,3 +55,69 @@ class TestTemplateEngine:
             data_path.write_text('<root/>')
             with __import__('pytest').raises(ValueError, match='Unsupported'):
                 TemplateEngine(str(data_path))
+
+    def test_if_conditional_true(self) -> None:
+        doc = create_document(DocumentType.WORD)
+        doc.add_text('{{#if show}}Hello{{/if}}')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_path = Path(tmpdir) / 'data.json'
+            data_path.write_text(json.dumps({'show': True}))
+            engine = TemplateEngine(str(data_path))
+            engine.fill(doc)
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
+                           if p.text.strip())
+            assert 'Hello' in text
+            assert '{{#if' not in text
+
+    def test_if_conditional_false(self) -> None:
+        doc = create_document(DocumentType.WORD)
+        doc.add_text('{{#if show}}Secret{{/if}}')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_path = Path(tmpdir) / 'data.json'
+            data_path.write_text(json.dumps({'show': False}))
+            engine = TemplateEngine(str(data_path))
+            engine.fill(doc)
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
+                           if p.text.strip())
+            assert 'Secret' not in text
+
+    def test_if_equal_match(self) -> None:
+        doc = create_document(DocumentType.WORD)
+        doc.add_text('{{#if role=admin}}Admin Panel{{/if}}')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_path = Path(tmpdir) / 'data.json'
+            data_path.write_text(json.dumps({'role': 'admin'}))
+            engine = TemplateEngine(str(data_path))
+            engine.fill(doc)
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
+                           if p.text.strip())
+            assert 'Admin Panel' in text
+
+    def test_if_equal_no_match(self) -> None:
+        doc = create_document(DocumentType.WORD)
+        doc.add_text('{{#if role=admin}}Secrets{{/if}}')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_path = Path(tmpdir) / 'data.json'
+            data_path.write_text(json.dumps({'role': 'user'}))
+            engine = TemplateEngine(str(data_path))
+            engine.fill(doc)
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
+                           if p.text.strip())
+            assert 'Secrets' not in text
+
+    def test_unless_conditional(self) -> None:
+        doc = create_document(DocumentType.WORD)
+        doc.add_text('{{#unless paid}}Unpaid Warning{{/unless}}')
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            data_path = Path(tmpdir) / 'data.json'
+            data_path.write_text(json.dumps({'paid': False}))
+            engine = TemplateEngine(str(data_path))
+            engine.fill(doc)
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
+                           if p.text.strip())
+            assert 'Unpaid Warning' in text

@@ -359,3 +359,23 @@ class ExcelEngine(DocumentABC):
             for row in ws.iter_rows():
                 for cell in row:
                     cell.value = None
+
+    def clear_formats(self) -> None:
+        from copy import copy
+
+        from openpyxl.styles import Alignment, Border, Font, PatternFill
+        empty_font = Font()
+        no_fill = PatternFill()
+        for ws in self.wb.worksheets:
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.font = copy(empty_font)
+                    cell.fill = copy(no_fill)
+                    cell.alignment = Alignment()
+                    cell.border = Border()
+
+    def clear_links(self) -> None:
+        for ws in self.wb.worksheets:
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.hyperlink = None

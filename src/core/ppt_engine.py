@@ -427,6 +427,12 @@ class PptEngine(DocumentABC):
         for el in existing:
             pres_elem.remove(el)
 
+    def clear_content(self) -> None:
+        for slide in self.prs.slides:
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    shape.text_frame.clear()
+
     def merge_workbooks(self, paths: list[str]) -> None:
         from pptx import Presentation
         for p in paths:

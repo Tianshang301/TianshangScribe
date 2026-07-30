@@ -492,6 +492,27 @@ class WordEngine(DocumentABC):
         run.font.color.rgb = RGBColor(0xD9, 0xD9, 0xD9)
 
 
+    def clear_content(self) -> None:
+        for p in self.doc.paragraphs:
+            p.clear()
+
+    def clear_formats(self) -> None:
+        for p in self.doc.paragraphs:
+            for run in p.runs:
+                run.font.name = None
+                run.font.size = None
+                run.bold = None
+                run.italic = None
+                run.underline = None
+                run.font.color.rgb = None
+
+    def clear_links(self) -> None:
+        for p in self.doc.paragraphs:
+            for hyperlink in p._p.findall('.//'
+                    '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}hyperlink'):
+                hyperlink.getparent().remove(hyperlink)
+
+
 def _apply_font_config(engine: 'WordEngine', token: dict[str, Any]) -> None:
     from src.rendering.styles import TextStyle
 

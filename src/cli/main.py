@@ -194,9 +194,9 @@ def main(
         typer.Option('--unprotect', help='Remove workbook password protection'),
     ] = False,
     clear: Annotated[
-        bool,
-        typer.Option('-cl', '--clear', help='Clear all cell content'),
-    ] = False,
+        Optional[str],
+        typer.Option('-cl', '--clear', help='Clear content/formats/links (Excel/Word)'),
+    ] = None,
     column: Annotated[
         int,
         typer.Option('--column', help='Target column for --add (1-indexed, default 1)'),
@@ -402,7 +402,26 @@ def main(
         if unprotect and hasattr(engine, 'unprotect'):
             engine.unprotect()
         if clear and hasattr(engine, 'clear_content'):
-            engine.clear_content()
+            mode = clear.lower()
+            if mode == 'formats':
+                if hasattr(engine, 'clear_formats'):
+                    engine.clear_formats()
+                else:
+                    console.print(
+                        '[yellow]Format clearing not supported '
+                        'for this document type.[/yellow]'
+                    )
+            elif mode == 'links':
+                if hasattr(engine, 'clear_links'):
+                    engine.clear_links()
+                else:
+                    console.print(
+                        '[yellow]Link clearing not supported '
+                        'for this document type.[/yellow]'
+                    )
+            else:
+                engine.clear_content()
+            console.print(f'[green]Cleared: {mode}[/green]')
 
         if slide_add and hasattr(engine, 'add_slide'):
             engine.add_slide()

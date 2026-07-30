@@ -56,15 +56,30 @@ class TemplateEngine:
         doc = engine.doc
 
         i = 0
-        paragraphs = doc.paragraphs
-        while i < len(paragraphs):
+        while True:
+            paragraphs = list(doc.paragraphs)
+            if i >= len(paragraphs):
+                break
+
             para = paragraphs[i]
-            match = re.match(r'\{\{#each\s+(\S+)\}\}', para.text.strip())
-            if match:
-                count += self._process_word_loop(doc, i, match.group(1), flat)
+            text = para.text.strip()
+            each_match = re.match(r'\{\{#each\s+([^}\s]+)\}\}', text)
+            if_match = re.match(r'\{\{#if\s+([^=}\s]+)(?:\s*=\s*([^}\s]+))?\}\}', text)
+            unless_match = re.match(r'\{\{#unless\s+([^}\s]+)\}\}', text)
+
+            if each_match:
+                count += self._process_word_loop(doc, i, each_match.group(1), flat)
                 i += 1
-                continue
-            i += 1
+            elif if_match:
+                count += self._process_word_if(doc, i, if_match.group(1),
+                                               if_match.group(2), flat, negate=False)
+                i += 1
+            elif unless_match:
+                count += self._process_word_if(doc, i, unless_match.group(1),
+                                               None, flat, negate=True)
+                i += 1
+            else:
+                i += 1
 
         for key, value in flat.items():
             placeholder = f'{{{{{key}}}}}'
@@ -72,6 +87,47 @@ class TemplateEngine:
             count += 1
 
         return count
+
+    def _process_word_if(
+        self, doc: Any, start_idx: int, key: str,
+        expected: str | None, flat: dict[str, Any], negate: bool,
+    ) -> int:
+        paragraphs = list(doc.paragraphs)
+        end_idx = None
+        for j in range(start_idx, len(paragraphs)):
+            if '{{/if}}' in paragraphs[j].text or '{{/unless}}' in paragraphs[j].text:
+                end_idx = j
+                break
+
+        if end_idx is None:
+            return 0
+
+        val = flat.get(key)
+        if expected is not None:
+            condition = str(val) == expected
+        else:
+            condition = bool(val)
+
+        if negate:
+            condition = not condition
+
+        for idx in range(start_idx, end_idx + 1):
+            p = paragraphs[idx]
+            if condition:
+                raw = p.text
+                cleaned = re.sub(
+                    r'\{\{#(?:if|unless)\s+[^=}\s]+(?:\s*=\s*[^}\s]+)?\}\}',
+                    '', raw,
+                )
+                cleaned = cleaned.replace('{{/if}}', '').replace('{{/unless}}', '')
+                if cleaned.strip():
+                    p.text = cleaned
+                else:
+                    p.clear()
+            else:
+                p.clear()
+
+        return 1
 
     def _process_word_loop(
         self, doc: Any, start_idx: int, key: str, flat: dict[str, Any]

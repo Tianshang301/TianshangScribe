@@ -90,7 +90,7 @@ def test_sse_server_lifecycle():
         )
         resp = conn.getresponse()
         body = json.loads(resp.read().decode())
-        assert len(body['result']['tools']) == 6
+        assert len(body['result']['tools']) == 7
         conn.close()
 
         # -- tools/call create_office_document --

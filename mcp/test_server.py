@@ -28,7 +28,7 @@ print('2. List tools...')
 r = mcp_call('tools/list')
 tools = r['result']['tools']
 print(f'   {len(tools)} tools: {[t["name"] for t in tools]}')
-assert len(tools) == 6
+assert len(tools) == 7
 
 print('3. Create Word document...')
 created_path = None

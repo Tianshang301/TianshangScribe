@@ -19,6 +19,22 @@ cd TianshangScribe
 pip install -e ".[dev]"
 ```
 
+### Linux 部署
+
+**Docker**（推荐，用于 SSE MCP Server）：
+```bash
+git clone https://github.com/Tianshang301/TianshangScribe.git
+cd TianshangScribe
+docker compose up -d
+# SSE MCP Server 监听 http://localhost:8080/sse
+```
+
+**pipx**（隔离 CLI 安装）：
+```bash
+pipx install tianshang-scribe
+tianshang-scribe --help
+```
+
 依赖：Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · lxml
 
 ## 快速开始
@@ -311,42 +327,68 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent 可创建、编辑、填充模板、格式转换和提取 Office 文档数据。
 
-### stdio 模式（Claude Code、Cursor）
+### 快速接入
 
+**stdio**（Claude Code、Cursor）：
 ```json
-{
-  "mcpServers": {
-    "tianshang-scribe": {
-      "command": "python",
-      "args": ["-m", "mcp.server"]
-    }
-  }
-}
+{"mcpServers": {"tianshang-scribe": {
+  "command": "python", "args": ["-m", "mcp.server"]
+}}}
 ```
 
-### SSE 模式（Dify、Coze、FastGPT）
-
+**SSE**（Dify、Coze、FastGPT）：
 ```bash
 python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```
-
 ```json
-{
-  "mcpServers": {
-    "tianshang-scribe": {
-      "url": "http://localhost:8080/sse",
-      "transport": "sse"
-    }
-  }
-}
+{"mcpServers": {"tianshang-scribe": {
+  "url": "http://localhost:8080/sse", "transport": "sse"
+}}}
 ```
 
-**端点**：`GET /sse`（SSE 事件流） · `POST /message?session_id=X`（JSON-RPC 请求）
+### 工具列表（7 个）
 
-5 个 tools：`create_office_document` / `edit_office_document` / `fill_template` / `convert_document` / `extract_document_data`。SSE 传输层使用纯 `asyncio` 标准库，零外部 HTTP 依赖。详细文档：[mcp/README.zh-CN.md](mcp/README.zh-CN.md)。
+| 工具 | 说明 |
+|------|------|
+| `create_office_document` | 用结构化内容块创建 .docx / .xlsx / .pptx |
+| `edit_office_document` | 替换、删除、修改、样式、添加等操作 |
+| `fill_template` | 用数据填充 `{{占位符}}`，支持 `{{#each}}` / `{{#if}}` |
+| `convert_document` | 格式转换（docx↔pdf/md/html、xlsx↔csv/json） |
+| `extract_document_data` | 提取元数据、全文或文档结构 |
+| `validate_template` | 填充前预检查模板占位符与数据是否匹配 |
+| `compare_documents` | 两个 .docx 文件的段落级差异对比 |
+
+### 能力矩阵
+
+| 特性 | 详情 |
+|------|------|
+| **协议** | MCP 2024-11-05 · stdio + SSE · JSON-RPC 2.0 |
+| **资源** | `resources/list` + `resources/read` — 文档暴露为可读 URI |
+| **提示模板** | 5 个内置工作流（`prompts/list` + `prompts/get`） |
+| **进度通知** | PDF 转换等长操作发送 `notifications/progress` |
+| **返回值** | 多类型 `content[]`：文本 + 资源（文件 URI、MIME 类型、大小） |
+| **Schema** | 所有参数支持 `enum`、`default`、`examples`、约束 |
+
+### 生产就绪（SSE 模式）
 
 ```bash
-python mcp/test_server.py     # 7/7 基础测试（stdio）
+# 带认证启动
+SCRIBE_AUTH_TOKEN="secret" python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+
+# 健康检查
+curl http://localhost:8080/health
+# {"status":"ok","version":"0.2.0","active_sessions":3,"tools_available":7}
+
+# CORS 白名单
+python -m mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
+```
+
+**端点**：`GET /health` · `GET /sse` · `POST /message?session_id=X`
+
+详细文档：[mcp/README.zh-CN.md](mcp/README.zh-CN.md)。
+
+```bash
+python mcp/test_server.py     # 9/9 基础测试（stdio）
 python mcp/test_sse.py        # 3/3 SSE 传输测试
 python mcp/test_agent.py      # 11 场景 Agent 模拟测试
 ```

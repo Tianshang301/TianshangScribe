@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  tianshang-scribe:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - SCRIBE_AUTH_TOKEN=${SCRIBE_AUTH_TOKEN:-}
+      - SCRIBE_CORS_ORIGINS=${SCRIBE_CORS_ORIGINS:-}
+    volumes:
+      - scribe_output:/tmp/scribe
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:8080/health'); print(r.read().decode())"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  scribe_output:

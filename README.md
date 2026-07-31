@@ -19,6 +19,22 @@ cd TianshangScribe
 pip install -e ".[dev]"
 ```
 
+### Linux Deployment
+
+**Docker** (recommended for SSE MCP Server):
+```bash
+git clone https://github.com/Tianshang301/TianshangScribe.git
+cd TianshangScribe
+docker compose up -d
+# SSE MCP Server at http://localhost:8080/sse
+```
+
+**pipx** (isolated CLI):
+```bash
+pipx install tianshang-scribe
+tianshang-scribe --help
+```
+
 Requires Python 3.10+ · python-docx · openpyxl · python-pptx · typer · rich · lxml
 
 ## Quick Start
@@ -310,42 +326,69 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 
 TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents can create, edit, fill templates, convert, and extract data from Office documents.
 
-### stdio Mode (Claude Code, Cursor)
+### Quick Connect
 
+**stdio** (Claude Code, Cursor):
 ```json
-{
-  "mcpServers": {
-    "tianshang-scribe": {
-      "command": "python",
-      "args": ["-m", "mcp.server"]
-    }
-  }
-}
+{"mcpServers": {"tianshang-scribe": {
+  "command": "python", "args": ["-m", "mcp.server"]
+}}}
 ```
 
-### SSE Mode (Dify, Coze, FastGPT)
-
+**SSE** (Dify, Coze, FastGPT):
 ```bash
 python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```
-
 ```json
-{
-  "mcpServers": {
-    "tianshang-scribe": {
-      "url": "http://localhost:8080/sse",
-      "transport": "sse"
-    }
-  }
-}
+{"mcpServers": {"tianshang-scribe": {
+  "url": "http://localhost:8080/sse", "transport": "sse"
+}}}
 ```
 
-**Endpoints**: `GET /sse` (SSE event stream) · `POST /message?session_id=X` (JSON-RPC request)
+### Tools (7)
 
-5 tools available: `create_office_document`, `edit_office_document`, `fill_template`, `convert_document`, `extract_document_data`. SSE transport uses pure `asyncio` stdlib — zero external HTTP dependencies. Full documentation: [mcp/README.md](mcp/README.md).
+| Tool | Description |
+|------|-------------|
+| `create_office_document` | Create .docx / .xlsx / .pptx with structured content blocks |
+| `edit_office_document` | Replace, delete, modify, style, add operations on existing docs |
+| `fill_template` | Fill `{{placeholders}}` with data; supports `{{#each}}` / `{{#if}}` |
+| `convert_document` | Convert between formats (docx↔pdf/md/html, xlsx↔csv/json) |
+| `extract_document_data` | Extract metadata, full text, or document structure |
+| `validate_template` | Pre-check template placeholders against data before filling |
+| `compare_documents` | Paragraph-level diff between two .docx files |
+
+### Capabilities
+
+| Feature | Detail |
+|---------|--------|
+| **Protocol** | MCP 2024-11-05 · stdio + SSE · JSON-RPC 2.0 |
+| **Resources** | `resources/list` + `resources/read` — documents exposed as readable URIs |
+| **Prompts** | 5 built-in workflow templates (`prompts/list` + `prompts/get`) |
+| **Progress** | `notifications/progress` during PDF conversion and long operations |
+| **Response** | Multi-type `content[]`: text message + resource (file URI, MIME type, size) |
+| **Schema** | `enum`, `default`, `examples`, `minimum/maximum` constraints on all params |
+
+### Production (SSE only)
 
 ```bash
-python mcp/test_server.py     # 7/7 quick tests (stdio)
+# With authentication
+SCRIBE_AUTH_TOKEN="secret" \
+python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+
+# Health check
+curl http://localhost:8080/health
+# {"status":"ok","version":"0.2.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
+
+# CORS whitelist
+python -m mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
+```
+
+**Endpoints**: `GET /health` · `GET /sse` · `POST /message?session_id=X`
+
+Full documentation: [mcp/README.md](mcp/README.md).
+
+```bash
+python mcp/test_server.py     # 9/9 quick tests (stdio)
 python mcp/test_sse.py        # 3/3 SSE transport tests
 python mcp/test_agent.py      # 11-scenario Agent simulation
 ```

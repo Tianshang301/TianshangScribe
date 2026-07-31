@@ -1,0 +1,13 @@
+# Ignore build artifacts
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.spec
+test_d.docx
+gaokao_math_exam.docx
+*.bak

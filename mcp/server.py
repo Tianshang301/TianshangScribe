@@ -13,7 +13,7 @@ import json
 import os
 import sys
 
-from mcp.errors import McpErrorCode, error_response
+from mcp.errors import McpErrorCode, _set_notify_writer, error_response
 
 SERVER_NAME = 'tianshang-scribe'
 SERVER_VERSION = '0.2.0'
@@ -354,7 +354,7 @@ def _dispatch_tool(name: str, args: dict) -> dict:
         return error_response(McpErrorCode.INVALID_PARAMETER, str(e))
 
 
-def _handle_request(request: dict) -> dict | None:
+def _handle_request(request: dict, _notify=None) -> dict | None:
     method = request.get('method', '')
     req_id = request.get('id')
     params = request.get('params', {})
@@ -386,7 +386,13 @@ def _handle_request(request: dict) -> dict | None:
     if method == 'tools/call':
         tool_name = params.get('name', '')
         tool_args = params.get('arguments', {})
-        result = _dispatch_tool(tool_name, tool_args)
+        if _notify:
+            _set_notify_writer(_notify)
+        try:
+            result = _dispatch_tool(tool_name, tool_args)
+        finally:
+            if _notify:
+                _set_notify_writer(None)
         session_id = params.get('_meta', {}).get('session_id', 'default')
         if result.get('success'):
             _auto_register(session_id, result)
@@ -538,7 +544,10 @@ def main() -> None:
                 break
 
             request = json.loads(line.strip())
-            response = _handle_request(request)
+            response = _handle_request(
+                request,
+                _notify=lambda msg: sys.stdout.write(msg + '\n'),
+            )
 
             if response is not None:
                 sys.stdout.write(json.dumps(response, ensure_ascii=False) + '\n')

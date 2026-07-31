@@ -20,6 +20,36 @@ def _mime_for_format(fmt: str) -> str:
     return _MIME_MAP.get(fmt.lstrip('.').lower(), 'application/octet-stream')
 
 
+_notify_writer = None
+
+
+def _get_notify_writer():
+    return _notify_writer
+
+
+def _set_notify_writer(writer) -> None:
+    global _notify_writer
+    _notify_writer = writer
+
+
+def send_progress(progress: int, total: int, message: str = '') -> None:
+    """Send an MCP progress notification if a writer is configured."""
+    writer = _notify_writer
+    if writer is None:
+        return
+    import json
+    notification = json.dumps({
+        'jsonrpc': '2.0',
+        'method': 'notifications/progress',
+        'params': {
+            'progress': progress,
+            'total': total,
+            'message': message,
+        },
+    }, ensure_ascii=False)
+    writer(notification)
+
+
 def _make_content(output_path: str, message: str) -> list[dict]:
     """Build MCP content array with text + resource URI."""
     path = Path(output_path)

@@ -53,21 +53,44 @@ def _convert_via_libreoffice(input_path: str | Path, output_path: str | Path) ->
 
 def _convert(input_path: str | Path, output_path: str | Path) -> None:
     """Convert document to PDF — auto-select engine."""
-    if _find_office2pdf():
+    try:
+        from mcp.errors import send_progress
+        _has_progress = True
+    except ImportError:
+        _has_progress = False
+
+    if _has_progress:
+        send_progress(0, 100, 'Analyzing document for PDF conversion...')
+
+    engine_name = 'office2pdf' if _find_office2pdf() else (
+        'LibreOffice' if _find_libreoffice() else None)
+
+    if not engine_name:
+        if _has_progress:
+            send_progress(0, 100,
+                          'No PDF engine found. Install office2pdf or LibreOffice.')
+        raise RuntimeError(
+            'No PDF conversion engine found.\n'
+            'Install office2pdf (recommended, ~2MB):\n'
+            '  Download from https://github.com/XXXX/office2pdf/releases\n'
+            'Or install LibreOffice (fallback, ~500MB):\n'
+            '  https://www.libreoffice.org/download/'
+        )
+
+    input_size = Path(input_path).stat().st_size
+    if _has_progress:
+        send_progress(10, 100,
+                      f'Converting with {engine_name} '
+                      f'({input_size / 1024:.0f} KB)...')
+
+    if engine_name == 'office2pdf':
         _convert_via_office2pdf(input_path, output_path)
-        return
-
-    if _find_libreoffice():
+    else:
         _convert_via_libreoffice(input_path, output_path)
-        return
 
-    raise RuntimeError(
-        'No PDF conversion engine found.\n'
-        'Install office2pdf (recommended, ~2MB):\n'
-        '  Download from https://github.com/XXXX/office2pdf/releases\n'
-        'Or install LibreOffice (fallback, ~500MB):\n'
-        '  https://www.libreoffice.org/download/'
-    )
+    if _has_progress:
+        send_progress(100, 100,
+                      f'PDF ready ({Path(output_path).stat().st_size / 1024:.0f} KB)')
 
 
 def word_to_pdf(docx_path: str | Path, pdf_path: str | Path) -> None:

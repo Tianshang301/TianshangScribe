@@ -242,7 +242,13 @@ class SseServer:
         _log_event('rpc_call', session_id=session_id[:8],
                    method=req_method, id=req_id)
 
-        response = _handle_request(request)
+        queue = self._sessions.get(session_id)
+
+        def _notify(msg: str) -> None:
+            if queue:
+                asyncio.create_task(queue.put(msg))
+
+        response = _handle_request(request, _notify=_notify)
 
         if response is not None:
             response_text = json.dumps(response, ensure_ascii=False)

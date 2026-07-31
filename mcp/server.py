@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 from mcp.errors import McpErrorCode, error_response
@@ -507,11 +508,22 @@ def main() -> None:
         default=8080,
         help='SSE server port (default: 8080)',
     )
+    parser.add_argument(
+        '--auth-token',
+        default=os.environ.get('SCRIBE_AUTH_TOKEN'),
+        help='Bearer token for SSE auth (env: SCRIBE_AUTH_TOKEN)',
+    )
+    parser.add_argument(
+        '--cors-origins',
+        default=os.environ.get('SCRIBE_CORS_ORIGINS'),
+        help='CORS allowed origins, comma-separated (env: SCRIBE_CORS_ORIGINS)',
+    )
     args = parser.parse_args()
 
     if args.transport == 'sse':
         from mcp.transport_sse import run_sse
-        run_sse(args.host, args.port)
+        run_sse(args.host, args.port, auth_token=args.auth_token,
+                cors_origins=args.cors_origins)
         return
 
     import io

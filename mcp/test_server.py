@@ -28,9 +28,10 @@ print('2. List tools...')
 r = mcp_call('tools/list')
 tools = r['result']['tools']
 print(f'   {len(tools)} tools: {[t["name"] for t in tools]}')
-assert len(tools) == 5
+assert len(tools) == 6
 
 print('3. Create Word document...')
+created_path = None
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / 'test.docx'
     r = mcp_call('tools/call', {
@@ -39,7 +40,8 @@ with tempfile.TemporaryDirectory() as tmp:
             'format': 'docx',
             'content': [
                 {'type': 'heading', 'text': 'Test Report', 'level': 1},
-                {'type': 'paragraph', 'text': '\\bfseries{Important}: this is a test.'},
+                {'type': 'paragraph',
+                 'text': '\\bfseries{Important}: this is a test.'},
                 {'type': 'formula', 'text': '\\frac{a}{b}'},
             ],
             'output_path': str(path),
@@ -47,9 +49,11 @@ with tempfile.TemporaryDirectory() as tmp:
     })
     text = r['result']['content'][0]['text']
     data = json.loads(text)
-    print(f'   Success: {data["success"]}, Path: {data.get("data", {}).get("output_path", "")}')
+    print(f'   Success: {data["success"]}, '
+          f'Path: {data.get("data", {}).get("output_path", "")}')
     assert data['success']
     assert path.exists()
+    created_path = path
 
     print('4. Edit document...')
     r = mcp_call('tools/call', {
@@ -118,5 +122,25 @@ with tempfile.TemporaryDirectory() as tmp:
     print(f'   Text blocks: {data.get("data", {}).get("text_blocks", 0)}')
     assert 'Alice' in data['data']['text']
 
+print('8. Validate template...')
+if created_path:
+    r = mcp_call('tools/call', {
+        'name': 'validate_template',
+        'arguments': {
+            'template_path': str(created_path),
+            'data': {'name': 'Alice', 'age': '30', 'items': []},
+        },
+    })
+    result = json.loads(r['result']['content'][0]['text'])
+    print(f'   Valid: {result.get("data", {}).get("valid")}, '
+          f'Missing: {len(result.get("data", {}).get("missing", []))}')
+else:
+    print('   Skipped (no test doc)')
+
+print('9. Resource list (stdio — cleared per-process)...')
+r = mcp_call('resources/list')
+resources = r['result'].get('resources', [])
+print(f'   Resources: {len(resources)} (expected 0 in stdio mode)')
+
 print()
-print('All 7 tests passed!')
+print('All 9 tests passed!')

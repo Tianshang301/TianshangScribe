@@ -177,8 +177,8 @@ TOOLS = [
     {
         'name': 'fill_template',
         'description': (
-            'Fill a document template with structured data. Replaces {{key}} placeholders '
-            'and expands {{#each list}}...{{/each}} loops.'
+            'Fill a document template with structured data. Replaces '
+            '{{key}} placeholders and expands {{#each list}}...{{/each}} loops.'
         ),
         'inputSchema': {
             'type': 'object',
@@ -261,7 +261,70 @@ TOOLS = [
             'required': ['input_path'],
         },
     },
+    {
+        'name': 'validate_template',
+        'description': (
+            'Validate a template document against provided data. '
+            'Checks if all {{placeholder}} variables, {{#each}} loops, '
+            'and {{#if}}/{{#unless}} conditions can be resolved. '
+            'Use BEFORE calling fill_template to catch missing keys early.'
+        ),
+        'inputSchema': {
+            'type': 'object',
+            'properties': {
+                'template_path': {
+                    'type': 'string',
+                    'description': 'Path to the template document (.docx/.xlsx).',
+                },
+                'data': {
+                    'type': 'object',
+                    'description': 'Key-value data to validate against placeholders.',
+                },
+                'options': {
+                    'type': 'object',
+                    'properties': {
+                        'dry_run': {'type': 'boolean'},
+                    },
+                },
+            },
+            'required': ['template_path', 'data'],
+        },
+    },
 ]
+
+RESOURCE_REGISTRY: dict[str, list[dict]] = {}
+
+
+def _register_resource(session_id: str, uri: str, name: str,
+                       mime_type: str = 'application/octet-stream',
+                       description: str = '') -> None:
+    """Register a document as a readable resource for a session."""
+    if session_id not in RESOURCE_REGISTRY:
+        RESOURCE_REGISTRY[session_id] = []
+    RESOURCE_REGISTRY[session_id].append({
+        'uri': uri,
+        'name': name,
+        'mimeType': mime_type,
+        'description': description or f'Document: {name}',
+    })
+
+
+def _auto_register(session_id: str, result: dict) -> None:
+    """Auto-register resource from tool result if it produced a file."""
+    data = result.get('data', result)
+    output_path = data.get('output_path', '') if isinstance(data, dict) else ''
+    if output_path:
+        from pathlib import Path
+
+        from mcp.errors import _mime_for_format
+        path = Path(output_path)
+        if path.exists():
+            _register_resource(
+                session_id,
+                path.resolve().as_uri(),
+                path.name,
+                _mime_for_format(path.suffix),
+            )
 
 
 def _dispatch_tool(name: str, args: dict) -> dict:
@@ -281,6 +344,9 @@ def _dispatch_tool(name: str, args: dict) -> dict:
         elif name == 'extract_document_data':
             from mcp.tools.convert import extract_document_data
             return extract_document_data(**args)
+        elif name == 'validate_template':
+            from mcp.tools.validate import validate_template
+            return validate_template(**args)
         else:
             return error_response(McpErrorCode.INVALID_PARAMETER, f"Unknown tool: {name}")
     except TypeError as e:
@@ -304,6 +370,7 @@ def _handle_request(request: dict) -> dict | None:
                 },
                 'capabilities': {
                     'tools': {},
+                    'resources': {'listChanged': False},
                 },
             },
         }
@@ -319,14 +386,91 @@ def _handle_request(request: dict) -> dict | None:
         tool_name = params.get('name', '')
         tool_args = params.get('arguments', {})
         result = _dispatch_tool(tool_name, tool_args)
+        session_id = params.get('_meta', {}).get('session_id', 'default')
+        if result.get('success'):
+            _auto_register(session_id, result)
+        content_blocks = [
+            {'type': 'text',
+             'text': json.dumps(result, ensure_ascii=False, indent=2)},
+        ]
+        resource_blocks = result.get('content', [])
+        for block in resource_blocks:
+            if block.get('type') == 'resource':
+                content_blocks.append(block)
         return {
             'jsonrpc': '2.0',
             'id': req_id,
-            'result': {
-                'content': [{
-                    'type': 'text',
-                    'text': json.dumps(result, ensure_ascii=False, indent=2),
-                }],
+            'result': {'content': content_blocks},
+        }
+
+    if method == 'resources/list':
+        session_id = params.get('_meta', {}).get('session_id', 'default')
+        resources = RESOURCE_REGISTRY.get(session_id, [])
+        return {
+            'jsonrpc': '2.0',
+            'id': req_id,
+            'result': {'resources': resources},
+        }
+
+    if method == 'resources/read':
+        uri = params.get('uri', '')
+        session_id = params.get('_meta', {}).get('session_id', 'default')
+        resources = RESOURCE_REGISTRY.get(session_id, [])
+        for res in resources:
+            if res['uri'] == uri:
+                from urllib.parse import urlparse
+                parsed = urlparse(uri)
+                file_path = parsed.path
+                if file_path:
+                    try:
+                        from src.core.document import open_document
+                        engine = open_document(file_path)
+                        text_parts = []
+                        if hasattr(engine, 'doc'):
+                            text_parts = [
+                                p.text for p in engine.doc.paragraphs
+                                if p.text.strip()
+                            ]
+                        elif hasattr(engine, 'wb'):
+                            text_parts = engine.wb.sheetnames
+                        elif hasattr(engine, 'prs'):
+                            text_parts = [
+                                s.shapes[0].text_frame.text
+                                for s in engine.prs.slides
+                                if s.shapes
+                            ]
+                        return {
+                            'jsonrpc': '2.0',
+                            'id': req_id,
+                            'result': {
+                                'contents': [{
+                                    'uri': uri,
+                                    'mimeType': res.get('mimeType',
+                                                        'text/plain'),
+                                    'text': '\n'.join(text_parts),
+                                }],
+                            },
+                        }
+                    except Exception:
+                        pass
+                return {
+                    'jsonrpc': '2.0',
+                    'id': req_id,
+                    'result': {
+                        'contents': [{
+                            'uri': uri,
+                            'mimeType': res.get('mimeType',
+                                                'text/plain'),
+                            'text': f'[Binary resource: {res["name"]}]',
+                        }],
+                    },
+                }
+        return {
+            'jsonrpc': '2.0',
+            'id': req_id,
+            'error': {
+                'code': -32002,
+                'message': f'Resource not found: {uri}',
             },
         }
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mcp.errors import McpErrorCode, error_response, success_response
+from mcp.errors import McpErrorCode, _make_content, error_response, success_response
 from src.core.document import open_document
 
 
@@ -59,7 +59,8 @@ def convert_document(
             'output_path': output_path,
             'source_format': Path(input_path).suffix,
             'target_format': fmt,
-        })
+        }, content=_make_content(output_path,
+               f'Converted {input_path} → {output_path} ({fmt})'))
     except NotImplementedError as e:
         return error_response(McpErrorCode.CONVERSION_FAILED, str(e))
     except Exception as e:

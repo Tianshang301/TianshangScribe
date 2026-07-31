@@ -32,10 +32,14 @@ TOOLS = [
                 'format': {
                     'type': 'string',
                     'enum': ['docx', 'xlsx', 'pptx'],
+                    'default': 'docx',
                     'description': (
-                        'Document format. docx for reports, xlsx for spreadsheets, '
-                        'pptx for presentations.'
+                        'Document format:\n'
+                        '- "docx": Word document — reports, letters, contracts, proposals\n'
+                        '- "xlsx": Excel workbook — spreadsheets, data tables, charts\n'
+                        '- "pptx": PowerPoint — slides, presentations, pitch decks'
                     ),
+                    'examples': ['docx', 'xlsx'],
                 },
                 'content': {
                     'type': 'array',
@@ -54,13 +58,27 @@ TOOLS = [
                             'text': {
                                 'type': 'string',
                                 'description': (
-                            'Text content. Supports LaTeX markup '
-                            'and inline math $...$.'
-                        ),
+                                    'Text content. Supports LaTeX markup '
+                                    'and inline math $...$.\n'
+                                    'Examples:\n'
+                                    '- \\bfseries{Bold text}\n'
+                                    '- \\itshape{Italic text}\n'
+                                    '- \\color{FF0000}{Red text}\n'
+                                    '- \\fontsize{20}{Large title}\n'
+                                    '- $x^2 + y^2 = 1$\n'
+                                    '- $$\\sum_{i=0}^{n} x_i$$'
+                                ),
                             },
                             'level': {
                                 'type': 'integer',
-                                'description': 'Heading level (1-6). Only for type=heading.',
+                                'minimum': 1,
+                                'maximum': 6,
+                                'default': 1,
+                                'description': (
+                                    'Heading level 1-6. '
+                                    'Level 1 = document title, '
+                                    'Level 2 = chapter, Level 3 = section.'
+                                ),
                             },
                             'style': {
                                 'type': 'string',
@@ -188,15 +206,31 @@ TOOLS = [
     {
         'name': 'convert_document',
         'description': (
-            'Convert a document to another format. Supported: pdf, csv, json, html, md.'
+            'Convert a document between formats. Converts document content '
+            'while preserving structure where possible.\n'
+            '- Word (.docx) → PDF, Markdown, HTML\n'
+            '- Excel (.xlsx) → PDF, CSV, JSON, HTML\n'
+            '- PowerPoint (.pptx) → PDF'
         ),
         'inputSchema': {
             'type': 'object',
             'properties': {
-                'input_path': {'type': 'string'},
+                'input_path': {
+                    'type': 'string',
+                    'description': 'Path to the source document.',
+                },
                 'target_format': {
                     'type': 'string',
                     'enum': ['pdf', 'csv', 'json', 'html', 'md'],
+                    'description': (
+                        'Target output format:\n'
+                        '- "pdf": PDF document (requires office2pdf or LibreOffice)\n'
+                        '- "csv": Comma-separated values (Excel only)\n'
+                        '- "json": JSON array of rows (Excel only)\n'
+                        '- "html": HTML table (Excel) / styled HTML (Word)\n'
+                        '- "md": Markdown (Word only)'
+                    ),
+                    'examples': ['pdf', 'md'],
                 },
                 'output_path': {'type': 'string'},
                 'options': {

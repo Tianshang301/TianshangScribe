@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from mcp.errors import McpErrorCode, error_response, success_response
+from mcp.errors import McpErrorCode, _make_content, error_response, success_response
 from src.core.document import DocumentType, create_document
 
 
@@ -117,7 +117,7 @@ def create_office_document(
             'format': format,
             'content_items': len(content),
             **stats,
-        })
+        }, content=_make_content(output_path, f'Document created: {output_path}'))
     except Exception as e:
         return error_response(McpErrorCode.INTERNAL_ERROR, str(e))
 

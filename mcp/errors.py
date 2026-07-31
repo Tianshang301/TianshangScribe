@@ -2,6 +2,40 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+_MIME_MAP = {
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'pdf': 'application/pdf',
+    'csv': 'text/csv',
+    'json': 'application/json',
+    'html': 'text/html',
+    'md': 'text/markdown',
+}
+
+
+def _mime_for_format(fmt: str) -> str:
+    return _MIME_MAP.get(fmt.lstrip('.').lower(), 'application/octet-stream')
+
+
+def _make_content(output_path: str, message: str) -> list[dict]:
+    """Build MCP content array with text + resource URI."""
+    path = Path(output_path)
+    content = [{'type': 'text', 'text': message}]
+    if path.exists():
+        content.append({
+            'type': 'resource',
+            'resource': {
+                'uri': path.resolve().as_uri(),
+                'mimeType': _mime_for_format(path.suffix),
+                'title': path.name,
+                'size': path.stat().st_size,
+            },
+        })
+    return content
+
 
 class McpErrorCode:
     SUCCESS = 0
@@ -56,5 +90,10 @@ def error_response(error_code: int, detail: str = '') -> dict:
     }
 
 
-def success_response(data: dict | None = None) -> dict:
-    return {'success': True, **({'data': data} if data else {})}
+def success_response(data: dict | None = None, content: list[dict] | None = None) -> dict:
+    result: dict = {'success': True}
+    if data:
+        result['data'] = data
+    if content:
+        result['content'] = content
+    return result

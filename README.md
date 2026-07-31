@@ -29,6 +29,13 @@ docker compose up -d
 # SSE MCP Server at http://localhost:8080/sse
 ```
 
+**.deb package** (Debian / Ubuntu):
+```bash
+# Download from GitHub Releases
+sudo dpkg -i tianshang-scribe_0.2.0_all.deb
+tianshang-scribe --help
+```
+
 **pipx** (isolated CLI):
 ```bash
 pipx install tianshang-scribe

@@ -1,0 +1,3 @@
+#!/bin/bash
+# TianshangScribe CLI entry point wrapper
+exec python3 -m src.cli.main "$@"

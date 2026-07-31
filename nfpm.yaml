@@ -1,0 +1,47 @@
+# nfpm.yaml — TianshangScribe Debian package
+name: tianshang-scribe
+arch: all
+platform: linux
+version: ${VERSION}
+version_schema: none
+maintainer: TianshangScribe Contributors
+description: |
+  Cross-platform CLI Office document processing tool
+  with LaTeX math rendering and MCP Server integration.
+  Supports Word, Excel, PowerPoint create, edit, fill,
+  convert, and extract operations.
+license: Apache-2.0
+section: utils
+priority: optional
+homepage: https://github.com/Tianshang301/TianshangScribe
+depends:
+  - python3
+
+contents:
+  - src: pyproject.toml
+    dst: /usr/lib/tianshang-scribe/pyproject.toml
+  - src: src/cli/
+    dst: /usr/lib/tianshang-scribe/src/cli/
+  - src: src/core/
+    dst: /usr/lib/tianshang-scribe/src/core/
+  - src: src/rendering/
+    dst: /usr/lib/tianshang-scribe/src/rendering/
+  - src: src/transform/
+    dst: /usr/lib/tianshang-scribe/src/transform/
+  - src: mcp/tools/
+    dst: /usr/lib/tianshang-scribe/mcp/tools/
+  - src: mcp/__init__.py
+    dst: /usr/lib/tianshang-scribe/mcp/__init__.py
+  - src: mcp/server.py
+    dst: /usr/lib/tianshang-scribe/mcp/server.py
+  - src: mcp/transport_sse.py
+    dst: /usr/lib/tianshang-scribe/mcp/transport_sse.py
+  - src: mcp/errors.py
+    dst: /usr/lib/tianshang-scribe/mcp/errors.py
+  - src: scripts/tianshang-scribe
+    dst: /usr/bin/tianshang-scribe
+    file_info:
+      mode: 0755
+
+scripts:
+  postinstall: scripts/deb-postinstall.sh

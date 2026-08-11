@@ -152,10 +152,12 @@ class TestWordEngine:
 
     def test_add_styled_content_basic(self, engine: WordEngine) -> None:
         engine.set_style('font=Arial')
-        engine.add_styled_content([
-            {'type': 'text', 'content': 'Hello '},
-            {'type': 'command', 'command': 'bfseries', 'content': 'Bold'},
-        ])
+        engine.add_styled_content(
+            [
+                {'type': 'text', 'content': 'Hello '},
+                {'type': 'command', 'command': 'bfseries', 'content': 'Bold'},
+            ]
+        )
         paragraph = engine.doc.paragraphs[0]
         assert 'Hello' in paragraph.text
         assert 'Bold' in paragraph.text
@@ -287,6 +289,7 @@ class TestExcelEngine:
 
     def test_import_csv(self, engine: ExcelEngine) -> None:
         import csv
+
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = Path(tmpdir) / 'test.csv'
             with open(csv_path, 'w', newline='') as f:
@@ -317,6 +320,7 @@ class TestExcelEngine:
             engine.export_json(str(out_path))
             assert out_path.exists()
             import json
+
             data = json.loads(out_path.read_text())
             assert isinstance(data, list)
             assert data[0]['Name'] == 'Alice'
@@ -480,3 +484,131 @@ class TestPptEngine:
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         pres = engine.prs.part._element
         assert pres.find(f'{{{ns}}}modifyVerifier') is None
+
+
+class TestWordExtract:
+    @pytest.fixture
+    def engine(self, tmp_path: Path) -> WordEngine:
+        e = WordEngine()
+        e.create()
+        e.add_text('Hello World')
+        e.add_table_data([['Name', 'City'], ['Alice', 'NYC']])
+        from PIL import Image
+
+        img = tmp_path / 'pixel.png'
+        Image.new('RGB', (32, 32), (200, 40, 40)).save(img)
+        e.add_image(str(img))
+        return e
+
+    def test_extract_text_contains_paragraph(self, engine: WordEngine) -> None:
+        assert 'Hello World' in engine.extract_text()
+
+    def test_extract_text_contains_table_row(self, engine: WordEngine) -> None:
+        assert 'Alice | NYC' in engine.extract_text()
+
+    def test_extract_tables(self, engine: WordEngine) -> None:
+        tables = engine.extract_tables()
+        assert tables == [[['Name', 'City'], ['Alice', 'NYC']]]
+
+    def test_extract_images(self, engine: WordEngine, tmp_path: Path) -> None:
+        saved = engine.extract_images(str(tmp_path / 'imgs'))
+        assert len(saved) == 1
+        assert saved[0].exists()
+
+    def test_extract_structure(self, engine: WordEngine) -> None:
+        struct = engine.extract_structure()
+        assert struct['tables'] == 1
+        assert struct['images'] == 1
+        assert struct['sections'] == 1
+
+
+class TestExcelImportJson:
+    def test_import_json_dicts(self, tmp_path: Path) -> None:
+        data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]
+        json_path = tmp_path / 'data.json'
+        json_path.write_text(__import__('json').dumps(data), encoding='utf-8')
+        e = ExcelEngine()
+        e.create()
+        e.import_json(str(json_path))
+        rows = [list(r) for r in e.wb.active.iter_rows(values_only=True)]
+        assert rows == [['name', 'age'], ['Alice', 30], ['Bob', 25]]
+
+    def test_import_json_arrays(self, tmp_path: Path) -> None:
+        data = [[1, 2], [3, 4]]
+        json_path = tmp_path / 'data.json'
+        json_path.write_text(__import__('json').dumps(data), encoding='utf-8')
+        e = ExcelEngine()
+        e.create()
+        e.import_json(str(json_path))
+        rows = [list(r) for r in e.wb.active.iter_rows(values_only=True)]
+        assert rows == [[1, 2], [3, 4]]
+
+    def test_import_json_empty_raises(self, tmp_path: Path) -> None:
+        json_path = tmp_path / 'data.json'
+        json_path.write_text('[]', encoding='utf-8')
+        e = ExcelEngine()
+        e.create()
+        with pytest.raises(ValueError, match='non-empty'):
+            e.import_json(str(json_path))
+
+
+class TestExcelExtract:
+    def test_extract_text(self) -> None:
+        e = ExcelEngine()
+        e.create()
+        ws = e.wb.active
+        ws['A1'] = 'x'
+        ws['B1'] = 2
+        text = e.extract_text()
+        assert '[Sheet] x | 2' in text
+
+    def test_extract_tables(self) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.wb.active['A1'] = 'a'
+        tables = e.extract_tables()
+        assert tables == [[['a']]]
+
+    def test_extract_structure(self) -> None:
+        e = ExcelEngine()
+        e.create()
+        struct = e.extract_structure()
+        assert struct['sheets'] == ['Sheet']
+
+
+class TestPptExtract:
+    def test_extract_text(self) -> None:
+        e = PptEngine()
+        e.create()
+        e.add_text('Slide one')
+        assert '[slide 1] Slide one' in e.extract_text()
+
+    def test_extract_structure(self) -> None:
+        e = PptEngine()
+        e.create()
+        e.add_slide()
+        struct = e.extract_structure()
+        assert struct['slides'] == 1
+
+
+class TestPptCompressMedia:
+    def test_compress_media_reduces_size(self, tmp_path: Path) -> None:
+        from PIL import Image
+        from pptx import Presentation
+        from pptx.util import Inches
+
+        img = tmp_path / 'big.jpg'
+        Image.new('RGB', (4000, 2000), (128, 128, 128)).save(img, 'JPEG', quality=95)
+        pptx_path = tmp_path / 'deck.pptx'
+        prs = Presentation()
+        slide = prs.slides.add_slide(prs.slide_layouts[5])
+        slide.shapes.add_picture(str(img), Inches(1), Inches(1), width=Inches(4))
+        prs.save(str(pptx_path))
+        original = pptx_path.stat().st_size
+
+        e = PptEngine()
+        e.open(str(pptx_path))
+        saved = e.compress_media(max_dimension=1600, quality=60)
+        assert saved > 0
+        e.save(str(pptx_path))
+        assert pptx_path.stat().st_size < original

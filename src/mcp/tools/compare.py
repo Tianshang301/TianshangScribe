@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Annotated
 
-from mcp.errors import McpErrorCode, error_response, success_response
+from pydantic import Field
+
+from src.mcp.errors import McpErrorCode, error_response, success_response
+from src.mcp.schemas import ToolOptions
 
 
 def compare_documents(
-    path_a: str,
-    path_b: str,
-    options: dict[str, Any] | None = None,
+    path_a: Annotated[str, Field(description='Path to the first document.')],
+    path_b: Annotated[str, Field(description='Path to the second document.')],
+    options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
 ) -> dict:
     """Compare two Word documents and report differences."""
     for p, label in [(path_a, 'path_a'), (path_b, 'path_b')]:
@@ -49,25 +52,25 @@ def compare_documents(
             elif text_a and not text_b:
                 removed.append({'index': i, 'text': text_a[:200]})
             elif text_a != text_b:
-                changed.append({
-                    'index': i,
-                    'old': text_a[:200],
-                    'new': text_b[:200],
-                })
+                changed.append(
+                    {
+                        'index': i,
+                        'old': text_a[:200],
+                        'new': text_b[:200],
+                    }
+                )
 
-        return success_response({
-            'path_a': path_a,
-            'path_b': path_b,
-            'paragraphs_a': len(paras_a),
-            'paragraphs_b': len(paras_b),
-            'added': added,
-            'removed': removed,
-            'changed': changed,
-            'identical': (
-                len(added) == 0
-                and len(removed) == 0
-                and len(changed) == 0
-            ),
-        })
+        return success_response(
+            {
+                'path_a': path_a,
+                'path_b': path_b,
+                'paragraphs_a': len(paras_a),
+                'paragraphs_b': len(paras_b),
+                'added': added,
+                'removed': removed,
+                'changed': changed,
+                'identical': (len(added) == 0 and len(removed) == 0 and len(changed) == 0),
+            }
+        )
     except Exception as e:
         return error_response(McpErrorCode.INTERNAL_ERROR, str(e))

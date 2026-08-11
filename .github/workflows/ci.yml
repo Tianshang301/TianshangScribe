@@ -30,13 +30,15 @@ jobs:
           pip install ".[dev]"
 
       - name: Lint with ruff
-        run: ruff check src/ tests/
+        run: |
+          ruff check src/ tests/
+          ruff format --check src/ tests/
 
       - name: Type check with mypy
         run: mypy src/
 
       - name: Test with pytest
-        run: pytest tests/ -v --tb=short --cov=src --cov-report=xml
+        run: pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-fail-under=38 -m "not stress"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -44,6 +46,26 @@ jobs:
           file: ./coverage.xml
           flags: unittests
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+
+  stress:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run stress/benchmark tests
+        run: pytest tests/ -q -m stress -W error --durations=10
 
   build:
     needs: test

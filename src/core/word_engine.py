@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import re
 from pathlib import Path
 from typing import Any
@@ -22,7 +23,6 @@ ALIGNMENT_MAP: dict[str, WD_ALIGN_PARAGRAPH] = {
 
 
 class WordEngine(DocumentABC):
-
     def __init__(self, path: str | Path | None = None) -> None:
         super().__init__(path)
         self._doc: Document | None = None
@@ -103,12 +103,10 @@ class WordEngine(DocumentABC):
                 _apply_font_config(self, token)
 
         content_tokens = [
-            t for t in tokens
-            if not (t.get('command') == 'set_font' and not t.get('content'))
+            t for t in tokens if not (t.get('command') == 'set_font' and not t.get('content'))
         ]
         has_visible = any(
-            t.get('type') == 'text'
-            or (t.get('command') and t.get('command') not in ('set_font',))
+            t.get('type') == 'text' or (t.get('command') and t.get('command') not in ('set_font',))
             for t in content_tokens
         )
 
@@ -158,34 +156,44 @@ class WordEngine(DocumentABC):
                     paragraph = self.doc.add_paragraph()
                     continue
 
-                if cmd in ('centering', 'raggedright', 'raggedleft',
-                           'linespread', 'indent', 'noindent'):
+                if cmd in (
+                    'centering',
+                    'raggedright',
+                    'raggedleft',
+                    'linespread',
+                    'indent',
+                    'noindent',
+                ):
                     paragraph = self.doc.add_paragraph()
                     para_format = paragraph.paragraph_format
                     if cmd == 'centering':
                         from docx.enum.text import WD_ALIGN_PARAGRAPH
+
                         paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     elif cmd == 'raggedright':
                         from docx.enum.text import WD_ALIGN_PARAGRAPH
+
                         paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
                     elif cmd == 'raggedleft':
                         from docx.enum.text import WD_ALIGN_PARAGRAPH
+
                         paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                     elif cmd == 'linespread':
-                        try:
+                        with contextlib.suppress(ValueError, TypeError):
                             para_format.line_spacing = float(content)
-                        except (ValueError, TypeError):
-                            pass
                     elif cmd == 'indent':
                         from docx.shared import Cm
+
                         para_format.first_line_indent = Cm(0.74)
                     elif cmd == 'noindent':
                         from docx.shared import Cm
+
                         para_format.first_line_indent = Cm(0)
                     inner = token.get('content', '')
                     if inner:
                         if '\\' in inner:
                             from src.rendering.latex_parser import parse_structured
+
                             inner_tokens = parse_structured(inner)
                             self._render_tokens_inline(paragraph, inner_tokens, current_style)
                         elif inner.strip():
@@ -204,9 +212,9 @@ class WordEngine(DocumentABC):
 
                 inner_content = token.get('content', '')
                 if inner_content:
-
                     if '\\' in inner_content:
                         from src.rendering.latex_parser import parse_structured
+
                         inner_tokens = parse_structured(inner_content)
                         self._render_tokens_inline(paragraph, inner_tokens, merged)
                     else:
@@ -234,9 +242,18 @@ class WordEngine(DocumentABC):
 
             elif token_type == 'command':
                 cmd = token.get('command', '')
-                if cmd in ('newpage', 'includegraphics', 'heading', 'set_font',
-                           'centering', 'raggedright', 'raggedleft',
-                           'linespread', 'indent', 'noindent'):
+                if cmd in (
+                    'newpage',
+                    'includegraphics',
+                    'heading',
+                    'set_font',
+                    'centering',
+                    'raggedright',
+                    'raggedleft',
+                    'linespread',
+                    'indent',
+                    'noindent',
+                ):
                     continue
 
                 if cmd == 'math':
@@ -251,6 +268,7 @@ class WordEngine(DocumentABC):
                 if inner_content:
                     if '\\' in inner_content:
                         from src.rendering.latex_parser import parse_structured
+
                         inner_tokens = parse_structured(inner_content)
                         self._render_tokens_inline(paragraph, inner_tokens, merged)
                     else:
@@ -259,6 +277,7 @@ class WordEngine(DocumentABC):
 
     def add_latex_content(self, text: str) -> Any:
         from src.rendering.latex_parser import parse_structured
+
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
@@ -295,14 +314,12 @@ class WordEngine(DocumentABC):
         if style.underline is not None and style.underline:
             run.underline = True
         if style.color is not None:
-            try:
+            with contextlib.suppress(ValueError, IndexError):
                 run.font.color.rgb = RGBColor(
                     int(style.color[0:2], 16),
                     int(style.color[2:4], 16),
                     int(style.color[4:6], 16),
                 )
-            except (ValueError, IndexError):
-                pass
         if style.small_caps is not None:
             run.font.small_caps = style.small_caps
 
@@ -343,6 +360,7 @@ class WordEngine(DocumentABC):
     def to_pdf(self, output_path: str | Path) -> None:
         self.save()
         from src.transform.pdf import word_to_pdf
+
         word_to_pdf(str(self._path), str(output_path))
 
     def add_heading(self, text: str, level: int = 1) -> Any:
@@ -354,10 +372,26 @@ class WordEngine(DocumentABC):
     def add_table(self, rows: int, cols: int) -> Any:
         return self.doc.add_table(rows=rows, cols=cols)
 
+    def add_table_data(self, rows: list[list[str]]) -> Any:
+        if not rows or not rows[0]:
+            raise ValueError('add_table_data requires at least one row with one column')
+        table = self.doc.add_table(rows=len(rows), cols=len(rows[0]))
+        table.style = 'Table Grid'
+        for r, row in enumerate(rows):
+            for c, value in enumerate(row):
+                table.rows[r].cells[c].text = str(value)
+        if len(rows) > 1:
+            for c in range(len(rows[0])):
+                for paragraph in table.rows[0].cells[c].paragraphs:
+                    for run in paragraph.runs:
+                        run.bold = True
+        return table
+
     def add_image(
         self, image_path: str, width: float | None = None, height: float | None = None
     ) -> Any:
         from docx.shared import Inches
+
         paragraph = self.doc.add_paragraph()
         run = paragraph.add_run()
         if width and height:
@@ -402,6 +436,7 @@ class WordEngine(DocumentABC):
         run_element = run._r
         from docx.oxml import OxmlElement
         from docx.oxml.ns import qn
+
         comment_range_start = OxmlElement('w:commentRangeStart')
         comment_range_start.set(qn('w:id'), '0')
         run_element.addprevious(comment_range_start)
@@ -439,6 +474,7 @@ class WordEngine(DocumentABC):
     def add_toc(self) -> None:
         from docx.oxml import OxmlElement
         from docx.oxml.ns import qn
+
         paragraph = self.doc.add_paragraph()
         run = paragraph.add_run()
         fld_char = OxmlElement('w:fldChar')
@@ -481,6 +517,7 @@ class WordEngine(DocumentABC):
 
     def add_watermark(self, text: str) -> None:
         from docx.shared import RGBColor
+
         section = self.doc.sections[-1]
         header = section.header
         if not header.paragraphs:
@@ -490,7 +527,6 @@ class WordEngine(DocumentABC):
         run = paragraph.add_run(text)
         run.font.size = 72000
         run.font.color.rgb = RGBColor(0xD9, 0xD9, 0xD9)
-
 
     def clear_content(self) -> None:
         for p in self.doc.paragraphs:
@@ -508,12 +544,60 @@ class WordEngine(DocumentABC):
 
     def clear_links(self) -> None:
         for p in self.doc.paragraphs:
-            for hyperlink in p._p.findall('.//'
-                    '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}hyperlink'):
+            for hyperlink in p._p.findall(
+                './/{http://schemas.openxmlformats.org/wordprocessingml/2006/main}hyperlink'
+            ):
                 hyperlink.getparent().remove(hyperlink)
 
+    def extract_text(self) -> str:
+        parts = [p.text for p in self.doc.paragraphs]
+        for table in self.doc.tables:
+            for row in table.rows:
+                cells = [c.text.replace('\n', ' ') for c in row.cells]
+                if any(cells):
+                    parts.append(' | '.join(cells))
+        return '\n'.join(line for line in parts if line)
 
-def _apply_font_config(engine: 'WordEngine', token: dict[str, Any]) -> None:
+    def extract_tables(self) -> list[list[list[str]]]:
+        return [
+            [[cell.text for cell in row.cells] for row in table.rows] for table in self.doc.tables
+        ]
+
+    def _image_parts(self) -> list[tuple[bytes, str]]:
+        blobs: list[tuple[bytes, str]] = []
+        for rel in self.doc.part.rels.values():
+            if 'image' in rel.reltype and not rel.is_external:
+                try:
+                    blobs.append(
+                        (
+                            rel.target_part.blob,
+                            Path(rel.target_part.partname).suffix or '.png',
+                        )
+                    )
+                except Exception:
+                    continue
+        return blobs
+
+    def extract_images(self, output_dir: str | Path) -> list[Path]:
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        saved: list[Path] = []
+        for idx, (blob, suffix) in enumerate(self._image_parts()):
+            target = out / f'image_{idx}{suffix}'
+            target.write_bytes(blob)
+            saved.append(target)
+        return saved
+
+    def extract_structure(self) -> dict[str, Any]:
+        return {
+            'paragraphs': len(self.doc.paragraphs),
+            'tables': len(self.doc.tables),
+            'sections': len(self.doc.sections),
+            'images': len(self._image_parts()),
+        }
+
+
+def _apply_font_config(engine: WordEngine, token: dict[str, Any]) -> None:
     from src.rendering.styles import TextStyle
 
     role = token.get('role', '')

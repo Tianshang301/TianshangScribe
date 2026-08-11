@@ -4,22 +4,45 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from mcp.errors import McpErrorCode, _make_content, error_response, success_response
+from pydantic import Field
+
 from src.core.document import DocumentType, create_document
+from src.mcp.errors import McpErrorCode, _make_content, error_response, success_response
+from src.mcp.schemas import ContentBlock, ToolOptions, as_dict
+from src.utils.file_utils import ensure_parent_dir
 
 
 def create_office_document(
-    format: str,
-    content: list[dict[str, Any]],
-    template_data: dict[str, Any] | None = None,
-    output_path: str = '',
-    style: str | None = None,
-    metadata: dict[str, str] | None = None,
-    options: dict[str, Any] | None = None,
+    format: Annotated[
+        str,
+        Field(
+            description=(
+                'Document format:\n'
+                '- "docx": Word document — reports, letters, contracts, proposals\n'
+                '- "xlsx": Excel workbook — spreadsheets, data tables, charts\n'
+                '- "pptx": PowerPoint — slides, presentations, pitch decks'
+            ),
+            examples=['docx', 'xlsx'],
+        ),
+    ],
+    content: Annotated[list[ContentBlock], Field(description='Ordered list of content blocks.')],
+    template_data: Annotated[
+        dict[str, Any] | None,
+        Field(description='Key-value pairs to fill {{placeholder}} in content.'),
+    ] = None,
+    output_path: Annotated[str, Field(description='Output file path.')] = '',
+    style: Annotated[str | None, Field(description='Global document style.')] = None,
+    metadata: Annotated[
+        dict[str, str] | None,
+        Field(description='Document metadata (title, author, etc.).'),
+    ] = None,
+    options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
 ) -> dict:
     """Create a Word, Excel, or PowerPoint document."""
+    content = as_dict(content)
+    opts: dict[str, Any] = as_dict(options) or {}
     fmt = format.lower().replace('pptx', 'ppt').replace('ppt', 'ppt')
     fmt_map = {'docx': DocumentType.WORD, 'xlsx': DocumentType.EXCEL, 'ppt': DocumentType.PPT}
     doc_type = fmt_map.get(fmt)
@@ -31,16 +54,18 @@ def create_office_document(
 
     if not output_path:
         import tempfile
+
         ext = format.lower()
         output_path = os.path.join(tempfile.gettempdir(), f'scribe_output.{ext}')
 
-    opts = options or {}
     if opts.get('dry_run'):
-        return success_response({
-            'dry_run': True,
-            'planned_content': len(content),
-            'planned_items': [c.get('type', 'paragraph') for c in content],
-        })
+        return success_response(
+            {
+                'dry_run': True,
+                'planned_content': len(content),
+                'planned_items': [c.get('type', 'paragraph') for c in content],
+            }
+        )
 
     try:
         engine = create_document(doc_type)
@@ -106,18 +131,27 @@ def create_office_document(
         if opts.get('backup') and Path(output_path).exists():
             backup = output_path + '.bak'
             import shutil
+
             shutil.copy2(output_path, backup)
 
+        ensure_parent_dir(output_path)
         engine.save(output_path)
-        stats = _get_stats(engine, engine.doc if hasattr(engine, 'doc')
-                           else (engine.wb if hasattr(engine, 'wb') else engine.prs))
+        stats = _get_stats(
+            engine,
+            getattr(engine, 'doc', None)
+            or getattr(engine, 'wb', None)
+            or getattr(engine, 'prs', None),
+        )
 
-        return success_response({
-            'output_path': output_path,
-            'format': format,
-            'content_items': len(content),
-            **stats,
-        }, content=_make_content(output_path, f'Document created: {output_path}'))
+        return success_response(
+            {
+                'output_path': output_path,
+                'format': format,
+                'content_items': len(content),
+                **stats,
+            },
+            content=_make_content(output_path, f'Document created: {output_path}'),
+        )
     except Exception as e:
         return error_response(McpErrorCode.INTERNAL_ERROR, str(e))
 

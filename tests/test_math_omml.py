@@ -142,6 +142,7 @@ class TestMathTokenize:
 
     def test_collect_body_tokens_splits_digits(self) -> None:
         from src.rendering.math_omml import _collect_body_tokens
+
         tokens, _ = _collect_body_tokens('4ab', 0)
         assert tokens[0] == {'type': 'text', 'text': '4', 'norm': True}
         assert tokens[1] == {'type': 'text', 'text': 'ab', 'norm': False}

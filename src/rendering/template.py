@@ -7,7 +7,6 @@ from src.core.document import DocumentABC
 
 
 class TemplateEngine:
-
     def __init__(self, data_path: str) -> None:
         self._data_path = data_path
         self._data: dict[str, Any] = {}
@@ -21,23 +20,23 @@ class TemplateEngine:
         path = Path(self._data_path)
 
         if path.suffix.lower() in ('.json',):
-            with open(path, 'r', encoding='utf-8-sig') as f:
+            with open(path, encoding='utf-8-sig') as f:
                 self._data = json.load(f)
         elif path.suffix.lower() in ('.csv',):
-            with open(path, 'r', encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
                 self._data = {'rows': rows, 'count': len(rows)}
         elif path.suffix.lower() in ('.yaml', '.yml'):
             try:
                 import yaml
-                with open(path, 'r', encoding='utf-8') as f:
+
+                with open(path, encoding='utf-8') as f:
                     self._data = defaultdict_from_yaml(yaml.safe_load(f))
             except ImportError:
                 raise ImportError(
-                    'PyYAML is required for YAML templates. '
-                    'Install with: pip install pyyaml'
-                )
+                    'PyYAML is required for YAML templates. Install with: pip install pyyaml'
+                ) from None
         else:
             raise ValueError(f'Unsupported template format: {path.suffix}')
 
@@ -71,12 +70,14 @@ class TemplateEngine:
                 count += self._process_word_loop(doc, i, each_match.group(1), flat)
                 i += 1
             elif if_match:
-                count += self._process_word_if(doc, i, if_match.group(1),
-                                               if_match.group(2), flat, negate=False)
+                count += self._process_word_if(
+                    doc, i, if_match.group(1), if_match.group(2), flat, negate=False
+                )
                 i += 1
             elif unless_match:
-                count += self._process_word_if(doc, i, unless_match.group(1),
-                                               None, flat, negate=True)
+                count += self._process_word_if(
+                    doc, i, unless_match.group(1), None, flat, negate=True
+                )
                 i += 1
             else:
                 i += 1
@@ -89,8 +90,13 @@ class TemplateEngine:
         return count
 
     def _process_word_if(
-        self, doc: Any, start_idx: int, key: str,
-        expected: str | None, flat: dict[str, Any], negate: bool,
+        self,
+        doc: Any,
+        start_idx: int,
+        key: str,
+        expected: str | None,
+        flat: dict[str, Any],
+        negate: bool,
     ) -> int:
         paragraphs = list(doc.paragraphs)
         end_idx = None
@@ -103,10 +109,7 @@ class TemplateEngine:
             return 0
 
         val = flat.get(key)
-        if expected is not None:
-            condition = str(val) == expected
-        else:
-            condition = bool(val)
+        condition = str(val) == expected if expected is not None else bool(val)
 
         if negate:
             condition = not condition
@@ -117,7 +120,8 @@ class TemplateEngine:
                 raw = p.text
                 cleaned = re.sub(
                     r'\{\{#(?:if|unless)\s+[^=}\s]+(?:\s*=\s*[^}\s]+)?\}\}',
-                    '', raw,
+                    '',
+                    raw,
                 )
                 cleaned = cleaned.replace('{{/if}}', '').replace('{{/unless}}', '')
                 if cleaned.strip():
@@ -129,9 +133,7 @@ class TemplateEngine:
 
         return 1
 
-    def _process_word_loop(
-        self, doc: Any, start_idx: int, key: str, flat: dict[str, Any]
-    ) -> int:
+    def _process_word_loop(self, doc: Any, start_idx: int, key: str, flat: dict[str, Any]) -> int:
         items = flat.get(key)
         if not isinstance(items, list):
             return 0
@@ -146,12 +148,13 @@ class TemplateEngine:
         if end_idx is None or end_idx <= start_idx:
             return 0
 
-        template_paras = paragraphs[start_idx + 1:end_idx]
+        template_paras = paragraphs[start_idx + 1 : end_idx]
         all_templates = []
 
         from copy import deepcopy
 
         from lxml import etree
+
         for item in items:
             for tp in template_paras:
                 clone = deepcopy(tp._p)
@@ -165,9 +168,7 @@ class TemplateEngine:
                         new_el = clone
                     all_templates.append(new_el)
                 else:
-                    text_el = etree.fromstring(
-                        clone.xml.replace('{{this}}', str(item))
-                    )
+                    text_el = etree.fromstring(clone.xml.replace('{{this}}', str(item)))
                     all_templates.append(text_el)
 
         anchor = paragraphs[end_idx]._p

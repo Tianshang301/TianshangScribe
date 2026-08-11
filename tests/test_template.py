@@ -27,10 +27,9 @@ class TestTemplateEngine:
     def test_flatten_nested(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             data_path = Path(tmpdir) / 'nested.json'
-            data_path.write_text(json.dumps({
-                'user': {'name': 'Alice', 'details': {'city': 'NYC'}},
-                'count': 5
-            }))
+            data_path.write_text(
+                json.dumps({'user': {'name': 'Alice', 'details': {'city': 'NYC'}}, 'count': 5})
+            )
             engine = TemplateEngine(str(data_path))
             flat = engine._flatten_data(engine._data)
             assert flat['user.name'] == 'Alice'
@@ -65,8 +64,7 @@ class TestTemplateEngine:
             data_path.write_text(json.dumps({'show': True}))
             engine = TemplateEngine(str(data_path))
             engine.fill(doc)
-            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
-                           if p.text.strip())
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs if p.text.strip())
             assert 'Hello' in text
             assert '{{#if' not in text
 
@@ -79,8 +77,7 @@ class TestTemplateEngine:
             data_path.write_text(json.dumps({'show': False}))
             engine = TemplateEngine(str(data_path))
             engine.fill(doc)
-            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
-                           if p.text.strip())
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs if p.text.strip())
             assert 'Secret' not in text
 
     def test_if_equal_match(self) -> None:
@@ -92,8 +89,7 @@ class TestTemplateEngine:
             data_path.write_text(json.dumps({'role': 'admin'}))
             engine = TemplateEngine(str(data_path))
             engine.fill(doc)
-            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
-                           if p.text.strip())
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs if p.text.strip())
             assert 'Admin Panel' in text
 
     def test_if_equal_no_match(self) -> None:
@@ -105,8 +101,7 @@ class TestTemplateEngine:
             data_path.write_text(json.dumps({'role': 'user'}))
             engine = TemplateEngine(str(data_path))
             engine.fill(doc)
-            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
-                           if p.text.strip())
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs if p.text.strip())
             assert 'Secrets' not in text
 
     def test_unless_conditional(self) -> None:
@@ -118,6 +113,5 @@ class TestTemplateEngine:
             data_path.write_text(json.dumps({'paid': False}))
             engine = TemplateEngine(str(data_path))
             engine.fill(doc)
-            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs
-                           if p.text.strip())
+            text = '\n'.join(p.text.strip() for p in doc.doc.paragraphs if p.text.strip())
             assert 'Unpaid Warning' in text

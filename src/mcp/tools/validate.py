@@ -4,14 +4,21 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from mcp.errors import McpErrorCode, error_response, success_response
+from pydantic import Field
+
+from src.mcp.errors import McpErrorCode, error_response, success_response
 
 
 def validate_template(
-    template_path: str,
-    data: dict[str, Any],
+    template_path: Annotated[
+        str, Field(description='Path to the template document (.docx/.xlsx).')
+    ],
+    data: Annotated[
+        dict[str, Any],
+        Field(description='Key-value data to validate against placeholders.'),
+    ],
 ) -> dict:
     """Validate that all template placeholders can be filled."""
     if not Path(template_path).exists():
@@ -40,9 +47,7 @@ def validate_template(
             )
 
         full_text = '\n'.join(text_parts)
-        placeholders: list[str] = re.findall(
-            r'\{\{(?!#\/)([^}]+)\}\}', full_text
-        )
+        placeholders: list[str] = re.findall(r'\{\{(?!#\/)([^}]+)\}\}', full_text)
         unique_placeholders = list(dict.fromkeys(placeholders))
 
         flat_data = _flatten(data)
@@ -81,20 +86,20 @@ def validate_template(
                         clean = ph.strip('#').strip()
                         dots = clean.count('.')
                         if dots > 0 and clean not in sub_keys:
-                            warnings.append(
-                                f'{{{{{ph}}}}} may not resolve in loop {key}'
-                            )
+                            warnings.append(f'{{{{{ph}}}}} may not resolve in loop {key}')
 
-        return success_response({
-            'template_path': template_path,
-            'placeholders_total': len(unique_placeholders),
-            'missing': missing,
-            'filled': filled,
-            'loops_detected': loop_keys,
-            'conditions_detected': cond_keys,
-            'warnings': warnings,
-            'valid': len(missing) == 0,
-        })
+        return success_response(
+            {
+                'template_path': template_path,
+                'placeholders_total': len(unique_placeholders),
+                'missing': missing,
+                'filled': filled,
+                'loops_detected': loop_keys,
+                'conditions_detected': cond_keys,
+                'warnings': warnings,
+                'valid': len(missing) == 0,
+            }
+        )
 
     except Exception as e:
         return error_response(McpErrorCode.TEMPLATE_ERROR, str(e))

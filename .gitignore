@@ -1,11 +1,6 @@
-# Markdown files except README
+# All Markdown files are untracked except the root README.md
 *.md
-!README.md
-!readme/README.zh-CN.md
-!mcp/README.md
-!mcp/README.zh-CN.md
-!mcp/ROADMAP.md
-!mcp/ROADMAP.zh-CN.md
+!/README.md
 
 # Python
 __pycache__/
@@ -22,7 +17,7 @@ build/
 *.spec
 
 # Sub-agent outputs
-mcp/subagent_output/
+docs/mcp/subagent_output/
 demo/run_subagent.py
 .venv/
 env/
@@ -40,6 +35,16 @@ Thumbs.db
 # Test artifacts
 test_input.txt
 test_output*.docx
+gaokao_math_exam.docx
+
+# Coverage / caches
+.coverage
+.coverage.*
+coverage.xml
+.benchmarks/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # Demo outputs
 demo/demo_*.docx

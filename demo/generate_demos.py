@@ -5,14 +5,14 @@ Generates three output files exercising all major features:
   - demo_excel.xlsx  : CSV import, formula, sort, chart, comment, protection
   - demo_ppt.pptx    : slides, layouts, notes, transitions
 """
+
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
-from src.core.word_engine import WordEngine
 from src.core.excel_engine import ExcelEngine
 from src.core.ppt_engine import PptEngine
+from src.core.word_engine import WordEngine
 
 
 def build_word_demo(out_dir: str) -> None:
@@ -42,9 +42,7 @@ def build_word_demo(out_dir: str) -> None:
         r'\fontfamily{Courier New}{Monospace} and '
         r'\fontsize{18}{Large Size}'
     )
-    engine.add_latex_content(
-        r'\color{FF0000}{Red Text} and \color{0000FF}{Blue Text}'
-    )
+    engine.add_latex_content(r'\color{FF0000}{Red Text} and \color{0000FF}{Blue Text}')
     engine.add_latex_content(r'\centering{居中段落 Centered Paragraph}')
     engine.add_latex_content(r'\raggedright{左对齐段落 Left-Aligned Paragraph}')
     engine.add_latex_content(r'\raggedleft{右对齐段落 Right-Aligned Paragraph}')
@@ -60,41 +58,33 @@ def build_word_demo(out_dir: str) -> None:
     engine.add_text('行间公式 Display:')
     engine.add_latex_content(r'$$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$')
     engine.add_latex_content(r'$$\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}$$')
-    engine.add_latex_content(
-        r'$$\int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$'
-    )
-    engine.add_latex_content(
-        r'$$\lim_{x \to 0} \frac{\sin x}{x} = 1$$'
-    )
+    engine.add_latex_content(r'$$\int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$')
+    engine.add_latex_content(r'$$\lim_{x \to 0} \frac{\sin x}{x} = 1$$')
 
     engine.add_latex_content(r'\heading{3}{高级公式 Advanced Formulas}')
     engine.add_latex_content(
         r'$$f(x) = \int_{-\infty}^{\infty} \hat{f}(\xi) e^{2\pi i \xi x} d\xi$$'
     )
-    engine.add_latex_content(
-        r'$$\frac{\partial^2 u}{\partial t^2} = c^2 \nabla^2 u$$'
-    )
+    engine.add_latex_content(r'$$\frac{\partial^2 u}{\partial t^2} = c^2 \nabla^2 u$$')
     engine.add_latex_content(
         r'$$\nabla \cdot \mathbf{E} = \frac{\rho}{\epsilon_0},'
         r'\quad \nabla \times \mathbf{B} = \mu_0 \mathbf{J}$$'
     )
 
     engine.add_latex_content(r'\heading{3}{数学字体 Math Font Styles}')
-    engine.add_latex_content(r'$$\mathrm{normal} \quad \mathbf{bold} \quad '
-                             r'\mathit{italic} \quad \mathsf{sans} '
-                             r'\quad \mathtt{mono} \quad \mathbb{ABC}$$')
+    engine.add_latex_content(
+        r'$$\mathrm{normal} \quad \mathbf{bold} \quad '
+        r'\mathit{italic} \quad \mathsf{sans} '
+        r'\quad \mathtt{mono} \quad \mathbb{ABC}$$'
+    )
     engine.add_latex_content(
         r'$$\mathcal{A} \subseteq \mathcal{B} \implies '
         r'\mathcal{P}(\mathcal{A}) \subseteq \mathcal{P}(\mathcal{B})$$'
     )
 
     engine.add_latex_content(r'\heading{3}{符号表 Symbol Table}')
-    engine.add_latex_content(
-        r'$\alpha \beta \gamma \delta \epsilon \zeta \eta \theta$'
-    )
-    engine.add_latex_content(
-        r'$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Phi \Psi \Omega$'
-    )
+    engine.add_latex_content(r'$\alpha \beta \gamma \delta \epsilon \zeta \eta \theta$')
+    engine.add_latex_content(r'$\Gamma \Delta \Theta \Lambda \Xi \Pi \Sigma \Phi \Psi \Omega$')
     engine.add_latex_content(
         r'$\forall x \in \mathbb{R}, \exists N \in \mathbb{N}: '
         r'x \leq N \lor x \geq -N$'
@@ -110,14 +100,11 @@ def build_word_demo(out_dir: str) -> None:
     )
     engine.add_text('')
     engine.add_text(
-        'Unicode 上下标：H₂O (H_{2}O) and area m² (m^{2}). '
-        'Linear algebra: x₁ + x₂ = x₃.'
+        'Unicode 上下标：H₂O (H_{2}O) and area m² (m^{2}). Linear algebra: x₁ + x₂ = x₃.'
     )
 
     # Nested styles
-    engine.add_latex_content(
-        r'\bfseries{\itshape{粗体斜体嵌套 Bold-Italic Nested}}'
-    )
+    engine.add_latex_content(r'\bfseries{\itshape{粗体斜体嵌套 Bold-Italic Nested}}')
     engine.add_latex_content(
         r'\fontfamily{Arial}{\color{FF6600}{'
         r'Arial Orange with \bfseries{Bold inside}}}'
@@ -213,17 +200,11 @@ def build_ppt_demo(out_dir: str) -> None:
     # Slide 1: Overview
     engine.add_slide(layout_index=1)
     engine.add_latex_content(r'\heading{功能概况 Feature Overview}')
-    engine.add_latex_content(
-        r'\bfseries{Word} — LaTeX 排版 + OMML 数学公式 + 模板填充'
-    )
+    engine.add_latex_content(r'\bfseries{Word} — LaTeX 排版 + OMML 数学公式 + 模板填充')
     engine.add_slide()
-    engine.add_latex_content(
-        r'\bfseries{Excel} — CSV 导入导出 + 公式 + 排序 + 图表'
-    )
+    engine.add_latex_content(r'\bfseries{Excel} — CSV 导入导出 + 公式 + 排序 + 图表')
     engine.add_slide()
-    engine.add_latex_content(
-        r'\bfseries{PPT} — 幻灯片管理 + 切换效果 + 演讲者备注'
-    )
+    engine.add_latex_content(r'\bfseries{PPT} — 幻灯片管理 + 切换效果 + 演讲者备注')
     engine.add_notes(1, 'Overview of all three document types supported.')
 
     # Slide 4: Word features
@@ -254,9 +235,7 @@ def build_ppt_demo(out_dir: str) -> None:
     # Slide 6: Math showcase
     engine.add_slide()
     engine.add_latex_content(r'\heading{数学公式示例 Math Examples}')
-    engine.add_text(
-        r'The quadratic formula is $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$'
-    )
+    engine.add_text(r'The quadratic formula is $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$')
     engine.add_notes(6, 'Math formulas rendered as native OMML in PowerPoint.')
 
     # Transitions
@@ -276,9 +255,9 @@ def main() -> None:
     build_ppt_demo(str(out_dir))
 
     print('\n=== All demos generated ===')
-    print(f'  Word:  demo/demo_word.docx')
-    print(f'  Excel: demo/demo_excel.xlsx')
-    print(f'  PPT:   demo/demo_ppt.pptx')
+    print('  Word:  demo/demo_word.docx')
+    print('  Excel: demo/demo_excel.xlsx')
+    print('  PPT:   demo/demo_ppt.pptx')
 
 
 if __name__ == '__main__':

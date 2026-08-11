@@ -3,11 +3,11 @@ TianshangScribe — AGENTS.md CLI Compliance Test Suite
 
 Tests all documented CLI operations end-to-end via the compiled EXE.
 """
+
 from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -92,8 +92,15 @@ assert_ok(r, '--help displays usage')
 test_files = {'test.docx': '-w', 'test.xlsx': '-e', 'test.pptx': '-p'}
 for fname, flag in test_files.items():
     r = run(flag, '--create', '-a', 'content', '-o', str(OUT / fname))
-r_infer = run(str(OUT / 'test.docx'), '-r', 'content', '--replace-new', 'inferred',
-              '-o', str(OUT / 'inferred.docx'))
+r_infer = run(
+    str(OUT / 'test.docx'),
+    '-r',
+    'content',
+    '--replace-new',
+    'inferred',
+    '-o',
+    str(OUT / 'inferred.docx'),
+)
 assert_ok(r_infer, 'docx extension inferred from input')
 
 r_infer2 = run(str(OUT / 'test.xlsx'), '--to-csv', '-o', str(OUT / 'inferred.csv'))
@@ -122,38 +129,87 @@ assert_ok(r, '-a --add text')
 assert_binary(OUT / 'add.docx', '-a output exists')
 
 # -r / --replace
-r = run('-w', '--create', '-a', 'old text', '-r', 'old', '--replace-new', 'new',
-        '-o', str(OUT / 'replace.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'old text',
+    '-r',
+    'old',
+    '--replace-new',
+    'new',
+    '-o',
+    str(OUT / 'replace.docx'),
+)
 assert_ok(r, '-r --replace text')
 
 # --regex
-r = run('-w', '--create', '-a', 'abc123def', '-r', r'\d+', '--replace-new', 'XXX',
-        '--regex', '-o', str(OUT / 'regex.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'abc123def',
+    '-r',
+    r'\d+',
+    '--replace-new',
+    'XXX',
+    '--regex',
+    '-o',
+    str(OUT / 'regex.docx'),
+)
 assert_ok(r, '--regex replace digits')
 
 # -d / --delete
-r = run('-w', '--create', '-a', 'remove me please', '-d', 'remove', '-o',
-        str(OUT / 'delete.docx'))
+r = run('-w', '--create', '-a', 'remove me please', '-d', 'remove', '-o', str(OUT / 'delete.docx'))
 assert_ok(r, '-d --delete keyword')
 
 # -m / --modify
-r = run('-w', '--create', '-a', 'OLD', '-m', 'OLD', '--modify-new', 'NEW', '-o',
-        str(OUT / 'modify.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'OLD',
+    '-m',
+    'OLD',
+    '--modify-new',
+    'NEW',
+    '-o',
+    str(OUT / 'modify.docx'),
+)
 assert_ok(r, '-m --modify content')
 
 # -s / --style
-r = run('-w', '--create', '-a', 'styled', '-s', 'font=Courier New,size=14,bold',
-        '-o', str(OUT / 'style.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'styled',
+    '-s',
+    'font=Courier New,size=14,bold',
+    '-o',
+    str(OUT / 'style.docx'),
+)
 assert_ok(r, '-s --style set font,size,bold')
 
 # -x / --extract
-r = run('-w', '--create', '-a', 'text', '--meta', 'author=Tester', '-x', 'metadata',
-        '-o', str(OUT / 'extract.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'text',
+    '--meta',
+    'author=Tester',
+    '-x',
+    'metadata',
+    '-o',
+    str(OUT / 'extract.docx'),
+)
 assert_ok(r, '-x --extract metadata')
 
 # --meta
-r = run('-w', '--create', '-a', 'text', '--meta', 'title=Report,author=QA',
-        '-o', str(OUT / 'meta.docx'))
+r = run(
+    '-w', '--create', '-a', 'text', '--meta', 'title=Report,author=QA', '-o', str(OUT / 'meta.docx')
+)
 assert_ok(r, '--meta set title,author')
 
 # ════════════════════════════════════════════════════════════
@@ -162,80 +218,141 @@ assert_ok(r, '--meta set title,author')
 print('\n--- 3. Word Operations ---')
 
 # --heading
-r = run('-w', '--create', '--heading', 'level:1 text:Chapter One',
-        '-o', str(OUT / 'heading.docx'))
+r = run('-w', '--create', '--heading', 'level:1 text:Chapter One', '-o', str(OUT / 'heading.docx'))
 assert_ok(r, '--heading level:1')
 
 # --math (inline)
-r = run('-w', '--create', '--math', r'\frac{a}{b}',
-        '-o', str(OUT / 'math.docx'))
+r = run('-w', '--create', '--math', r'\frac{a}{b}', '-o', str(OUT / 'math.docx'))
 assert_ok(r, '--math fraction')
 
 # --math (complex)
-r = run('-w', '--create',
-        '--math', r'x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}',
-        '-o', str(OUT / 'math_quad.docx'))
+r = run(
+    '-w',
+    '--create',
+    '--math',
+    r'x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}',
+    '-o',
+    str(OUT / 'math_quad.docx'),
+)
 assert_ok(r, '--math quadratic formula')
 
 # --latex-style
-r = run('-w', '--create', '--latex-style',
-        '-a', r'\bfseries{Bold} \itshape{Italic} \underline{Underline}',
-        '-o', str(OUT / 'latex_style.docx'))
+r = run(
+    '-w',
+    '--create',
+    '--latex-style',
+    '-a',
+    r'\bfseries{Bold} \itshape{Italic} \underline{Underline}',
+    '-o',
+    str(OUT / 'latex_style.docx'),
+)
 assert_ok(r, '--latex-style basic markup')
 
 # --latex-style nested
-r = run('-w', '--create', '--latex-style',
-        '-a', r'\bfseries{\itshape{bold italic}} \color{FF0000}{Red}',
-        '-o', str(OUT / 'latex_nested.docx'))
+r = run(
+    '-w',
+    '--create',
+    '--latex-style',
+    '-a',
+    r'\bfseries{\itshape{bold italic}} \color{FF0000}{Red}',
+    '-o',
+    str(OUT / 'latex_nested.docx'),
+)
 assert_ok(r, '--latex-style nested')
 
 # --latex-style heading + newpage
-r = run('-w', '--create', '--latex-style',
-        '-a', r'\heading{2}{Section 1}\newpage\heading{2}{Section 2}',
-        '-o', str(OUT / 'latex_heading.docx'))
+r = run(
+    '-w',
+    '--create',
+    '--latex-style',
+    '-a',
+    r'\heading{2}{Section 1}\newpage\heading{2}{Section 2}',
+    '-o',
+    str(OUT / 'latex_heading.docx'),
+)
 assert_ok(r, '--latex-style heading + newpage')
 
 # --toc
-r = run('-w', '--create', '--heading', 'level:2 text:Intro', '-a', 'text', '--toc',
-        '-o', str(OUT / 'toc.docx'))
+r = run(
+    '-w',
+    '--create',
+    '--heading',
+    'level:2 text:Intro',
+    '-a',
+    'text',
+    '--toc',
+    '-o',
+    str(OUT / 'toc.docx'),
+)
 assert_ok(r, '--toc generate')
 
 # --section-break
-r = run('-w', '--create', '-a', 'chapter1', '--section-break', '-a', 'chapter2',
-        '-o', str(OUT / 'section.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'chapter1',
+    '--section-break',
+    '-a',
+    'chapter2',
+    '-o',
+    str(OUT / 'section.docx'),
+)
 assert_ok(r, '--section-break')
 
 # --header / --footer
-r = run('-w', '--create', '-a', 'body', '--header', 'Chapter 1',
-        '--footer', 'Page', '-o', str(OUT / 'header.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'body',
+    '--header',
+    'Chapter 1',
+    '--footer',
+    'Page',
+    '-o',
+    str(OUT / 'header.docx'),
+)
 assert_ok(r, '--header --footer')
 
 # --watermark
-r = run('-w', '--create', '-a', 'secret', '--watermark', 'CONFIDENTIAL',
-        '-o', str(OUT / 'watermark.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    'secret',
+    '--watermark',
+    'CONFIDENTIAL',
+    '-o',
+    str(OUT / 'watermark.docx'),
+)
 assert_ok(r, '--watermark')
 
 # --tomd
-r = run('-w', '--create', '-a', 'Hello World', '--tomd',
-        '-o', str(OUT / 'to_md.md'))
+r = run('-w', '--create', '-a', 'Hello World', '--tomd', '-o', str(OUT / 'to_md.md'))
 assert_contains(OUT / 'to_md.md', 'Hello', '--tomd contains content')
 
 # --tohtml (Word)
-r = run('-w', '--create', '-a', 'Hello', '--tohtml',
-        '-o', str(OUT / 'word_to_html.html'))
+r = run('-w', '--create', '-a', 'Hello', '--tohtml', '-o', str(OUT / 'word_to_html.html'))
 assert_contains(OUT / 'word_to_html.html', 'Hello', '--tohtml Word contains content')
 
 # --math with multiple formulas
-r = run('-w', '--create',
-        '--math', r'\sum_{n=1}^{\infty} \frac{1}{n^2}',
-        '--math', r'\int_{0}^{\infty} e^{-x} dx',
-        '--math', r'\lim_{x \to 0} \frac{\sin x}{x} = 1',
-        '-o', str(OUT / 'multi_math.docx'))
+r = run(
+    '-w',
+    '--create',
+    '--math',
+    r'\sum_{n=1}^{\infty} \frac{1}{n^2}',
+    '--math',
+    r'\int_{0}^{\infty} e^{-x} dx',
+    '--math',
+    r'\lim_{x \to 0} \frac{\sin x}{x} = 1',
+    '-o',
+    str(OUT / 'multi_math.docx'),
+)
 assert_ok(r, '--math multiple formulas')
 
 # --topdf
-r = run('-w', '--create', '-a', 'pdf test', '--topdf',
-        '-o', str(OUT / 'word_to_pdf.pdf'))
+r = run('-w', '--create', '-a', 'pdf test', '--topdf', '-o', str(OUT / 'word_to_pdf.pdf'))
 assert_ok(r, '--topdf Word->PDF (may skip if no LibreOffice)')
 
 # ════════════════════════════════════════════════════════════
@@ -244,74 +361,155 @@ assert_ok(r, '--topdf Word->PDF (may skip if no LibreOffice)')
 print('\n--- 4. Excel Operations ---')
 
 # --sheet-add / --sheet-delete / --sheet-rename
-r = run('-e', '--create',
-        '--sheet-add', 'Data',
-        '--sheet-rename', 'Sheet Data2',
-        '--sheet-delete', 'Data2',
-        '-o', str(OUT / 'sheet_ops.xlsx'))
+r = run(
+    '-e',
+    '--create',
+    '--sheet-add',
+    'Data',
+    '--sheet-rename',
+    'Sheet Data2',
+    '--sheet-delete',
+    'Data2',
+    '-o',
+    str(OUT / 'sheet_ops.xlsx'),
+)
 assert_ok(r, '--sheet-add --sheet-rename --sheet-delete')
 
 # --column-width / --row-height
-r = run('-e', '--create', '-a', 'wide column',
-        '--column-width', '1=30', '--row-height', '1=25',
-        '-o', str(OUT / 'col_row.xlsx'))
+r = run(
+    '-e',
+    '--create',
+    '-a',
+    'wide column',
+    '--column-width',
+    '1=30',
+    '--row-height',
+    '1=25',
+    '-o',
+    str(OUT / 'col_row.xlsx'),
+)
 assert_ok(r, '--column-width --row-height')
 
 # --formula
-r = run('-e', '--create',
-        '--sheet-add', 'Calc',
-        '-a', '10', '-a', '20', '-a', '30',
-        '--formula', 'A4 =SUM(A1:A3)',
-        '-o', str(OUT / 'formula.xlsx'))
+r = run(
+    '-e',
+    '--create',
+    '--sheet-add',
+    'Calc',
+    '-a',
+    '10',
+    '-a',
+    '20',
+    '-a',
+    '30',
+    '--formula',
+    'A4 =SUM(A1:A3)',
+    '-o',
+    str(OUT / 'formula.xlsx'),
+)
 assert_ok(r, '--formula SUM')
 
 # --from-csv / --to-csv
 csv_path = Path(__file__).resolve().parent / 'test_data.csv'
 if csv_path.exists():
-    r = run('-e', '--create', '--from-csv', str(csv_path),
-            '--to-csv', '-o', str(OUT / 'from_csv_out.csv'))
+    r = run(
+        '-e',
+        '--create',
+        '--from-csv',
+        str(csv_path),
+        '--to-csv',
+        '-o',
+        str(OUT / 'from_csv_out.csv'),
+    )
     assert_ok(r, '--from-csv --to-csv')
     assert_contains(OUT / 'from_csv_out.csv', 'Widget', 'CSV contains Widget')
 
 # --to-json
-r = run('-e', '--create', '-a', 'Name', '-a', 'Alice', '-a', 'Age', '-a', '30',
-        '--to-json', '-o', str(OUT / 'excel_to_json.json'))
+r = run(
+    '-e',
+    '--create',
+    '-a',
+    'Name',
+    '-a',
+    'Alice',
+    '-a',
+    'Age',
+    '-a',
+    '30',
+    '--to-json',
+    '-o',
+    str(OUT / 'excel_to_json.json'),
+)
 assert_ok(r, '--to-json export')
 assert_file(OUT / 'excel_to_json.json', '--to-json file exists')
 
 # --tohtml (Excel)
-r = run('-e', '--create', '-a', 'Header', '-a', 'Data',
-        '--tohtml', '-o', str(OUT / 'excel_to_html.html'))
+r = run(
+    '-e',
+    '--create',
+    '-a',
+    'Header',
+    '-a',
+    'Data',
+    '--tohtml',
+    '-o',
+    str(OUT / 'excel_to_html.html'),
+)
 assert_ok(r, '--tohtml Excel export')
 assert_contains(OUT / 'excel_to_html.html', '<table>', '--tohtml has table')
 
 # --sort
-r = run('-e', '--create', '-a', 'B', '-a', 'A', '-a', 'C',
-        '--sort', 'A1:A3 asc',
-        '--to-csv', '-o', str(OUT / 'sorted.csv'))
+r = run(
+    '-e',
+    '--create',
+    '-a',
+    'B',
+    '-a',
+    'A',
+    '-a',
+    'C',
+    '--sort',
+    'A1:A3 asc',
+    '--to-csv',
+    '-o',
+    str(OUT / 'sorted.csv'),
+)
 assert_ok(r, '--sort asc')
 
 # --chart-add
-r = run('-e', '--create', '-a', 'Cats', '-a', 'Dogs',
-        '--column', '1',
-        '-a', '10', '-a', '20',
-        '--column', '2',
-        '--chart-add', 'type=bar data=A1:B2',
-        '-o', str(OUT / 'chart.xlsx'))
+r = run(
+    '-e',
+    '--create',
+    '-a',
+    'Cats',
+    '-a',
+    'Dogs',
+    '--column',
+    '1',
+    '-a',
+    '10',
+    '-a',
+    '20',
+    '--column',
+    '2',
+    '--chart-add',
+    'type=bar data=A1:B2',
+    '-o',
+    str(OUT / 'chart.xlsx'),
+)
 assert_ok(r, '--chart-add bar')
 
 # --protect / --unprotect
-r = run('-e', '--create', '-a', 'secret data', '--protect', 'p@ss123',
-        '-o', str(OUT / 'protected.xlsx'))
+r = run(
+    '-e', '--create', '-a', 'secret data', '--protect', 'p@ss123', '-o', str(OUT / 'protected.xlsx')
+)
 assert_ok(r, '--protect password')
 
-r = run('-e', '--create', '-a', 'open data', '--unprotect',
-        '-o', str(OUT / 'unprotected.xlsx'))
+r = run('-e', '--create', '-a', 'open data', '--unprotect', '-o', str(OUT / 'unprotected.xlsx'))
 assert_ok(r, '--unprotect')
 
 # --clear
-r = run('-e', '--create', '-a', 'data', '-a', 'more', '--clear',
-        '-o', str(OUT / 'cleared.xlsx'))
+r = run('-e', '--create', '-a', 'data', '-a', 'more', '--clear', '-o', str(OUT / 'cleared.xlsx'))
 assert_ok(r, '--clear content')
 
 # ════════════════════════════════════════════════════════════
@@ -320,55 +518,88 @@ assert_ok(r, '--clear content')
 print('\n--- 5. PPT Operations ---')
 
 # --slide-add
-r = run('-p', '--create', '--slide-add',
-        '-o', str(OUT / 'slide_add.pptx'))
+r = run('-p', '--create', '--slide-add', '-o', str(OUT / 'slide_add.pptx'))
 assert_ok(r, '--slide-add')
 
 # --slide-delete
-r = run('-p', '--create',
-        '--slide-add', '--slide-add', '--slide-add', '--slide-add',
-        '--slide-delete', '2',
-        '-o', str(OUT / 'slide_delete.pptx'))
+r = run(
+    '-p',
+    '--create',
+    '--slide-add',
+    '--slide-add',
+    '--slide-add',
+    '--slide-add',
+    '--slide-delete',
+    '2',
+    '-o',
+    str(OUT / 'slide_delete.pptx'),
+)
 if r.returncode == 0:
     ok('--slide-delete')
 else:
     fail('--slide-delete', f'exit={r.returncode} stderr={r.stderr[:80]}')
 
 # --slide-move
-r = run('-p', '--create', '--slide-add', '--slide-add', '--slide-add',
-        '--slide-move', '0 2',
-        '-o', str(OUT / 'slide_move.pptx'))
+r = run(
+    '-p',
+    '--create',
+    '--slide-add',
+    '--slide-add',
+    '--slide-add',
+    '--slide-move',
+    '0 2',
+    '-o',
+    str(OUT / 'slide_move.pptx'),
+)
 assert_ok(r, '--slide-move')
 
 # --notes
-r = run('-p', '--create', '--slide-add',
-        '--notes', '0 This is a speaker note',
-        '-o', str(OUT / 'notes.pptx'))
+r = run(
+    '-p',
+    '--create',
+    '--slide-add',
+    '--notes',
+    '0 This is a speaker note',
+    '-o',
+    str(OUT / 'notes.pptx'),
+)
 assert_ok(r, '--notes speaker notes')
 
 # --transition
-r = run('-p', '--create', '--slide-add', '--slide-add',
-        '--transition', 'fade',
-        '-o', str(OUT / 'transition.pptx'))
+r = run(
+    '-p',
+    '--create',
+    '--slide-add',
+    '--slide-add',
+    '--transition',
+    'fade',
+    '-o',
+    str(OUT / 'transition.pptx'),
+)
 assert_ok(r, '--transition fade')
 
 # --layout
-r = run('-p', '--create', '--slide-add', '--slide-add',
-        '--layout', '1 Title Slide',
-        '-o', str(OUT / 'layout.pptx'))
+r = run(
+    '-p',
+    '--create',
+    '--slide-add',
+    '--slide-add',
+    '--layout',
+    '1 Title Slide',
+    '-o',
+    str(OUT / 'layout.pptx'),
+)
 assert_ok(r, '--layout')
 
 # PPT --toimg (needs LibreOffice)
-r = run('-p', '--create', '--slide-add', '--toimg',
-        '-o', str(OUT / 'slide_images'))
+r = run('-p', '--create', '--slide-add', '--toimg', '-o', str(OUT / 'slide_images'))
 if r.returncode in (0, 1, 3):
     ok('--toimg (ok or no LibreOffice)')
 else:
     fail('--toimg', f'exit={r.returncode} stderr={r.stderr[:80]}')
 
 # PPT --topdf
-r = run('-p', '--create', '--slide-add', '--topdf',
-        '-o', str(OUT / 'ppt_to_pdf.pdf'))
+r = run('-p', '--create', '--slide-add', '--topdf', '-o', str(OUT / 'ppt_to_pdf.pdf'))
 if r.returncode in (0, 1, 3):
     ok('--topdf PPT->PDF (ok or no LibreOffice)')
 else:
@@ -388,7 +619,9 @@ if r_source.returncode == 0 and os.path.exists(tf.name):
         data = f.read()
     r_pipe = subprocess.run(
         [str(EXE), '--stdin', '-w', '--stdout'],
-        input=data, capture_output=True, timeout=30,
+        input=data,
+        capture_output=True,
+        timeout=30,
     )
     if r_pipe.returncode == 0 and len(r_pipe.stdout) > 100:
         ok('--stdin --stdout pipeline')
@@ -400,9 +633,14 @@ if r_source.returncode == 0 and os.path.exists(tf.name):
 r1 = run('-w', '--create', '-a', 'file1', '-o', str(OUT / 'merge1.docx'))
 r2 = run('-w', '--create', '-a', 'file2', '-o', str(OUT / 'merge2.docx'))
 if r1.returncode == 0 and r2.returncode == 0:
-    r = run('-e', '--create',
-            '--merge', str(OUT / 'merge1.xlsx') + ',' + str(OUT / 'merge2.xlsx'),
-            '-o', str(OUT / 'merged.xlsx'))
+    r = run(
+        '-e',
+        '--create',
+        '--merge',
+        str(OUT / 'merge1.xlsx') + ',' + str(OUT / 'merge2.xlsx'),
+        '-o',
+        str(OUT / 'merged.xlsx'),
+    )
     if r.returncode in (0, 1):
         ok('--merge (Word sheets not .xlsx)')
     else:
@@ -415,13 +653,27 @@ print('\n--- 7. Template Filling ---')
 
 # JSON template
 template_json = OUT / 'template.json'
-template_json.write_text(json.dumps({
-    'name': 'Alice', 'city': 'NYC',
-    'items': [{'product': 'A', 'price': 10}, {'product': 'B', 'price': 20}],
-}), encoding='utf-8')
+template_json.write_text(
+    json.dumps(
+        {
+            'name': 'Alice',
+            'city': 'NYC',
+            'items': [{'product': 'A', 'price': 10}, {'product': 'B', 'price': 20}],
+        }
+    ),
+    encoding='utf-8',
+)
 
-r = run('-w', '--create', '-a', '{{name}} from {{city}}', '-t', str(template_json),
-        '-o', str(OUT / 'filled.docx'))
+r = run(
+    '-w',
+    '--create',
+    '-a',
+    '{{name}} from {{city}}',
+    '-t',
+    str(template_json),
+    '-o',
+    str(OUT / 'filled.docx'),
+)
 assert_ok(r, '-t JSON template')
 
 # ════════════════════════════════════════════════════════════
@@ -430,7 +682,9 @@ assert_ok(r, '-t JSON template')
 print('\n--- 8. Exit Codes ---')
 
 r = run('-w', '--create', '-a', 'test', '-o', str(OUT / 'ok.docx'))
-assert r.returncode == 0, 'Exit 0: success' and ok('Exit 0: success') or fail('Exit 0', str(r.returncode))
+assert r.returncode == 0, ('Exit 0: success' and ok('Exit 0: success')) or fail(
+    'Exit 0', str(r.returncode)
+)
 
 r = run('-w', '--create', '-r', 'foo')
 if r.returncode == 2:

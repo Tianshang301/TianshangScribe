@@ -32,7 +32,6 @@ def detect_document_type(path: str | Path) -> DocumentType:
 
 
 class DocumentABC(ABC):
-
     def __init__(self, path: str | Path | None = None) -> None:
         self._path: Path | None = Path(path) if path else None
 
@@ -41,16 +40,13 @@ class DocumentABC(ABC):
         return self._path
 
     @abstractmethod
-    def create(self) -> None:
-        ...
+    def create(self) -> None: ...
 
     @abstractmethod
-    def open(self, path: str | Path) -> None:
-        ...
+    def open(self, path: str | Path) -> None: ...
 
     @abstractmethod
-    def save(self, path: str | Path | None = None) -> None:
-        ...
+    def save(self, path: str | Path | None = None) -> None: ...
 
     @abstractmethod
     def add_text(
@@ -62,45 +58,45 @@ class DocumentABC(ABC):
         font_size: int | None = None,
         color: str | None = None,
         alignment: str | None = None,
-        text_style: 'TextStyle | None' = None,
+        text_style: TextStyle | None = None,
         **kwargs: Any,
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
     @abstractmethod
     def add_styled_content(
         self,
         tokens: list[dict[str, Any]],
-    ) -> Any:
-        ...
+    ) -> Any: ...
 
     @abstractmethod
-    def replace_text(self, old: str, new: str, regex: bool = False) -> int:
-        ...
+    def replace_text(self, old: str, new: str, regex: bool = False) -> int: ...
 
     @abstractmethod
-    def set_style(self, style_str: str) -> None:
-        ...
+    def set_style(self, style_str: str) -> None: ...
 
     @abstractmethod
-    def apply_style_to_all(self) -> None:
-        ...
+    def apply_style_to_all(self) -> None: ...
 
     @abstractmethod
-    def get_base_style(self) -> 'TextStyle':
-        ...
+    def get_base_style(self) -> TextStyle: ...
 
     @abstractmethod
-    def to_pdf(self, output_path: str | Path) -> None:
-        ...
+    def to_pdf(self, output_path: str | Path) -> None: ...
+
+    def export_csv(self, output_path: str | Path) -> None:
+        raise NotImplementedError('CSV export is only supported for Excel documents')
+
+    def export_json(self, output_path: str | Path) -> None:
+        raise NotImplementedError('JSON export is only supported for Excel documents')
+
+    def export_html(self, output_path: str | Path) -> None:
+        raise NotImplementedError('HTML export is only supported for Excel documents')
 
     @abstractmethod
-    def get_metadata(self) -> dict[str, str | None]:
-        ...
+    def get_metadata(self) -> dict[str, str | None]: ...
 
     @abstractmethod
-    def set_metadata(self, **kwargs: str) -> None:
-        ...
+    def set_metadata(self, **kwargs: str) -> None: ...
 
 
 def create_document(doc_type: DocumentType) -> DocumentABC:

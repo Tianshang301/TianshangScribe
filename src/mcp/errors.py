@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 _MIME_MAP = {
     'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -38,32 +39,38 @@ def send_progress(progress: int, total: int, message: str = '') -> None:
     if writer is None:
         return
     import json
-    notification = json.dumps({
-        'jsonrpc': '2.0',
-        'method': 'notifications/progress',
-        'params': {
-            'progress': progress,
-            'total': total,
-            'message': message,
+
+    notification = json.dumps(
+        {
+            'jsonrpc': '2.0',
+            'method': 'notifications/progress',
+            'params': {
+                'progress': progress,
+                'total': total,
+                'message': message,
+            },
         },
-    }, ensure_ascii=False)
+        ensure_ascii=False,
+    )
     writer(notification)
 
 
-def _make_content(output_path: str, message: str) -> list[dict]:
+def _make_content(output_path: str, message: str) -> list[dict[str, Any]]:
     """Build MCP content array with text + resource URI."""
     path = Path(output_path)
-    content = [{'type': 'text', 'text': message}]
+    content: list[dict[str, Any]] = [{'type': 'text', 'text': message}]
     if path.exists():
-        content.append({
-            'type': 'resource',
-            'resource': {
-                'uri': path.resolve().as_uri(),
-                'mimeType': _mime_for_format(path.suffix),
-                'title': path.name,
-                'size': path.stat().st_size,
-            },
-        })
+        content.append(
+            {
+                'type': 'resource',
+                'resource': {
+                    'uri': path.resolve().as_uri(),
+                    'mimeType': _mime_for_format(path.suffix),
+                    'title': path.name,
+                    'size': path.stat().st_size,
+                },
+            }
+        )
     return content
 
 

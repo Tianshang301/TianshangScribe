@@ -3,32 +3,43 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from mcp.errors import McpErrorCode, error_response, success_response
+from pydantic import Field
+
 from src.core.document import open_document
+from src.mcp.errors import McpErrorCode, error_response, success_response
+from src.mcp.schemas import EditOperation, ToolOptions, as_dict
+from src.utils.file_utils import ensure_parent_dir
 
 
 def edit_office_document(
-    input_path: str,
-    operations: list[dict[str, Any]],
-    output_path: str = '',
-    options: dict[str, Any] | None = None,
+    input_path: Annotated[str, Field(description='Path to the existing document.')],
+    operations: Annotated[
+        list[EditOperation], Field(description='List of edit operations applied in order.')
+    ],
+    output_path: Annotated[
+        str, Field(description='Output path (defaults to the input file).')
+    ] = '',
+    options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
 ) -> dict:
     """Edit an existing Office document with replace/delete/modify/style operations."""
+    operations = as_dict(operations)
+    opts: dict[str, Any] = as_dict(options) or {}
     if not Path(input_path).exists():
         return error_response(McpErrorCode.DOCUMENT_NOT_FOUND, f"'{input_path}' not found.")
 
     output_path = output_path or input_path
-    opts = options or {}
 
     if opts.get('dry_run'):
-        return success_response({
-            'dry_run': True,
-            'file': input_path,
-            'operations': len(operations),
-            'op_types': [o.get('action') for o in operations],
-        })
+        return success_response(
+            {
+                'dry_run': True,
+                'file': input_path,
+                'operations': len(operations),
+                'op_types': [o.get('action') for o in operations],
+            }
+        )
 
     try:
         engine = open_document(input_path)
@@ -70,14 +81,18 @@ def edit_office_document(
 
         if opts.get('backup') and input_path == output_path:
             import shutil
+
             shutil.copy2(input_path, input_path + '.bak')
 
+        ensure_parent_dir(output_path)
         engine.save(output_path)
-        return success_response({
-            'output_path': output_path,
-            'operations': len(operations),
-            'total_changes': changes,
-        })
+        return success_response(
+            {
+                'output_path': output_path,
+                'operations': len(operations),
+                'total_changes': changes,
+            }
+        )
     except ValueError as e:
         return error_response(McpErrorCode.DOCUMENT_LOCKED, str(e))
     except Exception as e:

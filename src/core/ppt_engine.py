@@ -12,7 +12,6 @@ from src.rendering.styles import TextStyle
 
 
 class PptEngine(DocumentABC):
-
     def __init__(self, path: str | Path | None = None) -> None:
         super().__init__(path)
         self._prs: Presentation | None = None
@@ -119,6 +118,7 @@ class PptEngine(DocumentABC):
                     self._apply_run_style(run, final)
                 if final.alignment:
                     from pptx.enum.text import PP_ALIGN
+
                     align_map = {
                         'left': PP_ALIGN.LEFT,
                         'center': PP_ALIGN.CENTER,
@@ -140,6 +140,7 @@ class PptEngine(DocumentABC):
         if style.color is not None:
             try:
                 from pptx.dml.color import RGBColor
+
                 run.font.color.rgb = RGBColor.from_string(style.color)
             except Exception:
                 pass
@@ -179,16 +180,12 @@ class PptEngine(DocumentABC):
 
         return slide
 
-    def _add_omath_to_slide(
-        self, slide: Any, latex: str, style: TextStyle
-    ) -> None:
+    def _add_omath_to_slide(self, slide: Any, latex: str, style: TextStyle) -> None:
         from pptx.util import Inches
 
         from src.rendering.math_omml import latex_to_omml
 
-        textbox = slide.shapes.add_textbox(
-            Inches(1), Inches(1), Inches(8), Inches(1)
-        )
+        textbox = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
         tf = textbox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
@@ -198,6 +195,7 @@ class PptEngine(DocumentABC):
 
     def _add_omath_to_paragraph(self, paragraph: Any, latex: str) -> None:
         from src.rendering.math_omml import latex_to_omml
+
         omml = latex_to_omml(latex)
         if omml is not None:
             paragraph._p.append(omml)
@@ -207,9 +205,7 @@ class PptEngine(DocumentABC):
     ) -> None:
         from pptx.util import Inches
 
-        textbox = slide.shapes.add_textbox(
-            Inches(1), Inches(1), Inches(8), Inches(1)
-        )
+        textbox = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
         tf = textbox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
@@ -221,11 +217,13 @@ class PptEngine(DocumentABC):
 
     def add_latex_content(self, text: str) -> Any:
         from src.rendering.latex_parser import parse_structured
+
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
         import re as _re
+
         count = 0
         for slide in self.prs.slides:
             for shape in slide.shapes:
@@ -258,6 +256,7 @@ class PptEngine(DocumentABC):
     def to_pdf(self, output_path: str | Path) -> None:
         self.save()
         from src.transform.pdf import ppt_to_pdf
+
         ppt_to_pdf(str(self._path), str(output_path))
 
     def add_slide(self, layout_index: int = 1) -> Any:
@@ -278,13 +277,16 @@ class PptEngine(DocumentABC):
                 raise ValueError(
                     f'Layout "{layout_spec}" not found. '
                     f'Available: {[lo.name for lo in self.prs.slide_layouts]}'
-                )
+                ) from None
         if slide_index < len(self.prs.slides):
             slide = self.prs.slides[slide_index]
             ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
             r_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
             layout_part = slide_layout.part
-            r_id = slide.part.relate_to(layout_part, 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout')
+            r_id = slide.part.relate_to(
+                layout_part,
+                'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout',
+            )
             csld = slide.element.find(f'{{{ns}}}cSld')
             if csld is not None:
                 layout_node = csld.find(f'{{{ns}}}sldLayout')
@@ -294,7 +296,9 @@ class PptEngine(DocumentABC):
                 layout_node.set(f'{{{r_ns}}}id', r_id)
 
     def delete_slide(self, index: int) -> None:
-        r_id = self.prs.slides._sldIdLst[index].attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']
+        r_id = self.prs.slides._sldIdLst[index].attrib[
+            '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
+        ]
         self.prs.part.drop_rel(r_id)
         del self.prs.slides._sldIdLst[index]
 
@@ -359,8 +363,10 @@ class PptEngine(DocumentABC):
 
         lo_bin = None
         lo_paths = [
-            'libreoffice', 'soffice',
-            '/usr/bin/libreoffice', '/usr/bin/soffice',
+            'libreoffice',
+            'soffice',
+            '/usr/bin/libreoffice',
+            '/usr/bin/soffice',
             r'C:\Program Files\LibreOffice\program\soffice.exe',
         ]
         for p in lo_paths:
@@ -376,9 +382,17 @@ class PptEngine(DocumentABC):
 
         self.save()
         subprocess.run(
-            [lo_bin, '--headless', '--convert-to', 'png',
-             '--outdir', str(output_dir), str(self._path)],
-            check=True, capture_output=True,
+            [
+                lo_bin,
+                '--headless',
+                '--convert-to',
+                'png',
+                '--outdir',
+                str(output_dir),
+                str(self._path),
+            ],
+            check=True,
+            capture_output=True,
         )
 
         return sorted(output_dir.glob('*.png'))
@@ -386,9 +400,23 @@ class PptEngine(DocumentABC):
     def set_transition(self, transition_type: str, slide_index: int | None = None) -> None:
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         valid_transitions = {
-            'fade', 'push', 'wipe', 'cover', 'uncover', 'dissolve',
-            'random', 'split', 'strips', 'blinds', 'checker', 'comb',
-            'zoom', 'glitter', 'vortex', 'ripple', 'honeycomb',
+            'fade',
+            'push',
+            'wipe',
+            'cover',
+            'uncover',
+            'dissolve',
+            'random',
+            'split',
+            'strips',
+            'blinds',
+            'checker',
+            'comb',
+            'zoom',
+            'glitter',
+            'vortex',
+            'ripple',
+            'honeycomb',
         }
         ttype = transition_type.lower()
         if ttype not in valid_transitions:
@@ -396,8 +424,9 @@ class PptEngine(DocumentABC):
                 f'Unsupported transition: {transition_type}. '
                 f'Use one of: {", ".join(sorted(valid_transitions))}'
             )
-        slides = [self.prs.slides[slide_index]] if slide_index is not None \
-            else list(self.prs.slides)
+        slides = (
+            [self.prs.slides[slide_index]] if slide_index is not None else list(self.prs.slides)
+        )
         for slide in slides:
             existing = slide.element.findall(f'{{{ns}}}transition')
             for el in existing:
@@ -435,7 +464,115 @@ class PptEngine(DocumentABC):
 
     def merge_workbooks(self, paths: list[str]) -> None:
         from pptx import Presentation
+
         for p in paths:
             src = Presentation(p)
             for slide in src.slides:
                 self.prs.slides.add_slide(slide.slide_layout)
+
+    def extract_text(self) -> str:
+        lines: list[str] = []
+        for slide_idx, slide in enumerate(self.prs.slides):
+            for shape in slide.shapes:
+                if shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        text = ''.join(run.text for run in paragraph.runs)
+                        if text:
+                            lines.append(f'[slide {slide_idx + 1}] {text}')
+        return '\n'.join(lines)
+
+    def extract_tables(self) -> list[list[list[str]]]:
+        tables: list[list[list[str]]] = []
+        for slide in self.prs.slides:
+            for shape in slide.shapes:
+                if getattr(shape, 'has_table', False) and shape.has_table:
+                    rows = [[cell.text for cell in row.cells] for row in shape.table.rows]
+                    tables.append(rows)
+        return tables
+
+    def extract_images(self, output_dir: str | Path) -> list[Path]:
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        saved: list[Path] = []
+        idx = 0
+        for slide_idx, slide in enumerate(self.prs.slides):
+            for shape in slide.shapes:
+                if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                    image = shape.image
+                    target = out / f'slide{slide_idx + 1}_{idx}.{image.ext}'
+                    target.write_bytes(image.blob)
+                    saved.append(target)
+                    idx += 1
+        return saved
+
+    def extract_structure(self) -> dict[str, Any]:
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        return {
+            'slides': len(self.prs.slides),
+            'images': sum(
+                1
+                for slide in self.prs.slides
+                for shape in slide.shapes
+                if shape.shape_type == MSO_SHAPE_TYPE.PICTURE
+            ),
+        }
+
+    def compress_media(self, max_dimension: int = 1920, quality: int = 80) -> int:
+        """Recompress images to reduce file size.
+
+        Images larger than ``max_dimension`` are scaled down; JPEGs are
+        re-encoded with ``quality``; PNGs are re-encoded with ``optimize``.
+        Shared image parts are processed once. Returns the number of bytes
+        saved (the presentation must still be saved to persist changes).
+        """
+        import io
+
+        from PIL import Image as PILImage
+        from pptx.oxml.ns import qn
+
+        saved_bytes = 0
+        seen: set[int] = set()
+        for slide in self.prs.slides:
+            for shape in slide.shapes:
+                blip = shape._element.find(f'.//{qn("a:blip")}')
+                if blip is None:
+                    continue
+                r_id = blip.get(qn('r:embed'))
+                if not r_id:
+                    continue
+                try:
+                    image_part = slide.part.related_part(r_id)
+                except Exception:
+                    continue
+                part_id = id(image_part)
+                if part_id in seen:
+                    continue
+                seen.add(part_id)
+
+                original = image_part._blob
+                try:
+                    image = PILImage.open(io.BytesIO(original))
+                except Exception:
+                    continue
+                fmt = (image.format or 'JPEG').upper()
+                if max(image.size) > max_dimension:
+                    ratio = max_dimension / max(image.size)
+                    new_size = (int(image.width * ratio), int(image.height * ratio))
+                    image = image.resize(new_size, PILImage.LANCZOS)
+
+                buf = io.BytesIO()
+                if fmt == 'JPEG':
+                    image.convert('RGB').save(buf, 'JPEG', quality=quality, optimize=True)
+                elif fmt == 'PNG':
+                    image.save(buf, 'PNG', optimize=True)
+                else:
+                    continue
+
+                new_blob = buf.getvalue()
+                if len(new_blob) < len(original):
+                    image_part._blob = new_blob
+                    saved_bytes += len(original) - len(new_blob)
+        return saved_bytes

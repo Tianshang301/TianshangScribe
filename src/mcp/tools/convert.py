@@ -3,19 +3,36 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
-from mcp.errors import McpErrorCode, _make_content, error_response, success_response
+from pydantic import Field
+
 from src.core.document import open_document
+from src.mcp.errors import McpErrorCode, _make_content, error_response, success_response
+from src.mcp.schemas import ToolOptions, as_dict
 
 
 def convert_document(
-    input_path: str,
-    target_format: str,
-    output_path: str = '',
-    options: dict[str, Any] | None = None,
+    input_path: Annotated[str, Field(description='Path to the source document.')],
+    target_format: Annotated[
+        Literal['pdf', 'csv', 'json', 'html', 'md', 'markdown'],
+        Field(
+            description=(
+                'Target output format:\n'
+                '- "pdf": PDF document (requires office2pdf or LibreOffice)\n'
+                '- "csv": Comma-separated values (Excel only)\n'
+                '- "json": JSON array of rows (Excel only)\n'
+                '- "html": HTML table (Excel) / styled HTML (Word)\n'
+                '- "md"/"markdown": Markdown (Word only)'
+            ),
+            examples=['pdf', 'md'],
+        ),
+    ],
+    output_path: Annotated[str, Field(description='Output file path.')] = '',
+    options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
 ) -> dict:
     """Convert a document to another format."""
+    opts: dict[str, Any] = as_dict(options) or {}
     if not Path(input_path).exists():
         return error_response(McpErrorCode.DOCUMENT_NOT_FOUND, f"'{input_path}' not found.")
 
@@ -29,15 +46,16 @@ def convert_document(
 
     stem = Path(input_path).stem
     output_path = output_path or f'{stem}.{fmt}'
-    opts = options or {}
 
     if opts.get('dry_run'):
-        return success_response({
-            'dry_run': True,
-            'from': input_path,
-            'to': output_path,
-            'format': fmt,
-        })
+        return success_response(
+            {
+                'dry_run': True,
+                'from': input_path,
+                'to': output_path,
+                'format': fmt,
+            }
+        )
 
     try:
         engine = open_document(input_path)
@@ -52,15 +70,18 @@ def convert_document(
             engine.export_html(output_path)
         elif fmt in ('md', 'markdown'):
             from src.transform.pdf import word_to_markdown
+
             engine.save()
             word_to_markdown(str(engine._path), str(output_path))
 
-        return success_response({
-            'output_path': output_path,
-            'source_format': Path(input_path).suffix,
-            'target_format': fmt,
-        }, content=_make_content(output_path,
-               f'Converted {input_path} → {output_path} ({fmt})'))
+        return success_response(
+            {
+                'output_path': output_path,
+                'source_format': Path(input_path).suffix,
+                'target_format': fmt,
+            },
+            content=_make_content(output_path, f'Converted {input_path} → {output_path} ({fmt})'),
+        )
     except NotImplementedError as e:
         return error_response(McpErrorCode.CONVERSION_FAILED, str(e))
     except Exception as e:
@@ -68,9 +89,12 @@ def convert_document(
 
 
 def extract_document_data(
-    input_path: str,
-    mode: str = 'metadata',
-    options: dict[str, Any] | None = None,
+    input_path: Annotated[str, Field(description='Path to the source document.')],
+    mode: Annotated[
+        Literal['metadata', 'text', 'structure'],
+        Field(description='What to extract: metadata, text, or structure.'),
+    ] = 'metadata',
+    options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
 ) -> dict:
     """Extract data from a document."""
     if not Path(input_path).exists():
@@ -89,9 +113,7 @@ def extract_document_data(
             elif hasattr(engine, 'wb'):
                 for ws in engine.wb.worksheets:
                     for row in ws.iter_rows(values_only=True):
-                        text_parts.append(' | '.join(
-                            str(c) if c is not None else '' for c in row
-                        ))
+                        text_parts.append(' | '.join(str(c) if c is not None else '' for c in row))
             elif hasattr(engine, 'prs'):
                 for slide in engine.prs.slides:
                     for shape in slide.shapes:
@@ -99,10 +121,12 @@ def extract_document_data(
                             t = shape.text_frame.text.strip()
                             if t:
                                 text_parts.append(t)
-            return success_response({
-                'text': '\n'.join(text_parts),
-                'text_blocks': len(text_parts),
-            })
+            return success_response(
+                {
+                    'text': '\n'.join(text_parts),
+                    'text_blocks': len(text_parts),
+                }
+            )
         elif mode == 'structure':
             info = {}
             if hasattr(engine, 'doc'):

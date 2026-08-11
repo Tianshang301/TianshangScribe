@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -17,7 +18,7 @@ class TextStyle:
     small_caps: bool | None = None
 
     @classmethod
-    def from_string(cls, s: str) -> 'TextStyle':
+    def from_string(cls, s: str) -> TextStyle:
         instance = cls()
         if not s.strip():
             return instance
@@ -38,15 +39,13 @@ class TextStyle:
         return instance
 
     @staticmethod
-    def _apply_kv(style: 'TextStyle', key: str, value: str) -> None:
+    def _apply_kv(style: TextStyle, key: str, value: str) -> None:
         key = key.lower()
         if key in ('font', 'font_name', 'font-family'):
             style.font_name = value
         elif key in ('size', 'font_size', 'font-size'):
-            try:
+            with contextlib.suppress(ValueError):
                 style.font_size = int(value.replace('pt', '').strip())
-            except ValueError:
-                pass
         elif key == 'bold':
             style.bold = value.lower() in ('true', '1', 'yes')
         elif key == 'italic':
@@ -61,7 +60,7 @@ class TextStyle:
             style.alignment = value.lower()
 
     @staticmethod
-    def _apply_flag(style: 'TextStyle', key: str) -> None:
+    def _apply_flag(style: TextStyle, key: str) -> None:
         key = key.lower()
         if key == 'bold':
             style.bold = True
@@ -70,7 +69,7 @@ class TextStyle:
         elif key in ('underline', 'underlined'):
             style.underline = True
 
-    def merge(self, *others: 'TextStyle') -> 'TextStyle':
+    def merge(self, *others: TextStyle) -> TextStyle:
         result = replace(self)
         for other in others:
             if other.font_name is not None:
@@ -94,7 +93,7 @@ class TextStyle:
         return result
 
     @classmethod
-    def from_latex_token(cls, token: dict[str, Any]) -> 'TextStyle':
+    def from_latex_token(cls, token: dict[str, Any]) -> TextStyle:
         instance = cls()
 
         cmd = token.get('command', '')
@@ -132,15 +131,15 @@ class TextStyle:
         return instance
 
     @classmethod
-    def default_word(cls) -> 'TextStyle':
+    def default_word(cls) -> TextStyle:
         return cls(font_name='Times New Roman', cjk_font_name='SimSun', font_size=12)
 
     @classmethod
-    def default_excel(cls) -> 'TextStyle':
+    def default_excel(cls) -> TextStyle:
         return cls(font_name='Calibri', font_size=11)
 
     @classmethod
-    def default_ppt(cls) -> 'TextStyle':
+    def default_ppt(cls) -> TextStyle:
         return cls(font_name='Calibri', font_size=18)
 
     def to_cli_string(self) -> str:

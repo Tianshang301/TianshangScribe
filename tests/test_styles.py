@@ -95,8 +95,12 @@ class TestTextStyleFromLatexToken:
         assert style.color == 'FF0000'
 
     def test_style_map_token(self) -> None:
-        token = {'type': 'command', 'command': 'bfseries',
-                 'style': {'bold': True, 'italic': False}, 'content': ''}
+        token = {
+            'type': 'command',
+            'command': 'bfseries',
+            'style': {'bold': True, 'italic': False},
+            'content': '',
+        }
         style = TextStyle.from_latex_token(token)
         assert style.bold is True
 
@@ -121,8 +125,11 @@ class TestTextStyleDefaults:
 class TestTextStyleToCliString:
     def test_full_style(self) -> None:
         style = TextStyle(
-            font_name='Times', font_size=14, bold=True,
-            color='FF0000', alignment='center',
+            font_name='Times',
+            font_size=14,
+            bold=True,
+            color='FF0000',
+            alignment='center',
         )
         s = style.to_cli_string()
         assert 'font=Times' in s

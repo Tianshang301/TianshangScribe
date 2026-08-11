@@ -12,7 +12,6 @@ from src.rendering.styles import TextStyle
 
 
 class ExcelEngine(DocumentABC):
-
     def __init__(self, path: str | Path | None = None) -> None:
         super().__init__(path)
         self._wb: Workbook | None = None
@@ -96,8 +95,10 @@ class ExcelEngine(DocumentABC):
             cell.font = Font(**font_kwargs)
             if final.alignment:
                 align_map = {
-                    'left': 'left', 'center': 'center',
-                    'right': 'right', 'justify': 'justify',
+                    'left': 'left',
+                    'center': 'center',
+                    'right': 'right',
+                    'justify': 'justify',
                 }
                 cell.alignment = Alignment(horizontal=align_map.get(final.alignment, 'left'))
             last_cell = cell
@@ -132,11 +133,13 @@ class ExcelEngine(DocumentABC):
 
     def add_latex_content(self, text: str) -> Any:
         from src.rendering.latex_parser import parse_structured
+
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
         import re as _re
+
         count = 0
         for ws in self.wb.worksheets:
             for row in ws.iter_rows():
@@ -180,6 +183,7 @@ class ExcelEngine(DocumentABC):
     def to_pdf(self, output_path: str | Path) -> None:
         self.save()
         from src.transform.pdf import excel_to_pdf
+
         excel_to_pdf(str(self._path), str(output_path))
 
     def add_sheet(self, name: str) -> Any:
@@ -207,6 +211,7 @@ class ExcelEngine(DocumentABC):
 
     def import_csv(self, csv_path: str | Path) -> None:
         import csv
+
         ws = self.wb.active
         with open(csv_path, newline='', encoding='utf-8') as f:
             reader = csv.reader(f)
@@ -214,8 +219,33 @@ class ExcelEngine(DocumentABC):
                 for col_idx, value in enumerate(row_data, start=1):
                     ws.cell(row=row_idx, column=col_idx, value=value)
 
+    def import_json(self, json_path: str | Path) -> None:
+        import json
+
+        with open(json_path, encoding='utf-8') as f:
+            data = json.load(f)
+
+        if not isinstance(data, list) or not data:
+            raise ValueError('import_json expects a non-empty JSON array')
+
+        ws = self.wb.active
+        if all(isinstance(item, dict) for item in data):
+            headers = list(dict.fromkeys(k for item in data for k in item))
+            for col_idx, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col_idx, value=header)
+            for row_idx, item in enumerate(data, start=2):
+                for col_idx, header in enumerate(headers, start=1):
+                    ws.cell(row=row_idx, column=col_idx, value=item.get(header))
+        else:
+            for row_idx, row_data in enumerate(data, start=1):
+                if not isinstance(row_data, list):
+                    row_data = [row_data]
+                for col_idx, value in enumerate(row_data, start=1):
+                    ws.cell(row=row_idx, column=col_idx, value=value)
+
     def export_csv(self, output_path: str | Path) -> None:
         import csv
+
         ws = self.wb.active
         with open(output_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
@@ -251,6 +281,7 @@ class ExcelEngine(DocumentABC):
 
     def add_comment(self, cell_ref: str, text: str) -> None:
         from openpyxl.comments import Comment
+
         ws = self.wb.active
         ws[cell_ref].comment = Comment(text, 'TianshangScribe')
 
@@ -262,6 +293,7 @@ class ExcelEngine(DocumentABC):
 
     def export_json(self, output_path: str | Path) -> None:
         import json
+
         ws = self.wb.active
         rows = list(ws.iter_rows(values_only=True))
         if not rows:
@@ -270,8 +302,7 @@ class ExcelEngine(DocumentABC):
             return
         headers = [str(c) if c is not None else f'col_{i + 1}' for i, c in enumerate(rows[0])]
         data = [
-            {headers[j]: str(c) if c is not None else '' for j, c in enumerate(r)}
-            for r in rows[1:]
+            {headers[j]: str(c) if c is not None else '' for j, c in enumerate(r)} for r in rows[1:]
         ]
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -300,11 +331,12 @@ class ExcelEngine(DocumentABC):
 
     def sort(self, cell_range: str, order: str = 'asc') -> None:
         import re
+
         ws = self.wb.active
         match = re.match(r'([A-Z]+)(\d+):([A-Z]+)(\d+)', cell_range)
         if not match:
             raise ValueError(f'Invalid cell range: {cell_range}')
-        c1, r1_s, c2, r2_s = match.groups()
+        c1, r1_s, _, r2_s = match.groups()
         r1 = int(r1_s)
         r2 = int(r2_s)
         data = []
@@ -317,13 +349,12 @@ class ExcelEngine(DocumentABC):
 
     def add_chart(self, chart_type: str, data_range: str, position: str = 'E2') -> None:
         from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+
         ws = self.wb.active
         chart_classes = {'bar': BarChart, 'line': LineChart, 'pie': PieChart}
         chart_cls = chart_classes.get(chart_type)
         if chart_cls is None:
-            raise ValueError(
-                f'Unsupported chart type: {chart_type}. Use bar, line, or pie.'
-            )
+            raise ValueError(f'Unsupported chart type: {chart_type}. Use bar, line, or pie.')
         chart = chart_cls()
         data = Reference(ws, range_string=data_range)
         chart.add_data(data, titles_from_data=True)
@@ -364,6 +395,7 @@ class ExcelEngine(DocumentABC):
         from copy import copy
 
         from openpyxl.styles import Alignment, Border, Font, PatternFill
+
         empty_font = Font()
         no_fill = PatternFill()
         for ws in self.wb.worksheets:
@@ -379,3 +411,47 @@ class ExcelEngine(DocumentABC):
             for row in ws.iter_rows():
                 for cell in row:
                     cell.hyperlink = None
+
+    def extract_text(self) -> str:
+        lines: list[str] = []
+        for ws in self.wb.worksheets:
+            for row in ws.iter_rows(values_only=True):
+                cells = ['' if c is None else str(c) for c in row]
+                if any(cells):
+                    lines.append(f'[{ws.title}] ' + ' | '.join(cells))
+        return '\n'.join(lines)
+
+    def extract_tables(self) -> list[list[list[str]]]:
+        tables: list[list[list[str]]] = []
+        for ws in self.wb.worksheets:
+            rows = [
+                ['' if c is None else str(c) for c in row]
+                for row in ws.iter_rows(values_only=True)
+                if any(c is not None for c in row)
+            ]
+            if rows:
+                tables.append(rows)
+        return tables
+
+    def extract_images(self, output_dir: str | Path) -> list[Path]:
+        out = Path(output_dir)
+        out.mkdir(parents=True, exist_ok=True)
+        saved: list[Path] = []
+        idx = 0
+        for ws in self.wb.worksheets:
+            for image in getattr(ws, '_images', []):
+                blob = getattr(image, '_data', None) or getattr(image, 'blob', None)
+                if blob is None:
+                    continue
+                ext = Path(image.format or 'png').suffix or f'.{image.format or "png"}'
+                target = out / f'{ws.title}_{idx}{ext}'
+                target.write_bytes(blob)
+                saved.append(target)
+                idx += 1
+        return saved
+
+    def extract_structure(self) -> dict[str, Any]:
+        return {
+            'sheets': [ws.title for ws in self.wb.worksheets],
+            'images': len([img for ws in self.wb.worksheets for img in getattr(ws, '_images', [])]),
+        }

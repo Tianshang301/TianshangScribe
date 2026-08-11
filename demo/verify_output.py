@@ -1,12 +1,14 @@
 """Verify demo output files."""
-import sys
+
 import io
+import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 # Word
 from docx import Document
 from docx.oxml.ns import qn
+
 doc = Document('demo/demo_word.docx')
 print('=== Word ===')
 print(f'Paragraphs: {len(doc.paragraphs)}')
@@ -20,6 +22,7 @@ print(f'Watermark: {has_wm}')
 
 # Excel
 from openpyxl import load_workbook
+
 wb = load_workbook('demo/demo_excel.xlsx')
 print()
 print('=== Excel ===')
@@ -34,6 +37,7 @@ print(f'Password set: {wb.security.workbook_password is not None}')
 
 # PPT
 from pptx import Presentation
+
 prs = Presentation('demo/demo_ppt.pptx')
 print()
 print('=== PPT ===')

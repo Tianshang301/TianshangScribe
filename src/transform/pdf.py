@@ -5,15 +5,14 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 
-def _find_office2pdf() -> Optional[str]:
+def _find_office2pdf() -> str | None:
     """Find office2pdf binary on PATH."""
     return shutil.which('office2pdf')
 
 
-def _find_libreoffice() -> Optional[str]:
+def _find_libreoffice() -> str | None:
     """Find LibreOffice/soffice binary on PATH."""
     for name in ['libreoffice', 'soffice']:
         lo = shutil.which(name)
@@ -44,8 +43,7 @@ def _convert_via_libreoffice(input_path: str | Path, output_path: str | Path) ->
         raise RuntimeError('No PDF engine found. Install office2pdf or LibreOffice.')
     output_dir = str(Path(output_path).parent)
     subprocess.run(
-        [lo_bin, '--headless', '--convert-to', 'pdf',
-         '--outdir', output_dir, str(input_path)],
+        [lo_bin, '--headless', '--convert-to', 'pdf', '--outdir', output_dir, str(input_path)],
         check=True,
         capture_output=True,
     )
@@ -54,7 +52,8 @@ def _convert_via_libreoffice(input_path: str | Path, output_path: str | Path) ->
 def _convert(input_path: str | Path, output_path: str | Path) -> None:
     """Convert document to PDF — auto-select engine."""
     try:
-        from mcp.errors import send_progress
+        from src.mcp.errors import send_progress
+
         _has_progress = True
     except ImportError:
         _has_progress = False
@@ -62,13 +61,13 @@ def _convert(input_path: str | Path, output_path: str | Path) -> None:
     if _has_progress:
         send_progress(0, 100, 'Analyzing document for PDF conversion...')
 
-    engine_name = 'office2pdf' if _find_office2pdf() else (
-        'LibreOffice' if _find_libreoffice() else None)
+    engine_name = (
+        'office2pdf' if _find_office2pdf() else ('LibreOffice' if _find_libreoffice() else None)
+    )
 
     if not engine_name:
         if _has_progress:
-            send_progress(0, 100,
-                          'No PDF engine found. Install office2pdf or LibreOffice.')
+            send_progress(0, 100, 'No PDF engine found. Install office2pdf or LibreOffice.')
         raise RuntimeError(
             'No PDF conversion engine found.\n'
             'Install office2pdf (recommended, ~2MB):\n'
@@ -79,9 +78,7 @@ def _convert(input_path: str | Path, output_path: str | Path) -> None:
 
     input_size = Path(input_path).stat().st_size
     if _has_progress:
-        send_progress(10, 100,
-                      f'Converting with {engine_name} '
-                      f'({input_size / 1024:.0f} KB)...')
+        send_progress(10, 100, f'Converting with {engine_name} ({input_size / 1024:.0f} KB)...')
 
     if engine_name == 'office2pdf':
         _convert_via_office2pdf(input_path, output_path)
@@ -89,8 +86,7 @@ def _convert(input_path: str | Path, output_path: str | Path) -> None:
         _convert_via_libreoffice(input_path, output_path)
 
     if _has_progress:
-        send_progress(100, 100,
-                      f'PDF ready ({Path(output_path).stat().st_size / 1024:.0f} KB)')
+        send_progress(100, 100, f'PDF ready ({Path(output_path).stat().st_size / 1024:.0f} KB)')
 
 
 def word_to_pdf(docx_path: str | Path, pdf_path: str | Path) -> None:
@@ -112,6 +108,7 @@ def word_to_markdown(docx_path: str | Path, md_path: str | Path) -> None:
     """Convert Word to Markdown using mammoth or pandoc."""
     try:
         import mammoth
+
         with open(docx_path, 'rb') as f:
             result = mammoth.convert_to_markdown(f)
         with open(md_path, 'w', encoding='utf-8') as f:
@@ -128,6 +125,7 @@ def word_to_html(docx_path: str | Path, html_path: str | Path) -> None:
     """Convert Word to HTML using mammoth or pandoc."""
     try:
         import mammoth
+
         with open(docx_path, 'rb') as f:
             result = mammoth.convert_to_html(f)
         with open(html_path, 'w', encoding='utf-8') as f:

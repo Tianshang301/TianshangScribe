@@ -131,9 +131,7 @@ class TestParseStructured:
 
     def test_dollar_escape(self) -> None:
         tokens = parse_structured(r'Price is \$100')
-        text_content = ''.join(
-            t.get('content', '') for t in tokens if t['type'] == 'text'
-        )
+        text_content = ''.join(t.get('content', '') for t in tokens if t['type'] == 'text')
         assert '$' in text_content
         assert '$100' in text_content
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from functools import partial
 from typing import Any
 
 from src.rendering.math_omml import ACCENT_MAP, GREEK_MAP, SYMBOL_MAP
@@ -8,25 +9,78 @@ from src.rendering.math_omml import ACCENT_MAP, GREEK_MAP, SYMBOL_MAP
 _TEXT_SYMBOLS: dict[str, str] = {
     **GREEK_MAP,
     **SYMBOL_MAP,
-    'lim': 'lim', 'sin': 'sin', 'cos': 'cos', 'tan': 'tan',
-    'log': 'log', 'ln': 'ln', 'det': 'det',
-    'max': 'max', 'min': 'min', 'sup': 'sup', 'inf': 'inf',
-    'Pr': 'Pr', 'gcd': 'gcd', 'deg': 'deg', 'dim': 'dim',
-    'hom': 'hom', 'ker': 'ker',
+    'lim': 'lim',
+    'sin': 'sin',
+    'cos': 'cos',
+    'tan': 'tan',
+    'log': 'log',
+    'ln': 'ln',
+    'det': 'det',
+    'max': 'max',
+    'min': 'min',
+    'sup': 'sup',
+    'inf': 'inf',
+    'Pr': 'Pr',
+    'gcd': 'gcd',
+    'deg': 'deg',
+    'dim': 'dim',
+    'hom': 'hom',
+    'ker': 'ker',
 }
 
 _TEXT_ACCENTS: dict[str, str] = ACCENT_MAP
 
-_MATH_CMD_NAMES = frozenset({
-    'frac', 'sqrt', 'sum', 'int', 'prod', 'iint', 'iiint', 'oint',
-    'lim', 'sin', 'cos', 'tan', 'log', 'ln', 'det',
-    'max', 'min', 'sup', 'inf', 'Pr', 'gcd', 'deg', 'dim',
-    'hom', 'ker', 'cot', 'sec', 'csc', 'arg',
-    'coprod', 'bigcup', 'bigcap', 'bigvee', 'bigwedge',
-    'overline', 'vec', 'dot', 'ddot',
-    'hat', 'bar', 'tilde', 'widehat', 'widetilde',
-    'check', 'acute', 'grave', 'breve',
-})
+_MATH_CMD_NAMES = frozenset(
+    {
+        'frac',
+        'sqrt',
+        'sum',
+        'int',
+        'prod',
+        'iint',
+        'iiint',
+        'oint',
+        'lim',
+        'sin',
+        'cos',
+        'tan',
+        'log',
+        'ln',
+        'det',
+        'max',
+        'min',
+        'sup',
+        'inf',
+        'Pr',
+        'gcd',
+        'deg',
+        'dim',
+        'hom',
+        'ker',
+        'cot',
+        'sec',
+        'csc',
+        'arg',
+        'coprod',
+        'bigcup',
+        'bigcap',
+        'bigvee',
+        'bigwedge',
+        'overline',
+        'vec',
+        'dot',
+        'ddot',
+        'hat',
+        'bar',
+        'tilde',
+        'widehat',
+        'widetilde',
+        'check',
+        'acute',
+        'grave',
+        'breve',
+    }
+)
 
 
 def _extract_math_expression(text: str, start: int) -> tuple[str, int]:
@@ -49,7 +103,7 @@ def _extract_math_expression(text: str, start: int) -> tuple[str, int]:
                         break
                 j += 1
             else:
-                return text[start:i + 1], i + 1
+                return text[start : i + 1], i + 1
             continue
         elif ch == '[':
             depth = 0
@@ -114,7 +168,7 @@ def _wrap_math_commands(text: str) -> str:
     for m in pattern.finditer(text):
         if m.start() < last_end:
             continue
-        result_parts.append(text[last_end:m.start()])
+        result_parts.append(text[last_end : m.start()])
         cmd_name = m.group(1)
         expr, end = _extract_math_expression(text, m.end())
         full_formula = '\\' + cmd_name + expr
@@ -133,7 +187,7 @@ def _merge_adjacent_math(text: str) -> str:
         prev = result
         result = re.sub(
             r'\$([^$]+)\$\s*\$([^$]+)\$',
-            lambda m: '${} {}$'.format(m.group(1), m.group(2)),
+            lambda m: f'${m.group(1)} {m.group(2)}$',
             result,
         )
         if result == prev:
@@ -145,14 +199,12 @@ _BRACED_CONTENT = r'\{((?:[^{}]|\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\})*)\}'
 
 _SIMPLE_CMDS = (
     r'\\(bfseries|itshape|scshape|rmfamily|sffamily|ttfamily|underline|noindent'
-    r'|centering|raggedright|raggedleft|indent)'
-    + _BRACED_CONTENT
+    r'|centering|raggedright|raggedleft|indent)' + _BRACED_CONTENT
 )
 
 _PARAM_CMDS = (
     r'\\(fontfamily|fontsize|color|linespread)'
-    r'\{([^{}]+)\}'
-    + _BRACED_CONTENT
+    r'\{([^{}]+)\}' + _BRACED_CONTENT
 )
 
 _HEADING_CMD = r'\\(heading)\{(\d+)\}' + _BRACED_CONTENT
@@ -171,10 +223,21 @@ _FONT_CONFIG_CMD = (
 )
 
 _TOKEN_PATTERN = re.compile(
-    _SIMPLE_CMDS + r'|' + _PARAM_CMDS + r'|' + _HEADING_CMD +
-    r'|' + _DISPLAY_MATH + r'|' + _INLINE_MATH +
-    r'|' + _NEWPAGE_CMD + r'|' + _INCLUDEGRAPHICS_CMD +
-    r'|' + _FONT_CONFIG_CMD
+    _SIMPLE_CMDS
+    + r'|'
+    + _PARAM_CMDS
+    + r'|'
+    + _HEADING_CMD
+    + r'|'
+    + _DISPLAY_MATH
+    + r'|'
+    + _INLINE_MATH
+    + r'|'
+    + _NEWPAGE_CMD
+    + r'|'
+    + _INCLUDEGRAPHICS_CMD
+    + r'|'
+    + _FONT_CONFIG_CMD
 )
 
 STYLE_MAP: dict[str, dict[str, str | bool | int | None]] = {
@@ -273,12 +336,16 @@ def _replace_symbols(text: str) -> str:
     return result
 
 
+def _accent_repl(char: str, match: re.Match[str]) -> str:
+    return match.group(1) + char
+
+
 def _preprocess_accents(text: str) -> str:
     result = text
     for accent_name, accent_char in _TEXT_ACCENTS.items():
         result = re.sub(
             r'\\' + re.escape(accent_name) + r'\{([^}]+)\}',
-            lambda m: m.group(1) + accent_char,
+            partial(_accent_repl, accent_char),
             result,
         )
     return result
@@ -286,10 +353,7 @@ def _preprocess_accents(text: str) -> str:
 
 def _preprocess_subscripts(text: str) -> str:
     sub_map = {str(i): chr(0x2080 + i) for i in range(10)}
-    sup_map = {
-        str(i): chr(0x2070 + i) for i in range(10)
-        if i not in (2, 3)
-    }
+    sup_map = {str(i): chr(0x2070 + i) for i in range(10) if i not in (2, 3)}
     sup_map['2'] = '\u00b2'
     sup_map['3'] = '\u00b3'
     sup_map['1'] = '\u00b9'
@@ -342,21 +406,18 @@ def parse_latex_style(text: str) -> str:
         cmd = info['cmd']
 
         inner = info.get('content', '')
-        if inner:
-            plain = _strip_styles(inner)
-        else:
-            plain = ''
+        plain = _strip_styles(inner) if inner else ''
 
         if cmd == 'newpage':
-            result = result[:match.start()] + '\n\n---\n\n' + result[match.end():]
+            result = result[: match.start()] + '\n\n---\n\n' + result[match.end() :]
         elif cmd == 'includegraphics':
             image_path = info.get('image', '')
-            result = result[:match.start()] + f'[Image: {image_path}]' + result[match.end():]
+            result = result[: match.start()] + f'[Image: {image_path}]' + result[match.end() :]
         elif cmd == 'math':
             latex = info.get('latex', '')
-            result = result[:match.start()] + f'[Math: {latex}]' + result[match.end():]
+            result = result[: match.start()] + f'[Math: {latex}]' + result[match.end() :]
         else:
-            result = result[:match.start()] + plain + result[match.end():]
+            result = result[: match.start()] + plain + result[match.end() :]
 
     return result
 
@@ -377,11 +438,11 @@ def parse_structured(text: str) -> list[dict[str, Any]]:
             break
 
         if match.start() > pos:
-            tokens.append({'type': 'text', 'content': text[pos:match.start()]})
+            tokens.append({'type': 'text', 'content': text[pos : match.start()]})
 
         info = _extract_cmd_info(match.groups())
         if info is None:
-            tokens.append({'type': 'text', 'content': text[pos:match.end()]})
+            tokens.append({'type': 'text', 'content': text[pos : match.end()]})
             pos = match.end()
             continue
 

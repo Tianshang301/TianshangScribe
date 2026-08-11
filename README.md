@@ -72,10 +72,10 @@ tianshang-scribe template.docx -t data.json -o filled.docx
 tianshang-scribe input.docx --topdf -o output.pdf
 
 # MCP Server — stdio mode (Claude Code / Cursor)
-python -m mcp.server
+python -m src.mcp.server
 
 # MCP Server — SSE mode (Dify / Coze / FastGPT)
-python -m mcp.server --transport sse --port 8080
+python -m src.mcp.server --transport sse --port 8080
 
 # Excel: import CSV, sort, export JSON
 tianshang-scribe -e --create --from-csv data.csv --sort "A1:A10 asc" --to-json -o out.json
@@ -338,13 +338,13 @@ TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents ca
 **stdio** (Claude Code, Cursor):
 ```json
 {"mcpServers": {"tianshang-scribe": {
-  "command": "python", "args": ["-m", "mcp.server"]
+  "command": "python", "args": ["-m", "src.mcp.server"]
 }}}
 ```
 
 **SSE** (Dify, Coze, FastGPT):
 ```bash
-python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```
 ```json
 {"mcpServers": {"tianshang-scribe": {
@@ -380,24 +380,24 @@ python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```bash
 # With authentication
 SCRIBE_AUTH_TOKEN="secret" \
-python -m mcp.server --transport sse --host 0.0.0.0 --port 8080
+python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # Health check
 curl http://localhost:8080/health
 # {"status":"ok","version":"0.2.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
 
 # CORS whitelist
-python -m mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
+python -m src.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
 ```
 
 **Endpoints**: `GET /health` · `GET /sse` · `POST /message?session_id=X`
 
-Full documentation: [mcp/README.md](mcp/README.md).
+Full documentation: [docs/mcp/README.md](docs/mcp/README.md).
 
 ```bash
-python mcp/test_server.py     # 9/9 quick tests (stdio)
-python mcp/test_sse.py        # 3/3 SSE transport tests
-python mcp/test_agent.py      # 11-scenario Agent simulation
+python tests/mcp/mcp_stdio_smoke.py     # 9/9 quick tests (stdio)
+python tests/mcp/test_sse.py        # 3/3 SSE transport tests
+python tests/mcp/mcp_agent_sim.py      # 11-scenario Agent simulation
 ```
 
 ## Architecture
@@ -419,10 +419,20 @@ src/
 │   └── template.py    # Template filling engine
 ├── transform/         # Format conversion
 │   └── pdf.py         # PDF export (office2pdf + LibreOffice)
-├── mcp/               # MCP Server (Model Context Protocol)
-│   ├── server.py      # stdio + SSE JSON-RPC entry
-│   ├── transport_sse.py # Async HTTP+SSE transport
-│   └── tools/         # 5 Agent tools
+├── mcp/                    # MCP Server (official mcp SDK 2.x)
+│   ├── server.py           # build_server + entry (stdio / SSE / Streamable HTTP)
+│   ├── transport.py        # transport wiring + ASGI middleware
+│   ├── schemas.py          # pydantic models + as_dict
+│   ├── auth.py             # Bearer token auth
+│   ├── rate_limit.py       # token bucket rate limiting
+│   ├── metrics.py          # Prometheus-style metrics
+│   ├── security.py         # read-only / destructive classification
+│   ├── prompts.py          # 5 prompt workflows
+│   ├── tools/              # 7 Agent tools
+│   │   ├── _registry.py    # tool registry (schemas auto-derived)
+│   │   ├── create.py / edit.py / template.py / convert.py
+│   │   ├── validate.py / compare.py
+│   └── errors.py           # structured error codes + fixes
 └── utils/             # Utility functions
     └── file_utils.py
 ```

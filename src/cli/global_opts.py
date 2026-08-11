@@ -4,6 +4,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.core.document import DocumentType, detect_document_type
+from src.utils.file_utils import check_overwrite as _check_overwrite
+
+
+def parse_table_input(spec: str) -> list[list[str]]:
+    """Parse a table spec: inline ``"H1,H2|a1,a2"`` or ``@file.csv``."""
+    if spec.startswith('@'):
+        import csv
+
+        with open(spec[1:], newline='', encoding='utf-8') as f:
+            return [list(row) for row in csv.reader(f)]
+    return [[cell.strip() for cell in line.split(',')] for line in spec.split('|')]
 
 
 @dataclass
@@ -19,6 +30,21 @@ class GlobalOptions:
     input_path: str | None = None
 
 
+REVERSE_SOURCE_TARGET: dict[str, DocumentType] = {
+    '.md': DocumentType.WORD,
+    '.markdown': DocumentType.WORD,
+    '.html': DocumentType.WORD,
+    '.htm': DocumentType.WORD,
+    '.json': DocumentType.EXCEL,
+}
+
+
+def is_reverse_source(input_path: str | None) -> bool:
+    if not input_path:
+        return False
+    return Path(input_path).suffix.lower() in REVERSE_SOURCE_TARGET
+
+
 def resolve_doc_type(
     explicit: DocumentType | None,
     input_path: str | None,
@@ -29,6 +55,9 @@ def resolve_doc_type(
         detected = detect_document_type(input_path)
         if detected != DocumentType.UNKNOWN:
             return detected
+        target = REVERSE_SOURCE_TARGET.get(Path(input_path).suffix.lower())
+        if target:
+            return target
     return DocumentType.WORD
 
 
@@ -37,6 +66,7 @@ def determine_output_path(
     output_path: str | None,
     doc_type: DocumentType,
     to_pdf: bool = False,
+    to_ext: str | None = None,
 ) -> str:
     if output_path:
         return output_path
@@ -47,6 +77,9 @@ def determine_output_path(
 
         if to_pdf:
             return str(in_path.with_suffix('.pdf'))
+
+        if to_ext:
+            return str(in_path.with_name(f'{stem}-out{to_ext}'))
 
         suffix_map = {
             DocumentType.WORD: '.docx',
@@ -59,6 +92,9 @@ def determine_output_path(
     if to_pdf:
         return 'output.pdf'
 
+    if to_ext:
+        return f'output{to_ext}'
+
     suffix_map = {
         DocumentType.WORD: 'output.docx',
         DocumentType.EXCEL: 'output.xlsx',
@@ -68,6 +104,4 @@ def determine_output_path(
 
 
 def check_overwrite(path: str, force: bool) -> bool:
-    if Path(path).exists() and not force:
-        return False
-    return True
+    return _check_overwrite(path, force)

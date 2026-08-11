@@ -6,7 +6,7 @@
 [![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
-Cross-platform CLI Office document processing tool. Create, edit, template-fill, and convert Word, Excel, and PowerPoint documents — with a built-in LaTeX style markup engine, native math formula renderer, and MCP Server for AI Agent integration.
+Cross-platform Office document processing for developers, CLI automation, and AI agents. Create, edit, template-fill, and convert Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents, with LaTeX-style markup, native OMML math formulas, and a template engine ({{placeholders}}, {{#each}} loops, {{#if}} conditions). Ships an MCP Server with 7 tools (create, edit, fill template, convert, extract, validate, compare) over stdio, SSE, and Streamable HTTP transports, with bearer-token auth and rate limiting.
 
 ## Install
 

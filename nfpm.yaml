@@ -28,6 +28,8 @@ contents:
     dst: /usr/lib/tianshang-scribe/src/rendering/
   - src: src/transform/
     dst: /usr/lib/tianshang-scribe/src/transform/
+  - src: src/utils/
+    dst: /usr/lib/tianshang-scribe/src/utils/
   - src: src/mcp/tools/
     dst: /usr/lib/tianshang-scribe/src/mcp/tools/
   - src: src/mcp/__init__.py

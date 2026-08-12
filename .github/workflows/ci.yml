@@ -92,6 +92,7 @@ jobs:
           pip install .
 
       - name: Build with PyInstaller
+        shell: bash
         run: |
           pyinstaller --onefile --name tianshang-scribe \
             --hidden-import openpyxl.cell._writer \
@@ -138,11 +139,13 @@ jobs:
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Build .deb with nfpm
-        uses: goreleaser/nfpm-action@v1
+        uses: burningalchemist/action-gh-nfpm@v1.1
         with:
           config: nfpm.yaml
           target: dist/deb/

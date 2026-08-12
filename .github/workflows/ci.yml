@@ -129,10 +129,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
 
+      - name: Check if version already published on PyPI
+        id: check
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if curl -fsS "https://pypi.org/pypi/tianshang-scribe/${VERSION}/json" > /dev/null 2>&1; then
+            echo "exists=true"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build package
+        if: steps.check.outputs.exists != 'true'
         run: python -m build
 
       - name: Publish to PyPI
+        if: steps.check.outputs.exists != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
 
   deb:

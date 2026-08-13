@@ -457,7 +457,7 @@ src/
 | 数学公式 | 自研递归下降解析器 → OMML XML |
 | 模板 | 自研引擎（{{placeholder}}、{{#each}}、{{#if}}） |
 | PDF | office2pdf（~2MB Rust 二进制，零依赖）+ LibreOffice 回退 |
-| 质量 | pytest（345 用例）· ruff · mypy |
+| 质量 | pytest（365 用例）· ruff · mypy |
 
 ## 构建 EXE
 

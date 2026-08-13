@@ -57,7 +57,13 @@ def _headers(scope: dict[str, Any]) -> dict[str, str]:
 
 
 class AuthMiddleware:
-    """Reject non-bearer HTTP requests when one or more API keys are set."""
+    """Reject non-bearer HTTP requests when one or more API keys are set.
+
+    Distinguishes unauthenticated (no ``Authorization`` header, ``401``) from
+    unauthorized (header present but key invalid, ``403``). Requests to
+    :data:`PUBLIC_PATHS` (``/health``, ``/metrics``) and CORS ``OPTIONS``
+    preflights always pass through.
+    """
 
     def __init__(self, app: Callable[..., Any], auth_token: str | None) -> None:
         """Store the ASGI app and parse the allowed bearer-token list."""
@@ -74,21 +80,28 @@ class AuthMiddleware:
             if method != 'OPTIONS' and path not in PUBLIC_PATHS:
                 header = _headers(scope).get('authorization', '')
                 if not header.startswith('Bearer '):
-                    await self._reject(scope, receive, send)
+                    await self._reject(scope, receive, send, status_code=401)
                     return
                 candidate = header[len('Bearer ') :].strip()
                 if not any(
                     hmac.compare_digest(candidate.encode(), expected.encode())
                     for expected in self.expected
                 ):
-                    await self._reject(scope, receive, send)
+                    await self._reject(scope, receive, send, status_code=403)
                     return
         await self.app(scope, receive, send)
 
-    async def _reject(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+    async def _reject(
+        self, scope: dict[str, Any], receive: Any, send: Any, *, status_code: int
+    ) -> None:
         response = JSONResponse(
-            {'error': 'unauthorized', 'message': 'Missing or invalid bearer token'},
-            status_code=401,
+            {
+                'error': 'unauthorized',
+                'message': (
+                    'Missing bearer token' if status_code == 401 else 'Invalid bearer token'
+                ),
+            },
+            status_code=status_code,
         )
         await response(scope, receive, send)
 

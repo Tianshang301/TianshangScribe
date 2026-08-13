@@ -107,6 +107,7 @@ ignore = [
     "N802", "N803", "N806",      # test naming conventions (snake_case helpers)
     "S101",                      # assert is idiomatic in pytest
     "S105",                      # hardcoded credentials in test fixtures
+    "S106",                      # hardcoded passwords in test fixtures
     "S602", "S603", "S607",      # subprocess invocation in tests
     "D",                         # docstrings not required in tests
 ]

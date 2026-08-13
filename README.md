@@ -2,6 +2,14 @@
 
 > [中文版](./readme/README.zh-CN.md)
 
+<p align="center">
+  <a href="https://glama.ai/mcp/servers/Tianshang301/TianshangScribe">
+    <img alt="TianshangScribe MCP server"
+         src="https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/card.svg"
+         width="380">
+  </a>
+</p>
+
 [![PyPI](https://img.shields.io/badge/pypi-tianshang--scribe-blue)](https://pypi.org/project/tianshang-scribe/)
 [![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
@@ -331,8 +339,6 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | `3` | Not implemented |
 
 ## MCP Server
-
-[![TianshangScribe MCP server](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/card.svg)](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe)
 
 TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents can create, edit, fill templates, convert, and extract data from Office documents.
 

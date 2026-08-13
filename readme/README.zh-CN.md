@@ -2,6 +2,14 @@
 
 > [English](../README.md)
 
+<p align="center">
+  <a href="https://glama.ai/mcp/servers/Tianshang301/TianshangScribe">
+    <img alt="TianshangScribe MCP server"
+         src="https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/card.svg"
+         width="380">
+  </a>
+</p>
+
 [![PyPI](https://img.shields.io/badge/pypi-tianshang--scribe-blue)](https://pypi.org/project/tianshang-scribe/)
 [![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
@@ -332,8 +340,6 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | `3` | 功能未实现 |
 
 ## MCP Server
-
-[![TianshangScribe MCP server](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/card.svg)](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe)
 
 TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent 可创建、编辑、填充模板、格式转换和提取 Office 文档数据。
 

@@ -69,22 +69,22 @@ tianshang-scribe -w --create --latex-style \
   -a "\bfseries{\itshape{bold italic}} \fontsize{24}{Heading} \color{FF0000}{red}" \
   -o styled.docx
 
-# Math formulas �?auto-converted to native Word OMML
+# Math formulas —auto-converted to native Word OMML
 tianshang-scribe -w --create \
   --math "x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}" \
   --math "\sum_{i=0}^{n} i^2" \
   -o formulas.docx
 
-# Template filling (JSON / CSV / YAML �?{{placeholder}})
+# Template filling (JSON / CSV / YAML →{{placeholder}})
 tianshang-scribe template.docx -t data.json -o filled.docx
 
 # Convert to PDF (office2pdf ~2MB, or LibreOffice fallback)
 tianshang-scribe input.docx --topdf -o output.pdf
 
-# MCP Server �?stdio mode (Claude Code / Cursor)
+# MCP Server —stdio mode (Claude Code / Cursor)
 python -m src.mcp.server
 
-# MCP Server �?SSE mode (Dify / Coze / FastGPT)
+# MCP Server —SSE mode (Dify / Coze / FastGPT)
 python -m src.mcp.server --transport sse --port 8080
 
 # Excel: import CSV, sort, export JSON
@@ -183,16 +183,16 @@ Embed the following markup in `--add` content. Enable with `--latex-style`. Supp
 | `\fontfamily{Arial}{text}` | Specific font |
 | `\fontsize{18}{text}` | Font size (pt) |
 | `\color{FF0000}{text}` | Color (hex) |
-| `\centering{...}` | Center align **�?* |
-| `\raggedright{...}` | Left align **�?* |
-| `\raggedleft{...}` | Right align **�?* |
-| `\linespread{1.5}{...}` | Line spacing **�?* |
-| `\indent{...}` / `\noindent{...}` | Indent **�?* |
+| `\centering{...}` | Center align **—* |
+| `\raggedright{...}` | Left align **—* |
+| `\raggedleft{...}` | Right align **—* |
+| `\linespread{1.5}{...}` | Line spacing **—* |
+| `\indent{...}` / `\noindent{...}` | Indent **—* |
 | `\heading{2}{Title}` | Insert heading |
 | `\newpage` | Page break |
 | `\includegraphics{path}` | Insert image |
 
-**�?* Paragraph-level formatting (creates a new paragraph).
+**—* Paragraph-level formatting (creates a new paragraph).
 
 ### Font Configuration
 
@@ -221,11 +221,11 @@ LaTeX math formulas via `--math` are converted to native Word OMML (Office Math 
 | Sums/Integrals | `\sum` `\int` `\oint` `\prod` `\coprod` `\bigcup` `\bigcap` `\bigvee` `\bigwedge` |
 | Limits | `\lim_{x \to 0}` `\max` `\min` `\sup` `\inf` |
 | Named Functions | `\sin` `\cos` `\tan` `\cot` `\sec` `\csc` `\log` `\ln` `\det` `\Pr` `\gcd` `\deg` `\dim` `\hom` `\ker` `\arg` |
-| Greek Letters | `\alpha` `\beta` `\gamma` �?`\Gamma` `\Delta` `\Theta` �?|
-| Symbols | `\pm` `\times` `\div` `\cdot` `\infty` `\partial` `\nabla` `\forall` `\exists` �?|
-| Relations | `\leq` `\geq` `\neq` `\approx` `\equiv` `\propto` `\subset` `\supset` `\in` �?|
-| Arrows | `\to` `\rightarrow` `\leftarrow` `\mapsto` `\uparrow` �?|
-| Accents | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` �?|
+| Greek Letters | `\alpha` `\beta` `\gamma` —`\Gamma` `\Delta` `\Theta` —|
+| Symbols | `\pm` `\times` `\div` `\cdot` `\infty` `\partial` `\nabla` `\forall` `\exists` —|
+| Relations | `\leq` `\geq` `\neq` `\approx` `\equiv` `\propto` `\subset` `\supset` `\in` —|
+| Arrows | `\to` `\rightarrow` `\leftarrow` `\mapsto` `\uparrow` —|
+| Accents | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` —|
 | Brackets | `\left( \right)` `\left[ \right]` `\left\{ \right\}` |
 | Math Fonts | `\mathrm{abc}` `\mathbf{abc}` `\mathit{abc}` `\mathcal{ABC}` `\mathbb{ABC}` `\mathsf{abc}` `\mathtt{abc}` |
 
@@ -236,7 +236,7 @@ Conforms to mainstream math journal standards (AMS, Elsevier, Springer):
 | Content | Style | Example |
 |---------|-------|---------|
 | Single-letter variables | *Italic* | `a` `b` `x` `y` |
-| Digits | **Upright** | `0` `1` `2` �?|
+| Digits | **Upright** | `0` `1` `2` —|
 | Named functions | **Upright** | `\sin` `\cos` `\log` |
 | Lowercase Greek | *Italic* | `\alpha` `\beta` `\gamma` |
 | Uppercase Greek | **Upright** | `\Gamma` `\Delta` `\Theta` |
@@ -289,18 +289,18 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 ```
 
 ```
-{{name}}              �? John Doe
-{{user.city}}         �? Beijing
-{{#each items}}       �? repeats the block for each item
+{{name}}              → John Doe
+{{user.city}}         → Beijing
+{{#each items}}       → repeats the block for each item
   {{product}}: {{price}}
 {{/each}}
-{{#if show}}          �? shown only when show is truthy
+{{#if show}}          → shown only when show is truthy
   Confidential content
 {{/if}}
-{{#if role=admin}}    �? shown only when role equals "admin"
+{{#if role=admin}}    → shown only when role equals "admin"
   Admin dashboard
 {{/if}}
-{{#unless paid}}      �? shown only when paid is falsy
+{{#unless paid}}      → shown only when paid is falsy
   Payment required
 {{/unless}}
 ```
@@ -326,7 +326,7 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Layouts | Apply slide layouts by name or index (`--layout`) |
 | Speaker notes | Add presenter notes (`--notes`) |
 | Math formulas | `$...$` / `$$...$$` rendered as native OMML |
-| Transitions | Set slide transitions �?fade, push, wipe, etc. (`--transition`) |
+| Transitions | Set slide transitions —fade, push, wipe, etc. (`--transition`) |
 | Export | Save slides as images (`--toimg`), convert to PDF (`--topdf`) |
 | Protection | Set/remove password (`--protect`, `--unprotect`) |
 
@@ -341,7 +341,7 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 
 ## MCP Server
 
-TianshangScribe includes an MCP (Model Context Protocol) server �?AI Agents can create, edit, fill templates, convert, and extract data from Office documents.
+TianshangScribe includes an MCP (Model Context Protocol) server —AI Agents can create, edit, fill templates, convert, and extract data from Office documents.
 
 ### Quick Connect
 
@@ -379,7 +379,7 @@ python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
 | Feature | Detail |
 |---------|--------|
 | **Protocol** | MCP 2024-11-05 · stdio + SSE · JSON-RPC 2.0 |
-| **Resources** | `resources/list` + `resources/read` �?documents exposed as readable URIs |
+| **Resources** | `resources/list` + `resources/read` —documents exposed as readable URIs |
 | **Prompts** | 5 built-in workflow templates (`prompts/list` + `prompts/get`) |
 | **Progress** | `notifications/progress` during PDF conversion and long operations |
 | **Response** | Multi-type `content[]`: text message + resource (file URI, MIME type, size) |
@@ -415,34 +415,34 @@ python tests/integration/mcp/mcp_agent_sim.py      # 11-scenario Agent simulatio
 ```
 src/
 ├── cli/               # Typer CLI entry
-�?  ├── main.py        # Command parsing & dispatch
-�?  └── global_opts.py # File path / type inference
+│  ├── main.py        # Command parsing & dispatch
+│  └── global_opts.py # File path / type inference
 ├── core/              # Document engine abstraction
-�?  ├── document.py    # DocumentABC unified interface
-�?  ├── word_engine.py # Word engine (python-docx)
-�?  ├── excel_engine.py# Excel engine (openpyxl)
-�?  └── ppt_engine.py  # PPT engine (python-pptx)
+│  ├── document.py    # DocumentABC unified interface
+│  ├── word_engine.py # Word engine (python-docx)
+│  ├── excel_engine.py# Excel engine (openpyxl)
+│  └── ppt_engine.py  # PPT engine (python-pptx)
 ├── rendering/         # Style & formula rendering
-�?  ├── styles.py      # TextStyle dataclass
-�?  ├── latex_parser.py # LaTeX markup parser
-�?  ├── math_omml.py   # LaTeX �?OMML math converter
-�?  └── template.py    # Template filling engine
+│  ├── styles.py      # TextStyle dataclass
+│  ├── latex_parser.py # LaTeX markup parser
+│  ├── math_omml.py   # LaTeX →OMML math converter
+│  └── template.py    # Template filling engine
 ├── transform/         # Format conversion
-�?  └── pdf.py         # PDF export (office2pdf + LibreOffice)
+│  └── pdf.py         # PDF export (office2pdf + LibreOffice)
 ├── mcp/                    # MCP Server (official mcp SDK 2.x)
-�?  ├── server.py           # build_server + entry (stdio / SSE / Streamable HTTP)
-�?  ├── transport.py        # transport wiring + ASGI middleware
-�?  ├── schemas.py          # pydantic models + as_dict
-�?  ├── auth.py             # Bearer token auth
-�?  ├── rate_limit.py       # token bucket rate limiting
-�?  ├── metrics.py          # Prometheus-style metrics
-�?  ├── security.py         # read-only / destructive classification
-�?  ├── prompts.py          # 5 prompt workflows
-�?  ├── tools/              # 7 Agent tools
-�?  �?  ├── _registry.py    # tool registry (schemas auto-derived)
-�?  �?  ├── create.py / edit.py / template.py / convert.py
-�?  �?  ├── validate.py / compare.py
-�?  └── errors.py           # structured error codes + fixes
+│  ├── server.py           # build_server + entry (stdio / SSE / Streamable HTTP)
+│  ├── transport.py        # transport wiring + ASGI middleware
+│  ├── schemas.py          # pydantic models + as_dict
+│  ├── auth.py             # Bearer token auth
+│  ├── rate_limit.py       # token bucket rate limiting
+│  ├── metrics.py          # Prometheus-style metrics
+│  ├── security.py         # read-only / destructive classification
+│  ├── prompts.py          # 5 prompt workflows
+│  ├── tools/              # 7 Agent tools
+│  │  ├── _registry.py    # tool registry (schemas auto-derived)
+│  │  ├── create.py / edit.py / template.py / convert.py
+│  │  ├── validate.py / compare.py
+│  └── errors.py           # structured error codes + fixes
 └── utils/             # Utility functions
     └── file_utils.py
 ```
@@ -455,7 +455,7 @@ src/
 | Word | python-docx |
 | Excel | openpyxl |
 | PPT | python-pptx |
-| Math | Custom recursive descent parser �?OMML XML |
+| Math | Custom recursive descent parser →OMML XML |
 | Templates | Custom engine ({{placeholder}}, {{#each}}, {{#if}}) |
 | PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
 | Quality | pytest (414 tests) · ruff · mypy |
@@ -472,9 +472,9 @@ pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._wri
 
 ```bash
 python -m demo.generate_demos
-# demo/demo_word.docx   �?LaTeX + math + TOC + watermark
-# demo/demo_excel.xlsx  �?CSV import + formulas + chart + protection
-# demo/demo_ppt.pptx    �?slides + notes + transitions + math formulas
+# demo/demo_word.docx   —LaTeX + math + TOC + watermark
+# demo/demo_excel.xlsx  —CSV import + formulas + chart + protection
+# demo/demo_ppt.pptx    —slides + notes + transitions + math formulas
 ```
 
 CLI compliance test:

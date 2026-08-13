@@ -399,6 +399,215 @@ class TestCompareDocuments:
         assert result['error_code'] == McpErrorCode.UNSUPPORTED_FORMAT
 
 
+class TestCreateCrossFormatFallbacks:
+    """Data-driven: content blocks must degrade gracefully on non-Word engines."""
+
+    @pytest.mark.parametrize('fmt,ext', [('xlsx', '.xlsx'), ('pptx', '.pptx')])
+    def test_heading_falls_back_to_latex(self, fmt: str, ext: str, tmp_path: Path) -> None:
+        out = tmp_path / f'out{ext}'
+        result = create_office_document(
+            fmt,
+            [ContentBlock(type='heading', text='Title', level=1)],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+        assert Path(result['data']['output_path']).exists()
+
+    @pytest.mark.parametrize('fmt,ext', [('xlsx', '.xlsx'), ('pptx', '.pptx')])
+    def test_formula_falls_back_to_latex(self, fmt: str, ext: str, tmp_path: Path) -> None:
+        out = tmp_path / f'out{ext}'
+        result = create_office_document(
+            fmt,
+            [ContentBlock(type='formula', text=r'\frac{a}{b}')],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    @pytest.mark.parametrize('fmt,ext', [('xlsx', '.xlsx'), ('pptx', '.pptx')])
+    def test_page_break_falls_back(self, fmt: str, ext: str, tmp_path: Path) -> None:
+        out = tmp_path / f'out{ext}'
+        result = create_office_document(
+            fmt,
+            [ContentBlock(type='page_break')],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    def test_table_plain_text_fallback(self, tmp_path: Path) -> None:
+        out = tmp_path / 'out.xlsx'
+        result = create_office_document(
+            'xlsx',
+            [ContentBlock(type='table', rows=[['A', 'B'], ['1', '2']])],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    def test_latex_detection_word(self, tmp_path: Path) -> None:
+        out = tmp_path / 'out.docx'
+        result = create_office_document(
+            'docx',
+            [ContentBlock(type='paragraph', text=r'\bfseries{Bold} and $x^2$')],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    def test_per_block_style(self, tmp_path: Path) -> None:
+        out = tmp_path / 'out.docx'
+        result = create_office_document(
+            'docx',
+            [ContentBlock(type='paragraph', text='x', style='font=Arial,size=14')],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    def test_backup_existing_file(self, tmp_path: Path) -> None:
+        out = tmp_path / 'out.docx'
+        out.write_bytes(b'placeholder')
+        result = create_office_document(
+            'docx',
+            [ContentBlock(type='paragraph', text='hi')],
+            output_path=str(out),
+            options=ToolOptions(backup=True),
+        )
+        assert result['success'] is True
+        assert (tmp_path / 'out.docx.bak').exists()
+
+    def test_invalid_block_type_ignored(self, tmp_path: Path) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            ContentBlock(type='bogus', text='x')
+
+
+class TestEditCrossFormat:
+    def test_delete_operation(self, tmp_path: Path, docx_with_text: Path) -> None:
+        out = tmp_path / 'edited.docx'
+        result = edit_office_document(
+            str(docx_with_text),
+            [EditOperation(action='delete', target='world')],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+        assert result['data']['total_changes'] >= 1
+
+    def test_modify_operation(self, tmp_path: Path, docx_with_text: Path) -> None:
+        out = tmp_path / 'edited.docx'
+        result = edit_office_document(
+            str(docx_with_text),
+            [EditOperation(action='modify', old_text='hello', new_text='hi')],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    def test_style_without_apply_all(self, tmp_path: Path, docx_with_text: Path) -> None:
+        out = tmp_path / 'edited.docx'
+        result = edit_office_document(
+            str(docx_with_text),
+            [EditOperation(action='style', style='font=Arial', apply_all=False)],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+
+    def test_empty_style_string(self, tmp_path: Path, docx_with_text: Path) -> None:
+        out = tmp_path / 'edited.docx'
+        result = edit_office_document(
+            str(docx_with_text),
+            [EditOperation(action='style', style='', apply_all=True)],
+            output_path=str(out),
+        )
+        assert result['success'] is True
+        assert result['data']['total_changes'] == 1
+
+
+class TestExtractExcelStructure:
+    def test_structure_excel(self, xlsx_with_data: Path) -> None:
+        result = extract_document_data(str(xlsx_with_data), 'structure')
+        assert result['success'] is True
+        assert result['data']['sheets'] == ['Sheet']
+        assert result['data']['sheet_count'] == 1
+
+
+class TestConvertPdfFallback:
+    def test_pdf_engine_error_path(self, tmp_path: Path, docx_with_text: Path, monkeypatch) -> None:
+        def _raise(*a, **k):
+            raise NotImplementedError('to_pdf unavailable')
+
+        monkeypatch.setattr(WordEngine, 'to_pdf', _raise)
+        result = convert_document(str(docx_with_text), 'pdf', output_path=str(tmp_path / 'o.pdf'))
+        assert result['success'] is False
+        assert result['error_code'] == McpErrorCode.CONVERSION_FAILED
+
+
+class TestValidateTemplateStructured:
+    def test_loop_missing_key(self, tmp_path: Path) -> None:
+        e = WordEngine()
+        e.create()
+        e.add_text('{{#each items}}{{this}}{{/each}}')
+        tpl = tmp_path / 'tpl.docx'
+        e.save(str(tpl))
+        result = validate_template(str(tpl), {'name': 'x'})
+        assert result['success'] is True
+        assert result['data']['valid'] is False
+        assert any('each items' in m for m in result['data']['missing'])
+
+    def test_condition_keys(self, tmp_path: Path) -> None:
+        e = WordEngine()
+        e.create()
+        e.add_text('{{#if flag}}yes{{/if}} {{#unless off}}on{{/unless}}')
+        tpl = tmp_path / 'tpl.docx'
+        e.save(str(tpl))
+        result = validate_template(str(tpl), {'flag': True, 'off': False})
+        assert result['success'] is True
+        assert result['data']['conditions_detected'] == ['flag', 'off']
+
+    def test_nested_loop_warning(self, tmp_path: Path) -> None:
+        e = WordEngine()
+        e.create()
+        e.add_text('{{#each users}}{{user.name}}{{/each}}')
+        tpl = tmp_path / 'tpl.docx'
+        e.save(str(tpl))
+        result = validate_template(str(tpl), {'users': [{'name': 'a'}]})
+        assert result['success'] is True
+        assert result['data']['loops_detected'] == ['users']
+
+    def test_excel_template(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.add_text('Hi {{name}}', column=1)
+        tpl = tmp_path / 'tpl.xlsx'
+        e.save(str(tpl))
+        result = validate_template(str(tpl), {'name': 'a'})
+        assert result['success'] is True
+        assert result['data']['valid'] is True
+
+    def test_pptx_unsupported(self, tmp_path: Path) -> None:
+        from src.core.ppt_engine import PptEngine
+
+        e = PptEngine()
+        e.create()
+        tpl = tmp_path / 'tpl.pptx'
+        e.save(str(tpl))
+        result = validate_template(str(tpl), {'name': 'a'})
+        assert result['success'] is False
+        assert result['error_code'] == McpErrorCode.UNSUPPORTED_FORMAT
+
+
+class TestFillTemplateBackup:
+    def test_backup_option(self, tmp_path: Path) -> None:
+        e = WordEngine()
+        e.create()
+        e.add_text('Hi {{name}}')
+        tpl = tmp_path / 'tpl.docx'
+        e.save(str(tpl))
+        result = fill_template(
+            str(tpl),
+            {'name': 'x'},
+            options=ToolOptions(backup=True),
+        )
+        assert result['success'] is True
+        assert (tmp_path / 'tpl.docx.bak').exists()
+
+
 class TestErrorsHelpers:
     def test_error_response(self) -> None:
         resp = error_response(McpErrorCode.DOCUMENT_NOT_FOUND, 'detail')

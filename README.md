@@ -5,6 +5,7 @@
 [![PyPI](https://img.shields.io/badge/pypi-tianshang--scribe-blue)](https://pypi.org/project/tianshang-scribe/)
 [![CI](https://github.com/Tianshang301/TianshangScribe/actions/workflows/ci.yml/badge.svg)](https://github.com/Tianshang301/TianshangScribe/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![TianshangScribe MCP server](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/score.svg)](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe)
 
 Cross-platform Office document processing for developers, CLI automation, and AI agents. Create, edit, template-fill, and convert Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents, with LaTeX-style markup, native OMML math formulas, and a template engine ({{placeholders}}, {{#each}} loops, {{#if}} conditions). Ships an MCP Server with 7 tools (create, edit, fill template, convert, extract, validate, compare) over stdio, SSE, and Streamable HTTP transports, with bearer-token auth and rate limiting.
 

@@ -32,6 +32,14 @@ TOOL_PERMISSIONS: dict[str, PermissionLevel] = {
     'compare_documents': PermissionLevel.READ_ONLY,
 }
 
+#: Tools whose repeated identical calls produce identical results.
+#: Read-only tools are idempotent by construction; file-writing tools are not
+#: (each call re-writes, possibly creating temp output files), so they are
+#: excluded even though the final bytes could in principle converge.
+IDEMPOTENT_TOOLS: frozenset[str] = frozenset(
+    {'extract_document_data', 'validate_template', 'compare_documents'}
+)
+
 
 def levels_for(tool_name: str) -> set[PermissionLevel]:
     """Return the set of permission levels the tool may exercise.
@@ -54,9 +62,10 @@ def is_destructive(tool_name: str) -> bool:
 def is_idempotent(tool_name: str) -> bool:
     """Return whether repeated identical calls produce identical results.
 
-    Read-only tools are idempotent; file-writing tools are not.
+    Based on the explicit :data:`IDEMPOTENT_TOOLS` table (read-only tools are
+    idempotent; file-writing tools are not).
     """
-    return is_read_only(tool_name)
+    return tool_name in IDEMPOTENT_TOOLS
 
 
 def check_permission(tool_name: str, auto_approve: set[str]) -> bool:

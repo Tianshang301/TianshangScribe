@@ -131,6 +131,20 @@ class TestSecurity:
         assert security.is_idempotent('compare_documents') is True
         assert security.is_idempotent('create_office_document') is False
 
+    def test_idempotent_table_covers_registry(self) -> None:
+        from src.mcp.tools._registry import TOOLS
+
+        all_names = {t['name'] for t in TOOLS}
+        extra = set(security.IDEMPOTENT_TOOLS) - all_names
+        assert not extra
+
+    def test_idempotent_equals_read_only(self) -> None:
+        from src.mcp.tools._registry import TOOLS
+
+        for entry in TOOLS:
+            name = entry['name']
+            assert security.is_idempotent(name) == security.is_read_only(name), name
+
     def test_check_permission(self) -> None:
         assert security.check_permission('create_office_document', {'create_office_document'}) is True
         assert security.check_permission('extract_document_data', set()) is True

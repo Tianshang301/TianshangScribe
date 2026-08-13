@@ -404,9 +404,9 @@ python -m src.mcp.server --transport sse --cors-origins "https://coze.com,https:
 详细文档：[docs/mcp/README.zh-CN.md](docs/mcp/README.zh-CN.md)。
 
 ```bash
-python tests/mcp/mcp_stdio_smoke.py     # 9/9 基础测试（stdio）
-python tests/mcp/test_sse.py        # 3/3 SSE 传输测试
-python tests/mcp/mcp_agent_sim.py      # 11 场景 Agent 模拟测试
+python tests/integration/mcp/mcp_stdio_smoke.py     # 9/9 基础测试（stdio）
+python tests/integration/mcp/test_sse.py        # 3/3 SSE 传输测试
+python tests/integration/mcp/mcp_agent_sim.py      # 11 场景 Agent 模拟测试
 ```
 
 ## 架构
@@ -457,7 +457,7 @@ src/
 | 数学公式 | 自研递归下降解析器 → OMML XML |
 | 模板 | 自研引擎（{{placeholder}}、{{#each}}、{{#if}}） |
 | PDF | office2pdf（~2MB Rust 二进制，零依赖）+ LibreOffice 回退 |
-| 质量 | pytest（165 用例）· ruff · mypy |
+| 质量 | pytest（345 用例）· ruff · mypy |
 
 ## 构建 EXE
 

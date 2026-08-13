@@ -14,7 +14,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import os
 
 from mcp.server.mcpserver import MCPServer
 from mcp_types import ToolAnnotations
@@ -26,6 +25,7 @@ from src.mcp.rate_limit import RateLimiter
 from src.mcp.security import is_destructive, is_idempotent, is_read_only
 from src.mcp.tool_search import install_tool_search
 from src.mcp.tools._registry import get_tools
+from src.utils.config import Settings
 
 SERVER_NAME = 'tianshang-scribe'
 SERVER_VERSION = '0.3.0'
@@ -71,55 +71,56 @@ def build_server(version: str = SERVER_VERSION) -> MCPServer:
 
 def main() -> None:
     """CLI entry point (``scribe-mcp`` / ``python -m src.mcp.server``)."""
+    settings = Settings()
     parser = argparse.ArgumentParser(description='TianshangScribe MCP Server')
     parser.add_argument(
         '--transport',
         choices=['stdio', 'sse', 'streamable-http'],
-        default='stdio',
-        help='Transport protocol (default: stdio)',
+        default=settings.transport,
+        help='Transport protocol (default: %(default)s)',
     )
     parser.add_argument(
         '--host',
-        default='127.0.0.1',
-        help='HTTP host (default: 127.0.0.1)',
+        default=settings.host,
+        help='HTTP host (default: %(default)s)',
     )
     parser.add_argument(
         '--port',
         type=int,
-        default=8080,
-        help='HTTP port (default: 8080)',
+        default=settings.port,
+        help='HTTP port (default: %(default)s)',
     )
     parser.add_argument(
         '--auth-token',
-        default=os.environ.get('SCRIBE_AUTH_TOKEN'),
+        default=settings.auth_token,
         help='Bearer token for HTTP auth (env: SCRIBE_AUTH_TOKEN)',
     )
     parser.add_argument(
         '--cors-origins',
-        default=os.environ.get('SCRIBE_CORS_ORIGINS'),
+        default=settings.cors_origins,
         help='CORS allowed origins, comma-separated (env: SCRIBE_CORS_ORIGINS)',
     )
     parser.add_argument(
         '--rate-limit-max',
         type=int,
-        default=100,
-        help='Max requests per client per window (default: 100)',
+        default=settings.rate_limit_max,
+        help='Max requests per client per window (default: %(default)s)',
     )
     parser.add_argument(
         '--rate-limit-window',
         type=int,
-        default=60,
-        help='Rate limit window in seconds (default: 60)',
+        default=settings.rate_limit_window,
+        help='Rate limit window in seconds (default: %(default)s)',
     )
     parser.add_argument(
         '--mcp-path',
-        default='/mcp',
-        help='Streamable HTTP endpoint path (default: /mcp)',
+        default=settings.mcp_path,
+        help='Streamable HTTP endpoint path (default: %(default)s)',
     )
     args = parser.parse_args()
 
     server = build_server()
-    auth_tokens = ','.join(filter(None, [args.auth_token, os.environ.get('SCRIBE_API_KEYS')]))
+    auth_tokens = ','.join(filter(None, [args.auth_token, settings.api_keys]))
     limiter = RateLimiter(
         max_requests=args.rate_limit_max,
         window_seconds=args.rate_limit_window,

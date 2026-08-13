@@ -457,7 +457,7 @@ src/
 | Math | Custom recursive descent parser 鈫?OMML XML |
 | Templates | Custom engine ({{placeholder}}, {{#each}}, {{#if}}) |
 | PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
-| Quality | pytest (220 tests) 路 ruff 路 mypy |
+| Quality | pytest (345 tests) 路 ruff 路 mypy |
 
 ## Build EXE
 

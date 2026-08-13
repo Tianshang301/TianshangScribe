@@ -3,23 +3,22 @@
 A single ``SCRIBE_AUTH_TOKEN`` (or a comma-separated ``SCRIBE_API_KEYS`` list)
 guards the SSE and streamable-HTTP endpoints. stdio mode is unaffected. When
 no key is configured the HTTP endpoint is open (local development).
+
+Configuration is centralized in :class:`src.utils.config.Settings`; these
+helpers read the current environment on every call so they stay in sync with
+``monkeypatch``-driven tests and live reloads.
 """
 
 from __future__ import annotations
 
 import hmac
-import os
+
+from src.utils.config import Settings
 
 
 def _configured_keys() -> list[str]:
-    """Return the list of valid API keys from the environment."""
-    keys: list[str] = []
-    for raw in (os.environ.get('SCRIBE_AUTH_TOKEN'), os.environ.get('SCRIBE_API_KEYS')):
-        for part in str(raw or '').split(','):
-            token = part.strip()
-            if token:
-                keys.append(token)
-    return keys
+    """Return the list of valid API keys from the current configuration."""
+    return Settings().bearer_tokens()
 
 
 def api_key_enabled() -> bool:

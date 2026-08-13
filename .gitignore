@@ -1,6 +1,7 @@
 # All Markdown files are untracked except the root README.md
 *.md
 !/README.md
+!/readme/README.zh-CN.md
 
 # Python
 __pycache__/

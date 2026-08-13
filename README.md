@@ -32,7 +32,7 @@ docker compose up -d
 **.deb package** (Debian / Ubuntu):
 ```bash
 # Download from GitHub Releases
-sudo dpkg -i tianshang-scribe_0.2.0_all.deb
+sudo dpkg -i tianshang-scribe_0.3.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -384,7 +384,7 @@ python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # Health check
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.2.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.3.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
 
 # CORS whitelist
 python -m src.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
@@ -448,7 +448,7 @@ src/
 | Math | Custom recursive descent parser → OMML XML |
 | Templates | Custom engine ({{placeholder}}, {{#each}}, {{#if}}) |
 | PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
-| Quality | pytest (165 tests) · ruff · mypy |
+| Quality | pytest (220 tests) · ruff · mypy |
 
 ## Build EXE
 

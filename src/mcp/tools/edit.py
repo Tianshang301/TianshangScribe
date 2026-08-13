@@ -22,9 +22,9 @@ def edit_office_document(
         str, Field(description='Output path (defaults to the input file).')
     ] = '',
     options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Edit an existing Office document with replace/delete/modify/style operations."""
-    operations = as_dict(operations)
+    ops_list: list[dict[str, Any]] = as_dict(operations)
     opts: dict[str, Any] = as_dict(options) or {}
     if not Path(input_path).exists():
         return error_response(McpErrorCode.DOCUMENT_NOT_FOUND, f"'{input_path}' not found.")
@@ -36,8 +36,8 @@ def edit_office_document(
             {
                 'dry_run': True,
                 'file': input_path,
-                'operations': len(operations),
-                'op_types': [o.get('action') for o in operations],
+                'operations': len(ops_list),
+                'op_types': [o.get('action') for o in ops_list],
             }
         )
 
@@ -45,7 +45,7 @@ def edit_office_document(
         engine = open_document(input_path)
         changes = 0
 
-        for op in operations:
+        for op in ops_list:
             action = op.get('action', '')
             if action == 'replace':
                 old = op.get('old_text', '')
@@ -89,7 +89,7 @@ def edit_office_document(
         return success_response(
             {
                 'output_path': output_path,
-                'operations': len(operations),
+                'operations': len(ops_list),
                 'total_changes': changes,
             }
         )

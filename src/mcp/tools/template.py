@@ -24,7 +24,7 @@ def fill_template(
     ],
     output_path: Annotated[str, Field(description='Output file path.')] = '',
     options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Fill a document template with data from a JSON object."""
     opts: dict[str, Any] = as_dict(options) or {}
     if not Path(template_path).exists():

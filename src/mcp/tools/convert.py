@@ -30,7 +30,7 @@ def convert_document(
     ],
     output_path: Annotated[str, Field(description='Output file path.')] = '',
     options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Convert a document to another format."""
     opts: dict[str, Any] = as_dict(options) or {}
     if not Path(input_path).exists():
@@ -95,7 +95,7 @@ def extract_document_data(
         Field(description='What to extract: metadata, text, or structure.'),
     ] = 'metadata',
     options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Extract data from a document."""
     if not Path(input_path).exists():
         return error_response(McpErrorCode.DOCUMENT_NOT_FOUND, f"'{input_path}' not found.")

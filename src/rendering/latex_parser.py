@@ -1,3 +1,5 @@
+"""LaTeX-style markup parser for text content in documents."""
+
 from __future__ import annotations
 
 import re
@@ -262,6 +264,7 @@ def _unescape_dollar(text: str) -> str:
 
 
 def preprocess_text(text: str) -> str:
+    """Apply symbol, accent and subscript preprocessing with math handling."""
     text = _escape_dollar(text)
 
     orig_regions = _find_math_regions(text)
@@ -392,6 +395,7 @@ def _extract_cmd_info(groups: tuple[str | None, ...]) -> dict[str, Any] | None:
 
 
 def parse_latex_style(text: str) -> str:
+    """Strip LaTeX style commands, returning plain markup text."""
     result = text
 
     while True:
@@ -427,6 +431,7 @@ def _strip_styles(text: str) -> str:
 
 
 def parse_structured(text: str) -> list[dict[str, Any]]:
+    """Tokenize text into a structured list of commands and spans."""
     text = preprocess_text(text)
     tokens: list[dict[str, Any]] = []
     pos = 0

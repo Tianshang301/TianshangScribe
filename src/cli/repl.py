@@ -30,6 +30,7 @@ class InteractiveSession:
         console: Console,
         latex_style: bool = False,
     ) -> None:
+        """Initialize the session bound to a document engine and path."""
         self.engine = engine
         self.path = Path(path)
         self.console = console
@@ -254,7 +255,7 @@ class InteractiveSession:
 
 
 def _split_tokens(line: str) -> list[str]:
-    """Split a REPL line, preserving backslashes (Windows paths, LaTeX).
+    r"""Split a REPL line, preserving backslashes (Windows paths, LaTeX).
 
     ``shlex.split(posix=True)`` would treat ``\\`` as an escape and corrupt
     ``@C:\\Users\\...`` and ``\\frac{a}{b}``, so ``posix=False`` is used and

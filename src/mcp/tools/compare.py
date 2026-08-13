@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import Field
 
@@ -15,7 +15,7 @@ def compare_documents(
     path_a: Annotated[str, Field(description='Path to the first document.')],
     path_b: Annotated[str, Field(description='Path to the second document.')],
     options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Compare two Word documents and report differences."""
     for p, label in [(path_a, 'path_a'), (path_b, 'path_b')]:
         if not Path(p).exists():
@@ -39,9 +39,9 @@ def compare_documents(
         paras_a = [p.text for p in engine_a.doc.paragraphs]
         paras_b = [p.text for p in engine_b.doc.paragraphs]
 
-        added: list[dict] = []
-        removed: list[dict] = []
-        changed: list[dict] = []
+        added: list[dict[str, Any]] = []
+        removed: list[dict[str, Any]] = []
+        changed: list[dict[str, Any]] = []
 
         max_len = max(len(paras_a), len(paras_b))
         for i in range(max_len):

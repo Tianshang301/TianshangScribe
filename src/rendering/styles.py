@@ -1,3 +1,5 @@
+"""Style models: text styling with separate western and CJK fonts."""
+
 from __future__ import annotations
 
 import contextlib
@@ -7,6 +9,8 @@ from typing import Any
 
 @dataclass
 class TextStyle:
+    """Dataclass describing text style (fonts, size, emphasis, alignment)."""
+
     font_name: str | None = None
     cjk_font_name: str | None = None
     font_size: int | None = None
@@ -19,6 +23,7 @@ class TextStyle:
 
     @classmethod
     def from_string(cls, s: str) -> TextStyle:
+        """Parse a ``key=value,...`` style string into a TextStyle instance."""
         instance = cls()
         if not s.strip():
             return instance
@@ -70,6 +75,7 @@ class TextStyle:
             style.underline = True
 
     def merge(self, *others: TextStyle) -> TextStyle:
+        """Return a copy merged with ``others``, overriding non-None fields."""
         result = replace(self)
         for other in others:
             if other.font_name is not None:
@@ -94,6 +100,7 @@ class TextStyle:
 
     @classmethod
     def from_latex_token(cls, token: dict[str, Any]) -> TextStyle:
+        """Build a TextStyle from a structured LaTeX token dict."""
         instance = cls()
 
         cmd = token.get('command', '')
@@ -132,17 +139,21 @@ class TextStyle:
 
     @classmethod
     def default_word(cls) -> TextStyle:
+        """Return the default Word text style."""
         return cls(font_name='Times New Roman', cjk_font_name='SimSun', font_size=12)
 
     @classmethod
     def default_excel(cls) -> TextStyle:
+        """Return the default Excel text style."""
         return cls(font_name='Calibri', font_size=11)
 
     @classmethod
     def default_ppt(cls) -> TextStyle:
+        """Return the default PowerPoint text style."""
         return cls(font_name='Calibri', font_size=18)
 
     def to_cli_string(self) -> str:
+        """Serialize the style back to a ``key=value,...`` CLI string."""
         parts: list[str] = []
         if self.font_name:
             parts.append(f'font={self.font_name}')

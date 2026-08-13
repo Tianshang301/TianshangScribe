@@ -73,10 +73,11 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
     "pytest-benchmark>=4.0.0",
-    "hypothesis>=6.100.0",
+"hypothesis>=6.100.0",
     "ruff>=0.6.0",
-    "mypy>=1.11.0",
+    "mypy>=1.11.0,<2.0",
     "types-PyYAML>=6.0.0",
+    "types-Markdown>=3.6.0.0",
 ]
 
 [tool.ruff]
@@ -92,14 +93,23 @@ select = [
     "C4",                         # comprehensions
     "RUF",                        # ruff-specific
     "C90",                        # McCabe complexity
+    "S",                          # bandit security
+    "A",                          # builtin shadowing
+    "D",                          # docstring conventions
 ]
 ignore = [
     "E501",        # line length handled by formatter
     "C901",        # complexity gating deferred
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["N802", "N803", "N806", "ANN001", "ANN201"]
-"demo/*.py" = ["E402", "RUF001", "RUF002", "RUF003", "B905", "SIM105"]
+"tests/**/*.py" = [
+    "N802", "N803", "N806",      # test naming conventions (snake_case helpers)
+    "S101",                      # assert is idiomatic in pytest
+    "S105",                      # hardcoded credentials in test fixtures
+    "S602", "S607",              # subprocess invocation in tests
+    "D",                         # docstrings not required in tests
+]
+"demo/*.py" = ["E402", "RUF001", "RUF002", "RUF003", "B905", "SIM105", "D"]
 
 [tool.ruff.format]
 quote-style = "single"
@@ -108,11 +118,9 @@ indent-style = "space"
 [tool.mypy]
 python_version = "3.10"
 plugins = ["pydantic.mypy"]
-follow_imports = "skip"
+follow_imports = "silent"
 ignore_missing_imports = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
+strict = true
 warn_return_any = true
 warn_unused_configs = true
 warn_unused_ignores = true
@@ -123,22 +131,18 @@ no_implicit_reexport = true
 
 [[tool.mypy.overrides]]
 module = [
-    "src.mcp.server",
-    "src.mcp.schemas",
-    "src.mcp.rate_limit",
-    "src.mcp.metrics",
-    "src.mcp.security",
-    "src.core.versioning",
-    "src.core.scheduler",
-    "src.core.batch_templates",
-    "src.core.script_runner",
-    "src.core.nlp",
-    "src.rendering.variables",
+    "src.cli.main",
+    "src.mcp.transport",
 ]
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-disallow_untyped_decorators = true
-check_untyped_defs = true
+disallow_untyped_defs = false
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = [
+    "src.core.word_engine",
+    "src.core.ppt_engine",
+]
+disable_error_code = ["no-untyped-call", "attr-defined"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -164,3 +168,4 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
+

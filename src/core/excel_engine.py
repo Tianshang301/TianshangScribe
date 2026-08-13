@@ -1,3 +1,5 @@
+"""Excel document engine built on openpyxl."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -12,23 +14,29 @@ from src.rendering.styles import TextStyle
 
 
 class ExcelEngine(DocumentABC):
+    """Excel document engine: create, edit, style and convert workbooks."""
+
     def __init__(self, path: str | Path | None = None) -> None:
+        """Initialize the engine with an optional workbook path."""
         super().__init__(path)
         self._wb: Workbook | None = None
         self._base_style: TextStyle = TextStyle.default_excel()
 
     @property
     def wb(self) -> Workbook:
+        """Return the loaded workbook, raising if none is open."""
         if self._wb is None:
             raise RuntimeError('No workbook loaded. Call create() or open() first.')
         return self._wb
 
     def create(self) -> None:
+        """Create a new blank workbook."""
         self._wb = Workbook()
         self._path = None
         self._base_style = TextStyle.default_excel()
 
     def open(self, path: str | Path) -> None:
+        """Open an existing workbook from the given path."""
         self._path = Path(path)
         if not self._path.exists():
             raise FileNotFoundError(f'File not found: {self._path}')
@@ -36,6 +44,7 @@ class ExcelEngine(DocumentABC):
         self._base_style = TextStyle.default_excel()
 
     def save(self, path: str | Path | None = None) -> None:
+        """Save the workbook to the given path or the current one."""
         if path is not None:
             self._path = Path(path)
         if self._path is None:
@@ -44,6 +53,7 @@ class ExcelEngine(DocumentABC):
         self.wb.save(str(self._path))
 
     def get_base_style(self) -> TextStyle:
+        """Return the engine's base text style."""
         return self._base_style
 
     def add_text(
@@ -58,6 +68,7 @@ class ExcelEngine(DocumentABC):
         text_style: TextStyle | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Write text into the active sheet and return the last written cell."""
         column = int(kwargs.get('column', 1))
         inline = TextStyle(
             bold=bold or None,
@@ -110,16 +121,17 @@ class ExcelEngine(DocumentABC):
         self,
         tokens: list[dict[str, Any]],
     ) -> Any:
+        """Write styled content derived from parsed LaTeX-style tokens."""
         current_style = self._base_style
         results: list[Any] = []
 
         for token in tokens:
-            token_type = token.get('type', 'text')
+            content_kind = token.get('type', 'text')
             content = token.get('content', '')
 
-            if token_type == 'text':
+            if content_kind == 'text':
                 results.append(self.add_text(str(content), text_style=current_style))
-            elif token_type == 'command':
+            elif content_kind == 'command':
                 cmd = token.get('command', '')
                 if cmd in ('newpage', 'heading', 'includegraphics'):
                     continue
@@ -132,12 +144,14 @@ class ExcelEngine(DocumentABC):
         return results
 
     def add_latex_content(self, text: str) -> Any:
+        """Parse LaTeX-style markup and add it as styled content."""
         from src.rendering.latex_parser import parse_structured
 
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
+        """Replace all occurrences of old text across the workbook; return count."""
         import re as _re
 
         count = 0
@@ -158,10 +172,12 @@ class ExcelEngine(DocumentABC):
         return count
 
     def set_style(self, style_str: str) -> None:
+        """Merge a style string into the engine's base style."""
         new_style = TextStyle.from_string(style_str)
         self._base_style = self._base_style.merge(new_style)
 
     def apply_style_to_all(self) -> None:
+        """Apply the base style to every populated cell in the workbook."""
         for ws in self.wb.worksheets:
             for row in ws.iter_rows():
                 for cell in row:
@@ -181,35 +197,43 @@ class ExcelEngine(DocumentABC):
                             cell.font = Font(**font_kwargs)
 
     def to_pdf(self, output_path: str | Path) -> None:
+        """Convert the workbook to a PDF at the given output path."""
         self.save()
         from src.transform.pdf import excel_to_pdf
 
         excel_to_pdf(str(self._path), str(output_path))
 
     def add_sheet(self, name: str) -> Any:
+        """Create a new worksheet with the given name."""
         return self.wb.create_sheet(title=name)
 
     def delete_sheet(self, name: str) -> None:
+        """Delete the worksheet with the given name if it exists."""
         if name in self.wb.sheetnames:
             del self.wb[name]
 
     def rename_sheet(self, old_name: str, new_name: str) -> None:
+        """Rename an existing worksheet from old_name to new_name."""
         if old_name in self.wb.sheetnames:
             self.wb[old_name].title = new_name
 
     def set_column_width(self, col_index: int, width: float) -> None:
+        """Set the width of the column at the 1-based index in the active sheet."""
         ws = self.wb.active
         ws.column_dimensions[get_column_letter(col_index)].width = width
 
     def set_row_height(self, row_index: int, height: float) -> None:
+        """Set the height of the row at the given index in the active sheet."""
         ws = self.wb.active
         ws.row_dimensions[row_index].height = height
 
     def set_formula(self, cell_ref: str, formula: str) -> None:
+        """Set a formula on the given cell reference in the active sheet."""
         ws = self.wb.active
         ws[cell_ref] = formula
 
     def import_csv(self, csv_path: str | Path) -> None:
+        """Import data from a CSV file into the active sheet."""
         import csv
 
         ws = self.wb.active
@@ -220,6 +244,7 @@ class ExcelEngine(DocumentABC):
                     ws.cell(row=row_idx, column=col_idx, value=value)
 
     def import_json(self, json_path: str | Path) -> None:
+        """Import a JSON array of objects or lists into the active sheet."""
         import json
 
         with open(json_path, encoding='utf-8') as f:
@@ -244,6 +269,7 @@ class ExcelEngine(DocumentABC):
                     ws.cell(row=row_idx, column=col_idx, value=value)
 
     def export_csv(self, output_path: str | Path) -> None:
+        """Export the active sheet to a CSV file at the given path."""
         import csv
 
         ws = self.wb.active
@@ -253,6 +279,7 @@ class ExcelEngine(DocumentABC):
                 writer.writerow(row)
 
     def get_metadata(self) -> dict[str, str | None]:
+        """Return workbook core properties as a metadata dictionary."""
         return {
             'author': self.wb.properties.creator,
             'title': self.wb.properties.title,
@@ -263,6 +290,7 @@ class ExcelEngine(DocumentABC):
         }
 
     def set_metadata(self, **kwargs: str) -> None:
+        """Set workbook core properties from keyword arguments."""
         props = self.wb.properties
         for key, value in kwargs.items():
             key_lower = key.lower()
@@ -280,18 +308,22 @@ class ExcelEngine(DocumentABC):
                 props.description = value
 
     def add_comment(self, cell_ref: str, text: str) -> None:
+        """Attach a comment to the given cell in the active sheet."""
         from openpyxl.comments import Comment
 
         ws = self.wb.active
         ws[cell_ref].comment = Comment(text, 'TianshangScribe')
 
     def set_protection(self, password: str) -> None:
+        """Protect the workbook with the given password."""
         self.wb.security.workbook_password = password
 
     def unprotect(self) -> None:
+        """Remove workbook protection."""
         self.wb.security.workbook_password = ''
 
     def export_json(self, output_path: str | Path) -> None:
+        """Export the active sheet to a JSON array of objects."""
         import json
 
         ws = self.wb.active
@@ -308,6 +340,7 @@ class ExcelEngine(DocumentABC):
             json.dump(data, f, ensure_ascii=False, indent=2)
 
     def export_html(self, output_path: str | Path) -> None:
+        """Export the active sheet to an HTML table file."""
         ws = self.wb.active
         rows = list(ws.iter_rows(values_only=True))
         html_parts = [
@@ -330,6 +363,7 @@ class ExcelEngine(DocumentABC):
             f.write(''.join(html_parts))
 
     def sort(self, cell_range: str, order: str = 'asc') -> None:
+        """Sort a single-column range in the active sheet asc or desc."""
         import re
 
         ws = self.wb.active
@@ -348,6 +382,7 @@ class ExcelEngine(DocumentABC):
             ws[f'{c1}{i}'].value = val
 
     def add_chart(self, chart_type: str, data_range: str, position: str = 'E2') -> None:
+        """Add a bar, line or pie chart over the given data range."""
         from openpyxl.chart import BarChart, LineChart, PieChart, Reference
 
         ws = self.wb.active
@@ -361,6 +396,7 @@ class ExcelEngine(DocumentABC):
         ws.add_chart(chart, position)
 
     def merge_workbooks(self, paths: list[str]) -> None:
+        """Merge the sheets of other workbooks into this one."""
         for p in paths:
             src = load_workbook(p)
             for sheet in src.worksheets:
@@ -370,6 +406,7 @@ class ExcelEngine(DocumentABC):
                         new_sheet[cell.coordinate] = cell.value
 
     def split_by_sheet(self, output_dir: str | Path) -> list[Path]:
+        """Split each worksheet into its own workbook in the output dir."""
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         results: list[Path] = []
@@ -386,12 +423,14 @@ class ExcelEngine(DocumentABC):
         return results
 
     def clear_content(self) -> None:
+        """Clear all cell values in the workbook."""
         for ws in self.wb.worksheets:
             for row in ws.iter_rows():
                 for cell in row:
                     cell.value = None
 
     def clear_formats(self) -> None:
+        """Reset fonts, fills, alignments and borders on all cells."""
         from copy import copy
 
         from openpyxl.styles import Alignment, Border, Font, PatternFill
@@ -407,12 +446,14 @@ class ExcelEngine(DocumentABC):
                     cell.border = Border()
 
     def clear_links(self) -> None:
+        """Remove all hyperlinks from the workbook."""
         for ws in self.wb.worksheets:
             for row in ws.iter_rows():
                 for cell in row:
                     cell.hyperlink = None
 
     def extract_text(self) -> str:
+        """Extract all worksheet content as plain text lines."""
         lines: list[str] = []
         for ws in self.wb.worksheets:
             for row in ws.iter_rows(values_only=True):
@@ -422,6 +463,7 @@ class ExcelEngine(DocumentABC):
         return '\n'.join(lines)
 
     def extract_tables(self) -> list[list[list[str]]]:
+        """Extract non-empty worksheets as lists of string tables."""
         tables: list[list[list[str]]] = []
         for ws in self.wb.worksheets:
             rows = [
@@ -434,6 +476,7 @@ class ExcelEngine(DocumentABC):
         return tables
 
     def extract_images(self, output_dir: str | Path) -> list[Path]:
+        """Save embedded workbook images to the output dir and list paths."""
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         saved: list[Path] = []
@@ -451,6 +494,7 @@ class ExcelEngine(DocumentABC):
         return saved
 
     def extract_structure(self) -> dict[str, Any]:
+        """Return workbook structure summary (sheet names and image count)."""
         return {
             'sheets': [ws.title for ws in self.wb.worksheets],
             'images': len([img for ws in self.wb.worksheets for img in getattr(ws, '_images', [])]),

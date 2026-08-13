@@ -17,7 +17,7 @@ import argparse
 import os
 
 from mcp.server.mcpserver import MCPServer
-from mcp.server.mcpserver.tools.base import ToolAnnotations
+from mcp_types import ToolAnnotations
 
 from src.mcp import transport
 from src.mcp.metrics import instrumented

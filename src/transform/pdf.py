@@ -29,8 +29,11 @@ def _find_libreoffice() -> str | None:
 
 def _convert_via_office2pdf(input_path: str | Path, output_path: str | Path) -> None:
     """Convert any OOXML document to PDF using office2pdf."""
-    subprocess.run(
-        ['office2pdf', str(input_path), '-o', str(output_path)],
+    bin_path = _find_office2pdf()
+    if not bin_path:
+        raise RuntimeError('office2pdf not found on PATH')
+    subprocess.run(  # noqa: S603  # fixed trusted binary resolved to full path
+        [bin_path, str(input_path), '-o', str(output_path)],
         check=True,
         capture_output=True,
     )
@@ -42,7 +45,7 @@ def _convert_via_libreoffice(input_path: str | Path, output_path: str | Path) ->
     if not lo_bin:
         raise RuntimeError('No PDF engine found. Install office2pdf or LibreOffice.')
     output_dir = str(Path(output_path).parent)
-    subprocess.run(
+    subprocess.run(  # noqa: S603  # fixed trusted binary; full path validated by exists()
         [lo_bin, '--headless', '--convert-to', 'pdf', '--outdir', output_dir, str(input_path)],
         check=True,
         capture_output=True,
@@ -114,8 +117,11 @@ def word_to_markdown(docx_path: str | Path, md_path: str | Path) -> None:
         with open(md_path, 'w', encoding='utf-8') as f:
             f.write(result.value)
     except ImportError:
-        subprocess.run(
-            ['pandoc', str(docx_path), '-t', 'markdown', '-o', str(md_path)],
+        pandoc = shutil.which('pandoc')
+        if not pandoc:
+            raise RuntimeError('pandoc not found on PATH') from None
+        subprocess.run(  # noqa: S603  # fixed trusted binary; full path from which()
+            [pandoc, str(docx_path), '-t', 'markdown', '-o', str(md_path)],
             check=True,
             capture_output=True,
         )
@@ -131,8 +137,11 @@ def word_to_html(docx_path: str | Path, html_path: str | Path) -> None:
         with open(html_path, 'w', encoding='utf-8') as f:
             f.write(result.value)
     except ImportError:
-        subprocess.run(
-            ['pandoc', str(docx_path), '-t', 'html', '-o', str(html_path)],
+        pandoc = shutil.which('pandoc')
+        if not pandoc:
+            raise RuntimeError('pandoc not found on PATH') from None
+        subprocess.run(  # noqa: S603  # fixed trusted binary; full path from which()
+            [pandoc, str(docx_path), '-t', 'html', '-o', str(html_path)],
             check=True,
             capture_output=True,
         )

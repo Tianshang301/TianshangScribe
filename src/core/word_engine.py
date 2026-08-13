@@ -1,3 +1,5 @@
+"""Word (.docx) engine implementing DocumentABC via python-docx."""
+
 from __future__ import annotations
 
 import contextlib
@@ -6,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.document import Document as _DocumentType
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -23,23 +26,29 @@ ALIGNMENT_MAP: dict[str, WD_ALIGN_PARAGRAPH] = {
 
 
 class WordEngine(DocumentABC):
+    """python-docx backed engine for reading and writing Word documents."""
+
     def __init__(self, path: str | Path | None = None) -> None:
+        """Initialize the engine with an optional document ``path``."""
         super().__init__(path)
-        self._doc: Document | None = None
+        self._doc: _DocumentType | None = None
         self._base_style: TextStyle = TextStyle.default_word()
 
     @property
-    def doc(self) -> Document:
+    def doc(self) -> _DocumentType:
+        """Return the loaded document, raising if none is loaded."""
         if self._doc is None:
             raise RuntimeError('No document loaded. Call create() or open() first.')
         return self._doc
 
     def create(self) -> None:
+        """Create a new blank Word document."""
         self._doc = Document()
         self._path = None
         self._base_style = TextStyle.default_word()
 
     def open(self, path: str | Path) -> None:
+        """Load an existing Word document from ``path``."""
         self._path = Path(path)
         if not self._path.exists():
             raise FileNotFoundError(f'File not found: {self._path}')
@@ -47,6 +56,7 @@ class WordEngine(DocumentABC):
         self._base_style = TextStyle.default_word()
 
     def save(self, path: str | Path | None = None) -> None:
+        """Persist the document, optionally to ``path``."""
         if path is not None:
             self._path = Path(path)
         if self._path is None:
@@ -55,6 +65,7 @@ class WordEngine(DocumentABC):
         self.doc.save(str(self._path))
 
     def get_base_style(self) -> TextStyle:
+        """Return the current base style."""
         return self._base_style
 
     def add_text(
@@ -69,6 +80,7 @@ class WordEngine(DocumentABC):
         text_style: TextStyle | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Add a paragraph of styled ``text`` and return it."""
         inline = TextStyle(
             bold=bold or None,
             italic=italic or None,
@@ -96,6 +108,7 @@ class WordEngine(DocumentABC):
         tokens: list[dict[str, Any]],
         base_style: TextStyle | None = None,
     ) -> Any:
+        """Render parsed LaTeX-style ``tokens`` into a paragraph and return it."""
         current_style = base_style if base_style else self._base_style
 
         for token in tokens:
@@ -116,17 +129,17 @@ class WordEngine(DocumentABC):
         paragraph = self.doc.add_paragraph()
 
         for token in tokens:
-            token_type = token.get('type', 'text')
+            content_kind = token.get('type', 'text')
             content = token.get('content', '')
 
-            if not content and token_type == 'text':
+            if not content and content_kind == 'text':
                 continue
 
-            if token_type == 'text':
+            if content_kind == 'text':
                 run = paragraph.add_run(str(content))
                 self._apply_run_style(run, current_style)
 
-            elif token_type == 'command':
+            elif content_kind == 'command':
                 cmd = token.get('command', '')
                 if cmd == 'set_font':
                     _apply_font_config(self, token)
@@ -232,15 +245,15 @@ class WordEngine(DocumentABC):
         current_style = base_style
 
         for token in tokens:
-            token_type = token.get('type', 'text')
+            content_kind = token.get('type', 'text')
             content = token.get('content', '')
 
-            if token_type == 'text':
+            if content_kind == 'text':
                 if content:
                     run = paragraph.add_run(str(content))
                     self._apply_run_style(run, current_style)
 
-            elif token_type == 'command':
+            elif content_kind == 'command':
                 cmd = token.get('command', '')
                 if cmd in (
                     'newpage',
@@ -276,12 +289,14 @@ class WordEngine(DocumentABC):
                         self._apply_run_style(run, merged)
 
     def add_latex_content(self, text: str) -> Any:
+        """Parse ``text`` as LaTeX-style markup and add the resulting content."""
         from src.rendering.latex_parser import parse_structured
 
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
     def add_math_formula(self, latex: str) -> Any:
+        """Add ``latex`` as a native OMML formula and return its paragraph."""
         paragraph = self.doc.add_paragraph()
         self._add_omath(paragraph, latex)
         return paragraph
@@ -324,6 +339,7 @@ class WordEngine(DocumentABC):
             run.font.small_caps = style.small_caps
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
+        """Replace ``old`` with ``new``, optionally treating ``old`` as a regex."""
         count = 0
         for paragraph in self.doc.paragraphs:
             if regex:
@@ -342,10 +358,12 @@ class WordEngine(DocumentABC):
         return count
 
     def set_style(self, style_str: str) -> None:
+        """Merge the given ``style_str`` into the document's base style."""
         new_style = TextStyle.from_string(style_str)
         self._base_style = self._base_style.merge(new_style)
 
     def apply_style_to_all(self) -> None:
+        """Apply the current base style to every run in paragraphs and tables."""
         for paragraph in self.doc.paragraphs:
             for run in paragraph.runs:
                 self._apply_run_style(run, self._base_style)
@@ -358,21 +376,26 @@ class WordEngine(DocumentABC):
                             self._apply_run_style(run, self._base_style)
 
     def to_pdf(self, output_path: str | Path) -> None:
+        """Save the document and convert it to PDF at ``output_path``."""
         self.save()
         from src.transform.pdf import word_to_pdf
 
         word_to_pdf(str(self._path), str(output_path))
 
     def add_heading(self, text: str, level: int = 1) -> Any:
+        """Add a heading of the given ``level`` and return it."""
         return self.doc.add_heading(text, level=level)
 
     def add_page_break(self) -> None:
+        """Insert a page break at the end of the document."""
         self.doc.add_page_break()
 
     def add_table(self, rows: int, cols: int) -> Any:
+        """Add an empty table of ``rows`` by ``cols`` cells and return it."""
         return self.doc.add_table(rows=rows, cols=cols)
 
     def add_table_data(self, rows: list[list[str]]) -> Any:
+        """Add a table populated with ``rows`` of cell values and return it."""
         if not rows or not rows[0]:
             raise ValueError('add_table_data requires at least one row with one column')
         table = self.doc.add_table(rows=len(rows), cols=len(rows[0]))
@@ -390,6 +413,7 @@ class WordEngine(DocumentABC):
     def add_image(
         self, image_path: str, width: float | None = None, height: float | None = None
     ) -> Any:
+        """Insert ``image_path`` into a new paragraph, optionally sized in inches."""
         from docx.shared import Inches
 
         paragraph = self.doc.add_paragraph()
@@ -403,6 +427,7 @@ class WordEngine(DocumentABC):
         return run.add_picture(image_path)
 
     def get_metadata(self) -> dict[str, str | None]:
+        """Return document core properties such as author and title."""
         props = self.doc.core_properties
         return {
             'author': props.author,
@@ -414,6 +439,7 @@ class WordEngine(DocumentABC):
         }
 
     def set_metadata(self, **kwargs: str) -> None:
+        """Set document core properties from keyword arguments."""
         props = self.doc.core_properties
         for key, value in kwargs.items():
             key_lower = key.lower()
@@ -431,6 +457,7 @@ class WordEngine(DocumentABC):
                 props.comments = value
 
     def add_comment(self, text: str, range_start: int = 0, range_end: int = 0) -> None:
+        """Attach an inline comment anchored to the first paragraph."""
         paragraph = self.doc.paragraphs[0] if self.doc.paragraphs else self.doc.add_paragraph()
         run = paragraph.add_run('')
         run_element = run._r
@@ -450,6 +477,7 @@ class WordEngine(DocumentABC):
         run_element.addnext(comment_ref)
 
     def set_protection(self, password: str) -> None:
+        """Enable read-only protection on every section with the given ``password``."""
         from docx.oxml import parse_xml
         from docx.oxml.ns import nsdecls
 
@@ -466,12 +494,14 @@ class WordEngine(DocumentABC):
             section._sectPr.append(protection)
 
     def unprotect(self) -> None:
+        """Remove read-only protection from every section."""
         for section in self.doc.sections:
             elements = section._sectPr.findall(qn('w:documentProtection'))
             for el in elements:
                 section._sectPr.remove(el)
 
     def add_toc(self) -> None:
+        """Insert a table-of-contents field at the end of the document."""
         from docx.oxml import OxmlElement
         from docx.oxml.ns import qn
 
@@ -491,9 +521,11 @@ class WordEngine(DocumentABC):
         run3._r.append(fld_char_end)
 
     def add_section_break(self) -> None:
+        """Start a new Word section."""
         self.doc.add_section()
 
     def merge_workbooks(self, paths: list[str]) -> None:
+        """Append the body of each document in ``paths`` to this document."""
         from lxml import etree
 
         for p in paths:
@@ -502,6 +534,7 @@ class WordEngine(DocumentABC):
                 self.doc.element.body.append(etree.fromstring(etree.tostring(element)))
 
     def set_header(self, text: str) -> None:
+        """Add ``text`` to the header of the last section."""
         section = self.doc.sections[-1]
         header = section.header
         if not header.paragraphs:
@@ -509,6 +542,7 @@ class WordEngine(DocumentABC):
         header.paragraphs[0].add_run(text)
 
     def set_footer(self, text: str) -> None:
+        """Add ``text`` to the footer of the last section."""
         section = self.doc.sections[-1]
         footer = section.footer
         if not footer.paragraphs:
@@ -516,6 +550,7 @@ class WordEngine(DocumentABC):
         footer.paragraphs[0].add_run(text)
 
     def add_watermark(self, text: str) -> None:
+        """Add ``text`` as a light gray watermark to the last section's header."""
         from docx.shared import RGBColor
 
         section = self.doc.sections[-1]
@@ -529,10 +564,12 @@ class WordEngine(DocumentABC):
         run.font.color.rgb = RGBColor(0xD9, 0xD9, 0xD9)
 
     def clear_content(self) -> None:
+        """Clear the text of every paragraph."""
         for p in self.doc.paragraphs:
             p.clear()
 
     def clear_formats(self) -> None:
+        """Reset formatting on every run in every paragraph."""
         for p in self.doc.paragraphs:
             for run in p.runs:
                 run.font.name = None
@@ -543,6 +580,7 @@ class WordEngine(DocumentABC):
                 run.font.color.rgb = None
 
     def clear_links(self) -> None:
+        """Remove all hyperlinks from every paragraph."""
         for p in self.doc.paragraphs:
             for hyperlink in p._p.findall(
                 './/{http://schemas.openxmlformats.org/wordprocessingml/2006/main}hyperlink'
@@ -550,6 +588,7 @@ class WordEngine(DocumentABC):
                 hyperlink.getparent().remove(hyperlink)
 
     def extract_text(self) -> str:
+        """Return the document text including table cell contents."""
         parts = [p.text for p in self.doc.paragraphs]
         for table in self.doc.tables:
             for row in table.rows:
@@ -559,6 +598,7 @@ class WordEngine(DocumentABC):
         return '\n'.join(line for line in parts if line)
 
     def extract_tables(self) -> list[list[list[str]]]:
+        """Return all tables as lists of rows of cell texts."""
         return [
             [[cell.text for cell in row.cells] for row in table.rows] for table in self.doc.tables
         ]
@@ -574,11 +614,12 @@ class WordEngine(DocumentABC):
                             Path(rel.target_part.partname).suffix or '.png',
                         )
                     )
-                except Exception:
+                except Exception:  # noqa: S112  # unreadable image part: skip, do not abort extraction
                     continue
         return blobs
 
     def extract_images(self, output_dir: str | Path) -> list[Path]:
+        """Write embedded images into ``output_dir`` and return their paths."""
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         saved: list[Path] = []
@@ -589,6 +630,7 @@ class WordEngine(DocumentABC):
         return saved
 
     def extract_structure(self) -> dict[str, Any]:
+        """Return counts of paragraphs, tables, sections, and images."""
         return {
             'paragraphs': len(self.doc.paragraphs),
             'tables': len(self.doc.tables),
@@ -598,6 +640,7 @@ class WordEngine(DocumentABC):
 
 
 def _apply_font_config(engine: WordEngine, token: dict[str, Any]) -> None:
+    """Update ``engine``'s base style font from a ``set_font`` token."""
     from src.rendering.styles import TextStyle
 
     role = token.get('role', '')

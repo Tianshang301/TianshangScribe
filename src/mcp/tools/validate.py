@@ -19,7 +19,7 @@ def validate_template(
         dict[str, Any],
         Field(description='Key-value data to validate against placeholders.'),
     ],
-) -> dict:
+) -> dict[str, Any]:
     """Validate that all template placeholders can be filled."""
     if not Path(template_path).exists():
         return error_response(

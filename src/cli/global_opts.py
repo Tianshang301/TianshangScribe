@@ -1,3 +1,5 @@
+"""Global CLI option handling: document type resolution and output paths."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,6 +21,8 @@ def parse_table_input(spec: str) -> list[list[str]]:
 
 @dataclass
 class GlobalOptions:
+    """Aggregated global options parsed from the CLI."""
+
     doc_type: DocumentType | None = None
     output_path: str | None = None
     force: bool = False
@@ -40,6 +44,7 @@ REVERSE_SOURCE_TARGET: dict[str, DocumentType] = {
 
 
 def is_reverse_source(input_path: str | None) -> bool:
+    """Return whether the input is a reverse-conversion source (.md/.html/.json)."""
     if not input_path:
         return False
     return Path(input_path).suffix.lower() in REVERSE_SOURCE_TARGET
@@ -49,6 +54,7 @@ def resolve_doc_type(
     explicit: DocumentType | None,
     input_path: str | None,
 ) -> DocumentType:
+    """Resolve the document type from the explicit flag, suffix or reverse target."""
     if explicit:
         return explicit
     if input_path and input_path != '-':
@@ -68,6 +74,7 @@ def determine_output_path(
     to_pdf: bool = False,
     to_ext: str | None = None,
 ) -> str:
+    """Determine the output path, defaulting to ``<stem>-out.<ext>`` when omitted."""
     if output_path:
         return output_path
 
@@ -104,4 +111,5 @@ def determine_output_path(
 
 
 def check_overwrite(path: str, force: bool) -> bool:
+    """Return whether ``path`` may be overwritten, honoring ``--force``."""
     return _check_overwrite(path, force)

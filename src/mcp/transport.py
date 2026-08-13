@@ -60,12 +60,14 @@ class AuthMiddleware:
     """Reject non-bearer HTTP requests when one or more API keys are set."""
 
     def __init__(self, app: Callable[..., Any], auth_token: str | None) -> None:
+        """Store the ASGI app and parse the allowed bearer-token list."""
         self.app = app
         self.expected: list[str] = [
             part.strip() for part in (auth_token or '').split(',') if part.strip()
         ]
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        """Enforce bearer-token auth on HTTP requests before passing through."""
         if self.expected and scope.get('type') == 'http':
             method = scope.get('method', 'GET')
             path = scope.get('path', '')
@@ -95,10 +97,12 @@ class RateLimitMiddleware:
     """Sliding-window rate limiting keyed by client IP / forwarded header."""
 
     def __init__(self, app: Callable[..., Any], limiter: RateLimiter) -> None:
+        """Store the ASGI app and the rate limiter instance."""
         self.app = app
         self.limiter = limiter
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        """Reject HTTP requests that exceed the rate limit before passing through."""
         if scope.get('type') == 'http':
             method = scope.get('method', 'GET')
             path = scope.get('path', '')

@@ -1,3 +1,5 @@
+"""Template engine that fills ``{{placeholders}}`` from data files."""
+
 from __future__ import annotations
 
 import re
@@ -7,7 +9,10 @@ from src.core.document import DocumentABC
 
 
 class TemplateEngine:
+    """Template engine supporting loops and conditionals."""
+
     def __init__(self, data_path: str) -> None:
+        """Initialize the engine and load data from ``data_path``."""
         self._data_path = data_path
         self._data: dict[str, Any] = {}
         self._load()
@@ -41,6 +46,7 @@ class TemplateEngine:
             raise ValueError(f'Unsupported template format: {path.suffix}')
 
     def fill(self, engine: DocumentABC) -> int:
+        """Fill placeholders in a document engine, returning the replacement count."""
         flat = self._flatten_data(self._data)
 
         if hasattr(engine, 'doc'):
@@ -252,6 +258,7 @@ class TemplateEngine:
 
 
 def defaultdict_from_yaml(data: Any) -> Any:
+    """Recursively convert YAML-loaded data into plain dicts and lists."""
     if isinstance(data, dict):
         return {k: defaultdict_from_yaml(v) for k, v in data.items()}
     elif isinstance(data, list):

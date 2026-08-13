@@ -1,3 +1,5 @@
+"""LaTeX to OMML (Office Math Markup Language) converter."""
+
 from __future__ import annotations
 
 import re
@@ -137,6 +139,7 @@ ACCENT_MAP: dict[str, str] = {
 
 
 def latex_to_omml(latex: str) -> Any:
+    """Convert a LaTeX formula string to an OMML ``m:oMath``/``m:oMathPara`` element."""
     latex = latex.strip()
     if not latex:
         return None
@@ -1095,7 +1098,7 @@ def _token_to_omml(token: dict[str, Any]) -> Any:
     return _make_run('')
 
 
-def _build_sub_omath(content: str | dict) -> list[Any]:
+def _build_sub_omath(content: str | dict[str, Any]) -> list[Any]:
     if isinstance(content, str):
         if not content:
             return [_make_run('')]

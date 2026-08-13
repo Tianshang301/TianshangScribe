@@ -1,3 +1,5 @@
+"""PowerPoint presentation engine built on python-pptx."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -5,6 +7,7 @@ from typing import Any
 
 from lxml import etree
 from pptx import Presentation
+from pptx.presentation import Presentation as _PresentationType
 from pptx.util import Pt
 
 from src.core.document import DocumentABC
@@ -12,23 +15,29 @@ from src.rendering.styles import TextStyle
 
 
 class PptEngine(DocumentABC):
+    """PowerPoint presentation engine: create, edit and style decks."""
+
     def __init__(self, path: str | Path | None = None) -> None:
+        """Initialize the engine with an optional presentation path."""
         super().__init__(path)
-        self._prs: Presentation | None = None
+        self._prs: _PresentationType | None = None
         self._base_style: TextStyle = TextStyle.default_ppt()
 
     @property
-    def prs(self) -> Presentation:
+    def prs(self) -> _PresentationType:
+        """Return the loaded presentation, raising if none is open."""
         if self._prs is None:
             raise RuntimeError('No presentation loaded. Call create() or open() first.')
         return self._prs
 
     def create(self) -> None:
+        """Create a new blank presentation."""
         self._prs = Presentation()
         self._path = None
         self._base_style = TextStyle.default_ppt()
 
     def open(self, path: str | Path) -> None:
+        """Open an existing presentation from the given path."""
         self._path = Path(path)
         if not self._path.exists():
             raise FileNotFoundError(f'File not found: {self._path}')
@@ -36,6 +45,7 @@ class PptEngine(DocumentABC):
         self._base_style = TextStyle.default_ppt()
 
     def save(self, path: str | Path | None = None) -> None:
+        """Save the presentation to the given path or the current one."""
         if path is not None:
             self._path = Path(path)
         if self._path is None:
@@ -44,6 +54,7 @@ class PptEngine(DocumentABC):
         self.prs.save(str(self._path))
 
     def get_base_style(self) -> TextStyle:
+        """Return the engine's base text style."""
         return self._base_style
 
     def add_text(
@@ -58,6 +69,7 @@ class PptEngine(DocumentABC):
         text_style: TextStyle | None = None,
         **kwargs: Any,
     ) -> Any:
+        """Add text to a new slide title, supporting inline math markup."""
         import re
 
         inline = TextStyle(
@@ -142,24 +154,25 @@ class PptEngine(DocumentABC):
                 from pptx.dml.color import RGBColor
 
                 run.font.color.rgb = RGBColor.from_string(style.color)
-            except Exception:
+            except Exception:  # noqa: S110  # invalid color hex: leave default, continue styling
                 pass
 
     def add_styled_content(
         self,
         tokens: list[dict[str, Any]],
     ) -> Any:
+        """Render styled LaTeX-style tokens onto slides and return the last slide."""
         slide = self.add_slide()
         current_style = self._base_style
 
         for token in tokens:
-            token_type = token.get('type', 'text')
+            content_kind = token.get('type', 'text')
             content = token.get('content', '')
 
-            if token_type == 'text':
+            if content_kind == 'text':
                 if content.strip():
                     self._append_text_to_slide(slide, content, current_style)
-            elif token_type == 'command':
+            elif content_kind == 'command':
                 cmd = token.get('command', '')
                 if cmd in ('newpage',):
                     slide = self.add_slide()
@@ -216,12 +229,14 @@ class PptEngine(DocumentABC):
         self._apply_run_style(run, style)
 
     def add_latex_content(self, text: str) -> Any:
+        """Parse LaTeX-style markup and render it onto slides."""
         from src.rendering.latex_parser import parse_structured
 
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
+        """Replace all occurrences of old text across slides; return count."""
         import re as _re
 
         count = 0
@@ -242,10 +257,12 @@ class PptEngine(DocumentABC):
         return count
 
     def set_style(self, style_str: str) -> None:
+        """Merge a style string into the engine's base style."""
         new_style = TextStyle.from_string(style_str)
         self._base_style = self._base_style.merge(new_style)
 
     def apply_style_to_all(self) -> None:
+        """Apply the base style to every text run in the presentation."""
         for slide in self.prs.slides:
             for shape in slide.shapes:
                 if shape.has_text_frame:
@@ -254,16 +271,19 @@ class PptEngine(DocumentABC):
                             self._apply_run_style(run, self._base_style)
 
     def to_pdf(self, output_path: str | Path) -> None:
+        """Convert the presentation to a PDF at the given output path."""
         self.save()
         from src.transform.pdf import ppt_to_pdf
 
         ppt_to_pdf(str(self._path), str(output_path))
 
     def add_slide(self, layout_index: int = 1) -> Any:
+        """Add a new slide using the layout at the given index."""
         slide_layout = self.prs.slide_layouts[layout_index]
         return self.prs.slides.add_slide(slide_layout)
 
     def apply_layout(self, slide_index: int, layout_spec: str) -> None:
+        """Apply the layout named or indexed by layout_spec to a slide."""
         try:
             layout_idx = int(layout_spec)
             slide_layout = self.prs.slide_layouts[layout_idx]
@@ -279,6 +299,7 @@ class PptEngine(DocumentABC):
                     f'Available: {[lo.name for lo in self.prs.slide_layouts]}'
                 ) from None
         if slide_index < len(self.prs.slides):
+            assert slide_layout is not None  # noqa: S101  # mypy narrowing; layout validated above
             slide = self.prs.slides[slide_index]
             ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
             r_ns = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -296,6 +317,7 @@ class PptEngine(DocumentABC):
                 layout_node.set(f'{{{r_ns}}}id', r_id)
 
     def delete_slide(self, index: int) -> None:
+        """Delete the slide at the given index."""
         r_id = self.prs.slides._sldIdLst[index].attrib[
             '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
         ]
@@ -303,12 +325,14 @@ class PptEngine(DocumentABC):
         del self.prs.slides._sldIdLst[index]
 
     def move_slide(self, from_index: int, to_index: int) -> None:
+        """Move the slide at from_index to the given to_index."""
         slides = list(self.prs.slides._sldIdLst)
         slide_entry = slides.pop(from_index)
         slides.insert(to_index, slide_entry)
         self.prs.slides._sldIdLst[:] = slides
 
     def get_metadata(self) -> dict[str, str | None]:
+        """Return presentation core properties as a metadata dictionary."""
         props = self.prs.core_properties
         return {
             'author': props.author,
@@ -320,6 +344,7 @@ class PptEngine(DocumentABC):
         }
 
     def set_metadata(self, **kwargs: str) -> None:
+        """Set presentation core properties from keyword arguments."""
         props = self.prs.core_properties
         for key, value in kwargs.items():
             key_lower = key.lower()
@@ -337,6 +362,7 @@ class PptEngine(DocumentABC):
                 props.comments = value
 
     def add_comment(self, text: str, slide_index: int = 0) -> None:
+        """Append a comment to the notes slide of the given slide."""
         if slide_index >= len(self.prs.slides):
             raise ValueError(f'Slide index {slide_index} out of range.')
         slide = self.prs.slides[slide_index]
@@ -347,6 +373,7 @@ class PptEngine(DocumentABC):
         tf.text += text
 
     def add_notes(self, slide_index: int, text: str) -> None:
+        """Set the speaker notes text for the given slide."""
         if slide_index >= len(self.prs.slides):
             raise ValueError(f'Slide index {slide_index} out of range.')
         notes_slide = self.prs.slides[slide_index].notes_slide
@@ -354,6 +381,7 @@ class PptEngine(DocumentABC):
         tf.text = text
 
     def to_images(self, output_dir: str | Path) -> list[Path]:
+        """Export every slide to a PNG image via LibreOffice."""
         import shutil
         import subprocess
         from pathlib import Path
@@ -381,7 +409,7 @@ class PptEngine(DocumentABC):
             )
 
         self.save()
-        subprocess.run(
+        subprocess.run(  # noqa: S603  # fixed trusted binary; full path validated by exists()
             [
                 lo_bin,
                 '--headless',
@@ -398,6 +426,7 @@ class PptEngine(DocumentABC):
         return sorted(output_dir.glob('*.png'))
 
     def set_transition(self, transition_type: str, slide_index: int | None = None) -> None:
+        """Set a transition effect on one slide or the whole deck."""
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         valid_transitions = {
             'fade',
@@ -435,6 +464,7 @@ class PptEngine(DocumentABC):
             etree.SubElement(trans_el, f'{{{ns}}}{ttype}')
 
     def set_protection(self, password: str) -> None:
+        """Protect the presentation with a modify-verifier password."""
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         pres_elem = self.prs.part._element
         existing = pres_elem.findall(f'{{{ns}}}modifyVerifier')
@@ -450,6 +480,7 @@ class PptEngine(DocumentABC):
         verifier.set('saltData', password)
 
     def unprotect(self) -> None:
+        """Remove the modify-verifier protection from the presentation."""
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         pres_elem = self.prs.part._element
         existing = pres_elem.findall(f'{{{ns}}}modifyVerifier')
@@ -457,12 +488,14 @@ class PptEngine(DocumentABC):
             pres_elem.remove(el)
 
     def clear_content(self) -> None:
+        """Clear text from all text frames in the presentation."""
         for slide in self.prs.slides:
             for shape in slide.shapes:
                 if shape.has_text_frame:
                     shape.text_frame.clear()
 
     def merge_workbooks(self, paths: list[str]) -> None:
+        """Merge slides from other presentations into this one."""
         from pptx import Presentation
 
         for p in paths:
@@ -471,6 +504,7 @@ class PptEngine(DocumentABC):
                 self.prs.slides.add_slide(slide.slide_layout)
 
     def extract_text(self) -> str:
+        """Extract all slide text as plain text lines."""
         lines: list[str] = []
         for slide_idx, slide in enumerate(self.prs.slides):
             for shape in slide.shapes:
@@ -482,6 +516,7 @@ class PptEngine(DocumentABC):
         return '\n'.join(lines)
 
     def extract_tables(self) -> list[list[list[str]]]:
+        """Extract tables from all slides as lists of string tables."""
         tables: list[list[list[str]]] = []
         for slide in self.prs.slides:
             for shape in slide.shapes:
@@ -491,6 +526,7 @@ class PptEngine(DocumentABC):
         return tables
 
     def extract_images(self, output_dir: str | Path) -> list[Path]:
+        """Save picture shapes to the output dir and list the saved paths."""
         from pptx.enum.shapes import MSO_SHAPE_TYPE
 
         out = Path(output_dir)
@@ -508,6 +544,7 @@ class PptEngine(DocumentABC):
         return saved
 
     def extract_structure(self) -> dict[str, Any]:
+        """Return presentation structure summary (slide and image counts)."""
         from pptx.enum.shapes import MSO_SHAPE_TYPE
 
         return {
@@ -545,7 +582,7 @@ class PptEngine(DocumentABC):
                     continue
                 try:
                     image_part = slide.part.related_part(r_id)
-                except Exception:
+                except Exception:  # noqa: S112  # broken/missing image part: skip, do not abort export
                     continue
                 part_id = id(image_part)
                 if part_id in seen:
@@ -555,19 +592,21 @@ class PptEngine(DocumentABC):
                 original = image_part._blob
                 try:
                     image = PILImage.open(io.BytesIO(original))
-                except Exception:
+                except Exception:  # noqa: S112  # corrupt image blob: skip, do not abort compression
                     continue
                 fmt = (image.format or 'JPEG').upper()
                 if max(image.size) > max_dimension:
                     ratio = max_dimension / max(image.size)
                     new_size = (int(image.width * ratio), int(image.height * ratio))
-                    image = image.resize(new_size, PILImage.LANCZOS)
+                    resized = image.resize(new_size, PILImage.LANCZOS)
+                else:
+                    resized = image
 
                 buf = io.BytesIO()
                 if fmt == 'JPEG':
-                    image.convert('RGB').save(buf, 'JPEG', quality=quality, optimize=True)
+                    resized.convert('RGB').save(buf, 'JPEG', quality=quality, optimize=True)
                 elif fmt == 'PNG':
-                    image.save(buf, 'PNG', optimize=True)
+                    resized.save(buf, 'PNG', optimize=True)
                 else:
                     continue
 

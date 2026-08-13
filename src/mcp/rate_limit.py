@@ -15,6 +15,7 @@ class RateLimitError(Exception):
     """Raised when a client exceeds the configured request budget."""
 
     def __init__(self, message: str) -> None:
+        """Initialize the error with a message and machine-readable code."""
         super().__init__(message)
         self.code = 'rate_limited'
 

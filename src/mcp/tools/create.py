@@ -15,7 +15,7 @@ from src.utils.file_utils import ensure_parent_dir
 
 
 def create_office_document(
-    format: Annotated[
+    format: Annotated[  # noqa: A002  # tool schema field name; renaming breaks MCP API
         str,
         Field(
             description=(
@@ -39,9 +39,9 @@ def create_office_document(
         Field(description='Document metadata (title, author, etc.).'),
     ] = None,
     options: Annotated[ToolOptions | None, Field(description='Tool options.')] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Create a Word, Excel, or PowerPoint document."""
-    content = as_dict(content)
+    content_blocks: list[dict[str, Any]] = as_dict(content)
     opts: dict[str, Any] = as_dict(options) or {}
     fmt = format.lower().replace('pptx', 'ppt').replace('ppt', 'ppt')
     fmt_map = {'docx': DocumentType.WORD, 'xlsx': DocumentType.EXCEL, 'ppt': DocumentType.PPT}
@@ -62,8 +62,8 @@ def create_office_document(
         return success_response(
             {
                 'dry_run': True,
-                'planned_content': len(content),
-                'planned_items': [c.get('type', 'paragraph') for c in content],
+                'planned_content': len(content_blocks),
+                'planned_items': [c.get('type', 'paragraph') for c in content_blocks],
             }
         )
 
@@ -73,7 +73,7 @@ def create_office_document(
         if style:
             engine.set_style(style)
 
-        for item in content:
+        for item in content_blocks:
             item_type = item.get('type', 'paragraph')
             text = item.get('text', '')
             item_style = item.get('style')
@@ -147,7 +147,7 @@ def create_office_document(
             {
                 'output_path': output_path,
                 'format': format,
-                'content_items': len(content),
+                'content_items': len(content_blocks),
                 **stats,
             },
             content=_make_content(output_path, f'Document created: {output_path}'),
@@ -172,6 +172,6 @@ def _get_stats(engine: Any, obj: Any) -> dict[str, int]:
             return {
                 'slides': len(obj.slides),
             }
-    except Exception:
+    except Exception:  # noqa: S110  # introspection of library objects is best-effort; return {} on failure
         pass
     return {}

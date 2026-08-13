@@ -1,3 +1,5 @@
+"""One-shot CLI command for the tianshang-scribe application."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -310,6 +312,7 @@ def main(
         ),
     ] = None,
 ) -> None:
+    """Run one-shot CLI operations on a single document or batch of files."""
     if not create and not input_file and not files and not stdin:
         console.print(app.info.help or 'tianshang-scribe — CLI Office document tool')
         return
@@ -712,7 +715,7 @@ def _convert_source(input_path: str, output_path: str, to_pdf: bool = False) -> 
         console.print(f'[green]Converted to PDF:[/green] {output_path}')
 
 
-def _add_latex_content(engine, text: str, column: int = 1) -> None:
+def _add_latex_content(engine: Any, text: str, column: int = 1) -> None:
     if hasattr(engine, 'add_latex_content'):
         engine.add_latex_content(text)
         console.print('[green]LaTeX content added with style parsing.[/green]')
@@ -723,7 +726,7 @@ def _add_latex_content(engine, text: str, column: int = 1) -> None:
         engine.add_text(text, column=column)
 
 
-def _add_math_formula(engine, latex: str) -> None:
+def _add_math_formula(engine: Any, latex: str) -> None:
     if hasattr(engine, 'add_math_formula'):
         engine.add_math_formula(latex)
         console.print(f'[green]Math formula added:[/green] ${latex}$')
@@ -732,13 +735,13 @@ def _add_math_formula(engine, latex: str) -> None:
         raise typer.Exit(code=2)
 
 
-def _apply_template(engine, template_path: str) -> None:
+def _apply_template(engine: Any, template_path: str) -> None:
     tpl_engine = TemplateEngine(template_path)
     count = tpl_engine.fill(engine)
     console.print(f'[green]Template filled:[/green] {count} placeholder(s) replaced.')
 
 
-def _parse_heading(engine, heading_str: str) -> None:
+def _parse_heading(engine: Any, heading_str: str) -> None:
     import re
 
     match = re.match(r'level:(\d+)\s+text:(.+)', heading_str)
@@ -753,7 +756,7 @@ def _parse_heading(engine, heading_str: str) -> None:
         engine.add_text(heading_str)
 
 
-def _apply_meta(engine, meta_str: str) -> None:
+def _apply_meta(engine: Any, meta_str: str) -> None:
     kwargs: dict[str, str] = {}
     pairs = [p.strip() for p in meta_str.split(',') if p.strip()]
     for pair in pairs:
@@ -886,6 +889,7 @@ def open_cmd(
 
 
 def main_cli() -> None:
+    """Entry point dispatching between the ``open`` subcommand and the main app."""
     import sys
 
     args = sys.argv[1:]

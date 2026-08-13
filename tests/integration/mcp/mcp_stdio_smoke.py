@@ -1,6 +1,6 @@
 """Quick test for TianshangScribe MCP Server via stdio JSON-RPC.
 
-Run:  python tests/mcp/mcp_stdio_smoke.py
+Run:  python tests/integration/mcp/mcp_stdio_smoke.py
 """
 
 import json
@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from tests.mcp._mcp_client import MCPClient
+from tests.integration.mcp._mcp_client import MCPClient
 
 
 def main() -> None:

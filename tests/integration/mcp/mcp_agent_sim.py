@@ -1,6 +1,6 @@
 """Agent simulation: test all 7 MCP tools with realistic workflows.
 
-Run:  python tests/mcp/mcp_agent_sim.py
+Run:  python tests/integration/mcp/mcp_agent_sim.py
 """
 
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.core.word_engine import WordEngine
-from tests.mcp._mcp_client import MCPClient
+from tests.integration.mcp._mcp_client import MCPClient
 
 OUT = Path(tempfile.mkdtemp(prefix='mcp_agent_test_'))
 

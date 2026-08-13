@@ -24,6 +24,7 @@ from src.mcp.metrics import instrumented
 from src.mcp.prompts import register_prompts
 from src.mcp.rate_limit import RateLimiter
 from src.mcp.security import is_destructive, is_idempotent, is_read_only
+from src.mcp.tool_search import install_tool_search
 from src.mcp.tools._registry import get_tools
 
 SERVER_NAME = 'tianshang-scribe'
@@ -63,6 +64,7 @@ def build_server(version: str = SERVER_VERSION) -> MCPServer:
         )
 
     register_prompts(server)
+    install_tool_search(server)
     transport.register_observability(server, version)
     return server
 

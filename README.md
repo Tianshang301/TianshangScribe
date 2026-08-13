@@ -30,12 +30,13 @@ pip install -e ".[dev]"
 
 ### Linux Deployment
 
-**Docker** (recommended for SSE MCP Server):
+**Docker** (recommended for MCP Server over Streamable HTTP):
 ```bash
 git clone https://github.com/Tianshang301/TianshangScribe.git
 cd TianshangScribe
 docker compose up -d
-# SSE MCP Server at http://localhost:8080/sse
+# Streamable HTTP MCP Server at http://localhost:8080/mcp
+# (override transport / auth / rate limits via SCRIBE_* env vars)
 ```
 
 **.deb package** (Debian / Ubuntu):
@@ -457,7 +458,7 @@ src/
 | Math | Custom recursive descent parser 鈫?OMML XML |
 | Templates | Custom engine ({{placeholder}}, {{#each}}, {{#if}}) |
 | PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
-| Quality | pytest (365 tests) 路 ruff 路 mypy |
+| Quality | pytest (414 tests) 路 ruff 路 mypy |
 
 ## Build EXE
 

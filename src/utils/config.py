@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     mcp_path: str = '/mcp'
     """Streamable HTTP endpoint path."""
 
+    log_level: str = 'INFO'
+    """Logging threshold (``DEBUG``/``INFO``/``WARNING``/``ERROR``)."""
+
+    log_json: bool = False
+    """Emit structured JSON logs instead of pretty console output."""
+
     def bearer_tokens(self) -> list[str]:
         """Return the union of configured bearer tokens, de-duplicated."""
         tokens: list[str] = []

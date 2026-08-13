@@ -21,6 +21,8 @@ from starlette.responses import JSONResponse, Response
 
 from src.mcp.metrics import metrics_endpoint
 from src.mcp.rate_limit import RateLimiter
+from src.utils.config import Settings
+from src.utils.logging import get_logger
 
 PUBLIC_PATHS = ('/health', '/metrics')
 
@@ -80,6 +82,13 @@ class AuthMiddleware:
             if method != 'OPTIONS' and path not in PUBLIC_PATHS:
                 header = _headers(scope).get('authorization', '')
                 if not header.startswith('Bearer '):
+                    get_logger('scribe.http').warning(
+                        'auth_rejected',
+                        method=method,
+                        path=path,
+                        status_code=401,
+                        reason='missing_token',
+                    )
                     await self._reject(scope, receive, send, status_code=401)
                     return
                 candidate = header[len('Bearer ') :].strip()
@@ -87,6 +96,13 @@ class AuthMiddleware:
                     hmac.compare_digest(candidate.encode(), expected.encode())
                     for expected in self.expected
                 ):
+                    get_logger('scribe.http').warning(
+                        'auth_rejected',
+                        method=method,
+                        path=path,
+                        status_code=403,
+                        reason='invalid_token',
+                    )
                     await self._reject(scope, receive, send, status_code=403)
                     return
         await self.app(scope, receive, send)
@@ -124,6 +140,14 @@ class RateLimitMiddleware:
                 and path not in PUBLIC_PATHS
                 and not self.limiter.is_allowed(self._client_id(scope))
             ):
+                client_id = self._client_id(scope)
+                get_logger('scribe.http').warning(
+                    'rate_limited',
+                    method=method,
+                    path=path,
+                    status_code=429,
+                    client_id=client_id,
+                )
                 response = JSONResponse(
                     {
                         'error': 'rate_limited',
@@ -202,6 +226,35 @@ def run_stdio(server: Any) -> None:
     asyncio.run(server.run_stdio_async())
 
 
+def _uvicorn_log_config() -> dict[str, Any]:
+    """Return a uvicorn log config aligned with the structlog pipeline.
+
+    ``level`` is read from the current :class:`Settings` so ``SCRIBE_LOG_LEVEL``
+    and ``SCRIBE_LOG_JSON`` control uvicorn's access/error logs too.
+    """
+    settings = Settings()
+    level = settings.log_level.upper()
+    formatter = 'json' if settings.log_json else 'default'
+    return {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'default': {'format': '%(asctime)s %(levelname)s %(name)s: %(message)s'},
+            'json': {
+                'format': '{"ts":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","message":"%(message)s"}',
+            },
+        },
+        'handlers': {
+            'default': {'class': 'logging.StreamHandler', 'formatter': formatter},
+        },
+        'loggers': {
+            'uvicorn': {'handlers': ['default'], 'level': level, 'propagate': False},
+            'uvicorn.access': {'handlers': ['default'], 'level': level, 'propagate': False},
+            'uvicorn.error': {'handlers': ['default'], 'level': level, 'propagate': False},
+        },
+    }
+
+
 def run_sse(
     server: Any,
     *,
@@ -221,7 +274,7 @@ def run_sse(
         rate_limiter=rate_limiter,
         host=host,
     )
-    uvicorn.run(app, host=host, port=port, log_level='info')
+    uvicorn.run(app, host=host, port=port, log_config=_uvicorn_log_config())
 
 
 def run_http(
@@ -245,4 +298,4 @@ def run_http(
         streamable_http_path=streamable_http_path,
         host=host,
     )
-    uvicorn.run(app, host=host, port=port, log_level='info')
+    uvicorn.run(app, host=host, port=port, log_config=_uvicorn_log_config())

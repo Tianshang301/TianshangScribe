@@ -6,15 +6,22 @@ services:
     ports:
       - "8080:8080"
     environment:
+      - SCRIBE_TRANSPORT=${SCRIBE_TRANSPORT:-streamable-http}
       - SCRIBE_AUTH_TOKEN=${SCRIBE_AUTH_TOKEN:-}
+      - SCRIBE_API_KEYS=${SCRIBE_API_KEYS:-}
       - SCRIBE_CORS_ORIGINS=${SCRIBE_CORS_ORIGINS:-}
+      - SCRIBE_RATE_LIMIT_MAX=${SCRIBE_RATE_LIMIT_MAX:-100}
+      - SCRIBE_RATE_LIMIT_WINDOW=${SCRIBE_RATE_LIMIT_WINDOW:-60}
+      - SCRIBE_LOG_LEVEL=${SCRIBE_LOG_LEVEL:-INFO}
+      - SCRIBE_LOG_JSON=${SCRIBE_LOG_JSON:-0}
     volumes:
       - scribe_output:/tmp/scribe
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://localhost:8080/health'); print(r.read().decode())"]
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2); print(r.read().decode())"]
       interval: 30s
       timeout: 3s
+      start_period: 10s
       retries: 3
 
 volumes:

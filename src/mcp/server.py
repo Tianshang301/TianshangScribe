@@ -26,6 +26,7 @@ from src.mcp.security import is_destructive, is_idempotent, is_read_only
 from src.mcp.tool_search import install_tool_search
 from src.mcp.tools._registry import get_tools
 from src.utils.config import Settings
+from src.utils.logging import configure_logging
 
 SERVER_NAME = 'tianshang-scribe'
 SERVER_VERSION = '0.3.0'
@@ -72,6 +73,7 @@ def build_server(version: str = SERVER_VERSION) -> MCPServer:
 def main() -> None:
     """CLI entry point (``scribe-mcp`` / ``python -m src.mcp.server``)."""
     settings = Settings()
+    configure_logging(settings)
     parser = argparse.ArgumentParser(description='TianshangScribe MCP Server')
     parser.add_argument(
         '--transport',

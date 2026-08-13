@@ -210,24 +210,28 @@ class TemplateEngine:
             if template_row is None:
                 continue
 
+            template_cells = {
+                col: ws.cell(row=template_row, column=col).value
+                for col in range(1, ws.max_column + 1)
+            }
+
             for item_idx, item in enumerate(items):
                 copy_row = template_row + item_idx
                 if copy_row != template_row:
                     ws.insert_rows(copy_row)
-                for col_idx in range(1, ws.max_column + 1):
-                    src = ws.cell(row=template_row, column=col_idx)
-                    if src.value and isinstance(src.value, str):
-                        new_val = src.value
-                        if isinstance(item, dict):
-                            for ik, iv in item.items():
-                                new_val = new_val.replace(f'{{{{{ik}}}}}', str(iv))
-                        else:
-                            new_val = new_val.replace('{{this}}', str(item))
-                        ws.cell(row=copy_row, column=col_idx, value=new_val)
+                for col_idx, src_val in template_cells.items():
+                    if not src_val or not isinstance(src_val, str):
+                        continue
+                    new_val = src_val
+                    if isinstance(item, dict):
+                        for ik, iv in item.items():
+                            new_val = new_val.replace(f'{{{{{ik}}}}}', str(iv))
+                    else:
+                        new_val = new_val.replace('{{this}}', str(item))
+                    ws.cell(row=copy_row, column=col_idx, value=new_val)
 
             if header_row is not None:
                 ws.cell(row=header_row, column=1, value='')
-            ws.cell(row=template_row, column=1, value='')
 
             return len(items)
 

@@ -30,12 +30,13 @@ pip install -e ".[dev]"
 
 ### Linux 部署
 
-**Docker**（推荐，用于 SSE MCP Server）：
+**Docker**（推荐，用于 Streamable HTTP MCP Server）：
 ```bash
 git clone https://github.com/Tianshang301/TianshangScribe.git
 cd TianshangScribe
 docker compose up -d
-# SSE MCP Server 监听 http://localhost:8080/sse
+# Streamable HTTP MCP Server 监听 http://localhost:8080/mcp
+# （传输 / 认证 / 限流均可通过 SCRIBE_* 环境变量覆盖）
 ```
 
 **.deb 包**（Debian / Ubuntu）：
@@ -457,7 +458,7 @@ src/
 | 数学公式 | 自研递归下降解析器 → OMML XML |
 | 模板 | 自研引擎（{{placeholder}}、{{#each}}、{{#if}}） |
 | PDF | office2pdf（~2MB Rust 二进制，零依赖）+ LibreOffice 回退 |
-| 质量 | pytest（365 用例）· ruff · mypy |
+| 质量 | pytest（414 用例）· ruff · mypy |
 
 ## 构建 EXE
 

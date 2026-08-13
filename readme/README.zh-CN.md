@@ -332,6 +332,8 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## MCP Server
 
+[![TianshangScribe MCP server](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/card.svg)](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe)
+
 TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent 可创建、编辑、填充模板、格式转换和提取 Office 文档数据。
 
 ### 快速接入

@@ -331,6 +331,8 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 
 ## MCP Server
 
+[![TianshangScribe MCP server](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/card.svg)](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe)
+
 TianshangScribe includes an MCP (Model Context Protocol) server — AI Agents can create, edit, fill templates, convert, and extract data from Office documents.
 
 ### Quick Connect

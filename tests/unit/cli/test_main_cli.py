@@ -311,7 +311,7 @@ class TestOverwriteGuard:
     def test_existing_output_requires_force(self, fake_engine, tmp_in: Path) -> None:
         code, out = _run('--output', str(tmp_in), str(tmp_in))
         assert code == 1
-        assert 'already exists' in out
+        assert 'already exists' in ' '.join(out.split())
 
     def test_no_input_and_no_create(self, fake_engine) -> None:
         code, _out = _run('--force')

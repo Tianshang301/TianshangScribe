@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 import structlog
 
 from src.utils.config import Settings
 from src.utils.logging import configure_logging, get_logger, log_http_event
+
+_ANSI = re.compile(r'\x1b\[[0-9;]*m')
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI.sub('', text)
 
 
 @pytest.fixture(autouse=True)
@@ -26,7 +33,7 @@ def _capture(capsys: pytest.CaptureFixture[str], event: str, **kw: object) -> st
 class TestConsoleMode:
     def test_console_output(self, capsys) -> None:
         configure_logging(Settings(log_json=False))
-        out = _capture(capsys, 'ping', key='v')
+        out = _strip_ansi(_capture(capsys, 'ping', key='v'))
         assert 'ping' in out
         assert 'key=v' in out
 

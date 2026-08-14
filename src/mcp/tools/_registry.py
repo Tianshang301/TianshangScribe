@@ -93,8 +93,12 @@ TOOLS: list[ToolEntry] = [
         'description': (
             'Compare two Word (.docx) documents and report paragraph-level '
             'differences: additions, removals, and changes with paragraph indices. '
-            "Read-only — never modifies either file. To read a single document's "
-            'content, use extract_document_data.'
+            'Also manages document snapshots via options.action: "snapshot" records '
+            'path_a state, "list_snapshots" lists recorded snapshots, and "restore" '
+            'writes a snapshot back to path_b (snapshot store default: '
+            '~/.tianshang-scribe/snapshots/). The compare mode never modifies its '
+            'inputs; snapshot/restore write to the snapshot store. To read a single '
+            'document, use extract_document_data.'
         ),
     },
 ]

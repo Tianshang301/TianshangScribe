@@ -15,8 +15,9 @@ WRITE_TOOLS = {
     'edit_office_document',
     'fill_template',
     'convert_document',
+    'compare_documents',
 }
-READ_ONLY_TOOLS = {'extract_document_data', 'validate_template', 'compare_documents'}
+READ_ONLY_TOOLS = {'extract_document_data', 'validate_template'}
 DESTRUCTIVE_TOOLS = {'edit_office_document'}
 
 

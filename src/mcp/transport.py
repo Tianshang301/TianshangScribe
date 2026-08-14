@@ -1,9 +1,10 @@
 """HTTP transport wiring for the TianshangScribe MCP Server.
 
 Builds on the official MCP SDK apps (:meth:`mcp.server.mcpserver.MCPServer.sse_app`
-and ``.streamable_http_app``) and wraps them with CORS, bearer-token auth and
-sliding-window rate limiting. ``/health`` and ``/metrics`` are registered on the
-server itself via ``custom_route`` so they stay available on every transport.
+and ``.streamable_http_app``) and wraps them with CORS, bearer-token auth,
+role-based access control and sliding-window rate limiting. ``/health`` and
+``/metrics`` are registered on the server itself via ``custom_route`` so they
+stay available on every transport.
 
 Middleware is implemented as pure ASGI classes (not ``BaseHTTPMiddleware``) so
 the long-lived SSE/streamable-HTTP GET streams are never buffered.
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -21,10 +23,12 @@ from starlette.responses import JSONResponse, Response
 
 from src.mcp.metrics import metrics_endpoint
 from src.mcp.rate_limit import RateLimiter
+from src.mcp.security import parse_role, role_allows
 from src.utils.config import Settings
 from src.utils.logging import get_logger
 
 PUBLIC_PATHS = ('/health', '/metrics')
+ROLE_HEADER = 'x-scribe-role'
 
 
 def register_observability(server: Any, version: str) -> None:
@@ -56,6 +60,51 @@ def _headers(scope: dict[str, Any]) -> dict[str, str]:
         key.decode('latin-1').lower(): value.decode('latin-1')
         for key, value in scope.get('headers', [])
     }
+
+
+async def _read_body(receive: Any) -> bytes:
+    """Consume the full request body from the ASGI ``receive`` callable."""
+    chunks: list[bytes] = []
+    while True:
+        message = await receive()
+        if message.get('type') != 'http.request':
+            break
+        chunks.append(message.get('body', b''))
+        if not message.get('more_body'):
+            break
+    return b''.join(chunks)
+
+
+def _replaying_receive(body: bytes) -> Callable[..., Any]:
+    """Return a ``receive`` that replays an already-consumed body once."""
+
+    async def receive() -> dict[str, Any]:
+        return {'type': 'http.request', 'body': body, 'more_body': False}
+
+    return receive
+
+
+def _parse_rpc_tool(body: bytes) -> tuple[str, str]:
+    """Extract (method, tool name) from a JSON-RPC body.
+
+    Returns (``''``, ``''``) when the body is not JSON-RPC or the method is not
+    ``tools/call``. A batch body checks every request until one names a tool.
+    """
+    try:
+        payload = json.loads(body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return '', ''
+    items = payload if isinstance(payload, list) else [payload]
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        method = item.get('method', '')
+        if method == 'tools/call':
+            params = item.get('params', {})
+            if isinstance(params, dict):
+                name = params.get('name')
+                return method, str(name) if name else ''
+    return '', ''
 
 
 class AuthMiddleware:
@@ -122,6 +171,49 @@ class AuthMiddleware:
         await response(scope, receive, send)
 
 
+class RbacMiddleware:
+    """Reject JSON-RPC ``tools/call`` requests for tools the role cannot use.
+
+    The client declares its role with the ``X-Scribe-Role`` header (values:
+    ``viewer`` / ``editor`` / ``owner``). When the header is absent or unknown
+    the most privileged role (``owner``) is assumed so existing deployments
+    keep working unchanged. Requests are allowed when the caller's role may
+    invoke the requested tool per :data:`src.mcp.security.ROLE_TOOL_MATRIX`.
+    """
+
+    def __init__(self, app: Callable[..., Any]) -> None:
+        """Store the ASGI app wrapped by the RBAC check."""
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        """Enforce the role→tool matrix on JSON-RPC tool calls."""
+        if scope.get('type') == 'http' and scope.get('method') == 'POST':
+            body = await _read_body(receive)
+            method, tool_name = _parse_rpc_tool(body)
+            if method == 'tools/call' and tool_name:
+                role = parse_role(_headers(scope).get(ROLE_HEADER))
+                if not role_allows(role, tool_name):
+                    get_logger('scribe.http').warning(
+                        'rbac_rejected',
+                        method=method,
+                        tool=tool_name,
+                        role=role.value,
+                        status_code=403,
+                    )
+                    response = JSONResponse(
+                        {
+                            'error': 'forbidden',
+                            'message': f'Role {role.value!r} is not allowed to call {tool_name!r}.',
+                        },
+                        status_code=403,
+                    )
+                    await response(scope, receive, send)
+                    return
+            await self.app(scope, _replaying_receive(body), send)
+            return
+        await self.app(scope, receive, send)
+
+
 class RateLimitMiddleware:
     """Sliding-window rate limiting keyed by client IP / forwarded header."""
 
@@ -175,7 +267,7 @@ def _wrap_app(
     cors_origins: str | None,
     rate_limiter: RateLimiter,
 ) -> Callable[..., Any]:
-    """Compose CORS, rate limiting and auth around an MCP SDK app."""
+    """Compose CORS, rate limiting, auth and RBAC around an MCP SDK app."""
     origins = [origin.strip() for origin in (cors_origins or '').split(',') if origin.strip()]
     app = CORSMiddleware(
         app,
@@ -185,6 +277,7 @@ def _wrap_app(
     )
     app = RateLimitMiddleware(app, rate_limiter)
     app = AuthMiddleware(app, auth_token)
+    app = RbacMiddleware(app)
     return app
 
 

@@ -109,6 +109,14 @@ class ToolOptions(BaseModel):
 
     model_config = ConfigDict(extra='allow')
 
+    action: Literal['compare', 'snapshot', 'list_snapshots', 'restore'] | None = Field(
+        default=None,
+        description=(
+            'Sub-operation for compare_documents: "compare" (default) diffs two '
+            'documents; "snapshot" records path_a state; "list_snapshots" lists '
+            'recorded snapshots; "restore" writes a snapshot back to path_b.'
+        ),
+    )
     dry_run: bool | None = Field(
         default=None,
         description='Validate inputs and report the plan without writing any file.',
@@ -116,6 +124,14 @@ class ToolOptions(BaseModel):
     backup: bool | None = Field(
         default=None,
         description='Create a .bak copy of the target file before overwriting.',
+    )
+    snapshot_dir: str | None = Field(
+        default=None,
+        description='Directory to store/read document snapshots (default: ~/.tianshang-scribe/snapshots/).',
+    )
+    snapshot_id: str | None = Field(
+        default=None,
+        description='Snapshot identifier used by the restore action.',
     )
     deterministic_id: str | None = Field(
         default=None,

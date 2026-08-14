@@ -11,6 +11,8 @@ from src.mcp.transport import (
     PUBLIC_PATHS,
     AuthMiddleware,
     RateLimitMiddleware,
+    RbacMiddleware,
+    _parse_rpc_tool,
     build_http_app,
     build_sse_app,
 )
@@ -221,6 +223,129 @@ class TestWrapApps:
         assert status == 401
         status, _ = run(invoke(app, Scope.http(path='/mcp', method='POST', auth='Bearer tok')))
         assert status == 200
+
+
+class _JsonCallRecordingApp:
+    """ASGI stub that records whether a JSON-RPC tools/call reached it."""
+
+    def __init__(self) -> None:
+        self.called = False
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        self.called = True
+
+
+def _call_scope(tool: str, role: str | None = None) -> dict[str, Any]:
+    scope = Scope.http(method='POST')
+    scope['headers'].append(
+        (
+            b'content-type',
+            b'application/json',
+        )
+    )
+    if role:
+        scope['headers'].append((b'x-scribe-role', role.encode()))
+    scope['_body'] = json.dumps(
+        {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/call', 'params': {'name': tool}}
+    ).encode()
+    return scope
+
+
+async def rbac_invoke(app: Any, scope: dict[str, Any]) -> tuple[int, str]:
+    """Drive an ASGI app that consumes the body via receive."""
+    body = scope.get('_body', b'')
+    sent: list[dict[str, Any]] = []
+    consumed = False
+
+    async def receive() -> dict[str, Any]:
+        nonlocal consumed
+        if not consumed:
+            consumed = True
+            return {'type': 'http.request', 'body': body, 'more_body': False}
+        return {'type': 'http.disconnect'}
+
+    async def send(message: dict[str, Any]) -> None:
+        sent.append(message)
+
+    await app(scope, receive, send)
+    status = next((m.get('status') for m in sent if m.get('type') == 'http.response.start'), 200)
+    out = b''.join(m.get('body', b'') for m in sent if m.get('type') == 'http.response.body')
+    return int(status), out.decode('utf-8', 'replace')
+
+
+class TestParseRpcTool:
+    def test_single_call(self) -> None:
+        body = json.dumps(
+            {'method': 'tools/call', 'params': {'name': 'create_office_document'}}
+        ).encode()
+        assert _parse_rpc_tool(body) == ('tools/call', 'create_office_document')
+
+    def test_non_call_method(self) -> None:
+        body = json.dumps({'method': 'tools/list'}).encode()
+        assert _parse_rpc_tool(body) == ('', '')
+
+    def test_batch_extracts_first_tool(self) -> None:
+        body = json.dumps(
+            [
+                {'method': 'tools/call', 'params': {'name': 'edit_office_document'}},
+                {'method': 'tools/list'},
+            ]
+        ).encode()
+        assert _parse_rpc_tool(body) == ('tools/call', 'edit_office_document')
+
+    def test_invalid_json(self) -> None:
+        assert _parse_rpc_tool(b'not json') == ('', '')
+
+    def test_missing_name(self) -> None:
+        body = json.dumps({'method': 'tools/call', 'params': {}}).encode()
+        assert _parse_rpc_tool(body) == ('tools/call', '')
+
+
+class TestRbacMiddleware:
+    def test_viewer_blocked_from_standard_tool(self) -> None:
+        inner = _JsonCallRecordingApp()
+        app = RbacMiddleware(inner)
+        status, body = run(rbac_invoke(app, _call_scope('create_office_document', role='viewer')))
+        assert status == 403
+        assert 'forbidden' in body
+        assert inner.called is False
+
+    def test_viewer_allowed_read_only_tool(self) -> None:
+        inner = _JsonCallRecordingApp()
+        app = RbacMiddleware(inner)
+        status, _ = run(rbac_invoke(app, _call_scope('extract_document_data', role='viewer')))
+        assert status == 200
+        assert inner.called is True
+
+    def test_editor_allowed_standard_but_not_destructive(self) -> None:
+        inner = _JsonCallRecordingApp()
+        app = RbacMiddleware(inner)
+        status, _ = run(rbac_invoke(app, _call_scope('convert_document', role='editor')))
+        assert status == 200
+        status, _ = run(rbac_invoke(app, _call_scope('edit_office_document', role='editor')))
+        assert status == 403
+
+    def test_owner_allowed_destructive(self) -> None:
+        inner = _JsonCallRecordingApp()
+        app = RbacMiddleware(inner)
+        status, _ = run(rbac_invoke(app, _call_scope('edit_office_document', role='owner')))
+        assert status == 200
+        assert inner.called is True
+
+    def test_missing_role_defaults_to_owner(self) -> None:
+        inner = _JsonCallRecordingApp()
+        app = RbacMiddleware(inner)
+        status, _ = run(rbac_invoke(app, _call_scope('edit_office_document')))
+        assert status == 200
+
+    def test_non_tool_request_passes_through(self) -> None:
+        inner = _JsonCallRecordingApp()
+        app = RbacMiddleware(inner)
+        scope = Scope.http(method='POST')
+        scope['_body'] = json.dumps({'method': 'tools/list'}).encode()
+        status, _ = run(rbac_invoke(app, scope))
+        assert status == 200
+        assert inner.called is True
 
 
 class _FakeMCP:

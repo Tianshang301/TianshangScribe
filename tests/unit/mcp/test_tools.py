@@ -399,6 +399,91 @@ class TestCompareDocuments:
         assert result['error_code'] == McpErrorCode.UNSUPPORTED_FORMAT
 
 
+class TestCompareSnapshots:
+    def test_snapshot_and_list(self, tmp_path: Path, docx_with_text: Path) -> None:
+        store = tmp_path / 'store'
+        result = compare_documents(
+            str(docx_with_text),
+            '',
+            ToolOptions(action='snapshot', snapshot_dir=str(store)),
+        )
+        assert result['success'] is True
+        snapshot_id = result['data']['snapshot_id']
+        assert result['data']['paragraph_count'] == 1
+
+        listed = compare_documents(
+            str(docx_with_text),
+            '',
+            ToolOptions(action='list_snapshots', snapshot_dir=str(store)),
+        )
+        assert listed['success'] is True
+        assert snapshot_id in [s['snapshot_id'] for s in listed['data']['snapshots']]
+
+    def test_snapshot_missing_document(self, tmp_path: Path) -> None:
+        result = compare_documents(
+            str(tmp_path / 'nope.docx'),
+            '',
+            ToolOptions(action='snapshot', snapshot_dir=str(tmp_path / 'store')),
+        )
+        assert result['success'] is False
+        assert result['error_code'] == McpErrorCode.DOCUMENT_NOT_FOUND
+
+    def test_snapshot_restore_roundtrip(self, tmp_path: Path) -> None:
+        e = WordEngine()
+        e.create()
+        e.add_text('line one')
+        e.add_text('line two')
+        src = tmp_path / 'src.docx'
+        e.save(str(src))
+
+        store = tmp_path / 'store'
+        snap = compare_documents(
+            str(src), '', ToolOptions(action='snapshot', snapshot_dir=str(store))
+        )
+        snapshot_id = snap['data']['snapshot_id']
+
+        out = tmp_path / 'restored.docx'
+        result = compare_documents(
+            str(src),
+            str(out),
+            ToolOptions(action='restore', snapshot_dir=str(store), snapshot_id=snapshot_id),
+        )
+        assert result['success'] is True
+        assert result['data']['paragraph_count'] == 2
+        restored = WordEngine()
+        restored.open(str(out))
+        texts = [p.text for p in restored.doc.paragraphs]
+        assert texts == ['line one', 'line two']
+
+    def test_restore_missing_snapshot(self, tmp_path: Path, docx_with_text: Path) -> None:
+        store = tmp_path / 'store'
+        result = compare_documents(
+            str(docx_with_text),
+            str(tmp_path / 'out.docx'),
+            ToolOptions(action='restore', snapshot_dir=str(store), snapshot_id='deadbeef'),
+        )
+        assert result['success'] is False
+        assert result['error_code'] == McpErrorCode.DOCUMENT_NOT_FOUND
+
+    def test_restore_without_snapshot_id(self, tmp_path: Path, docx_with_text: Path) -> None:
+        result = compare_documents(
+            str(docx_with_text),
+            str(tmp_path / 'out.docx'),
+            ToolOptions(action='restore'),
+        )
+        assert result['success'] is False
+        assert result['error_code'] == McpErrorCode.INVALID_PARAMETER
+
+    def test_list_empty_store(self, tmp_path: Path, docx_with_text: Path) -> None:
+        result = compare_documents(
+            str(docx_with_text),
+            '',
+            ToolOptions(action='list_snapshots', snapshot_dir=str(tmp_path / 'store')),
+        )
+        assert result['success'] is True
+        assert result['data']['snapshots'] == []
+
+
 class TestCreateCrossFormatFallbacks:
     """Data-driven: content blocks must degrade gracefully on non-Word engines."""
 

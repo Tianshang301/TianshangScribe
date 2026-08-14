@@ -122,14 +122,16 @@ class TestSecurity:
     def test_is_read_only(self) -> None:
         assert security.is_read_only('extract_document_data') is True
         assert security.is_read_only('create_office_document') is False
+        assert security.is_read_only('compare_documents') is False
 
     def test_is_destructive(self) -> None:
         assert security.is_destructive('edit_office_document') is True
         assert security.is_destructive('fill_template') is False
 
     def test_is_idempotent(self) -> None:
-        assert security.is_idempotent('compare_documents') is True
+        assert security.is_idempotent('compare_documents') is False
         assert security.is_idempotent('create_office_document') is False
+        assert security.is_idempotent('extract_document_data') is True
 
     def test_idempotent_table_covers_registry(self) -> None:
         from src.mcp.tools._registry import TOOLS
@@ -151,6 +153,29 @@ class TestSecurity:
         )
         assert security.check_permission('extract_document_data', set()) is True
         assert security.check_permission('create_office_document', set()) is False
+
+    def test_roles_for(self) -> None:
+        assert security.roles_for('edit_office_document') == {security.Role.OWNER}
+        assert security.roles_for('extract_document_data') == {
+            security.Role.VIEWER,
+            security.Role.EDITOR,
+            security.Role.OWNER,
+        }
+
+    def test_role_allows(self) -> None:
+        assert security.role_allows(security.Role.VIEWER, 'extract_document_data') is True
+        assert security.role_allows(security.Role.VIEWER, 'create_office_document') is False
+        assert security.role_allows(security.Role.EDITOR, 'create_office_document') is True
+        assert security.role_allows(security.Role.EDITOR, 'edit_office_document') is False
+        assert security.role_allows(security.Role.OWNER, 'edit_office_document') is True
+
+    def test_parse_role(self) -> None:
+        assert security.parse_role('viewer') == security.Role.VIEWER
+        assert security.parse_role('EDITOR') == security.Role.EDITOR
+        assert security.parse_role('  owner ') == security.Role.OWNER
+        assert security.parse_role('unknown') == security.Role.OWNER
+        assert security.parse_role(None) == security.Role.OWNER
+        assert security.parse_role('') == security.Role.OWNER
 
 
 class TestBuildServer:

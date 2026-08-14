@@ -90,10 +90,10 @@ tianshang-scribe template.docx -t data.json -o filled.docx
 tianshang-scribe input.docx --topdf -o output.pdf
 
 # MCP Server — stdio 模式（Claude Code / Cursor）
-python -m src.mcp.server
+python -m tianshang_scribe.mcp.server
 
 # MCP Server — SSE 模式（Dify / Coze / FastGPT）
-python -m src.mcp.server --transport sse --port 8080
+python -m tianshang_scribe.mcp.server --transport sse --port 8080
 
 # Excel：导入 CSV、排序、导出 JSON
 tianshang-scribe -e --create --from-csv data.csv --sort "A1:A10 asc" --to-json -o out.json
@@ -357,13 +357,13 @@ TianshangScribe 内置 MCP（Model Context Protocol）服务端——AI Agent �
 **stdio**（Claude Code、Cursor）：
 ```json
 {"mcpServers": {"tianshang-scribe": {
-  "command": "python", "args": ["-m", "src.mcp.server"]
+  "command": "python", "args": ["-m", "tianshang_scribe.mcp.server"]
 }}}
 ```
 
 **SSE**（Dify、Coze、FastGPT）：
 ```bash
-python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
+python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```
 ```json
 {"mcpServers": {"tianshang-scribe": {
@@ -398,14 +398,14 @@ python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 ```bash
 # 带认证启动
-SCRIBE_AUTH_TOKEN="secret" python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
+SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # 健康检查
 curl http://localhost:8080/health
 # {"status":"ok","version":"0.3.0","active_sessions":3,"tools_available":7}
 
 # CORS 白名单
-python -m src.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
+python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
 ```
 
 **端点**：`GET /health` · `GET /sse` · `POST /message?session_id=X`
@@ -422,37 +422,38 @@ python tests/integration/mcp/mcp_agent_sim.py      # 11 场景 Agent 模拟测�
 
 ```
 src/
-├── cli/               # Typer CLI 入口
-│   ├── main.py        # 命令解析与分发
-│   └── global_opts.py # 文件路径 / 类型推断
-├── core/              # 文档引擎抽象层
-│   ├── document.py    # DocumentABC 统一接口
-│   ├── word_engine.py # Word 引擎 (python-docx)
-│   ├── excel_engine.py# Excel 引擎 (openpyxl)
-│   └── ppt_engine.py  # PPT 引擎 (python-pptx)
-├── rendering/         # 样式与公式渲染
-│   ├── styles.py      # TextStyle 数据类
-│   ├── latex_parser.py # LaTeX 标记解析器
-│   ├── math_omml.py   # LaTeX → OMML 数学公式转换
-│   └── template.py    # 模板填充引擎
-├── transform/         # 格式转换
-│   └── pdf.py         # PDF 导出（office2pdf + LibreOffice）
-├── mcp/                    # MCP Server（官方 mcp SDK 2.x）
-│   ├── server.py           # build_server + 入口（stdio / SSE / Streamable HTTP）
-│   ├── transport.py        # 传输接线 + ASGI 中间件
-│   ├── schemas.py          # pydantic 模型 + as_dict
-│   ├── auth.py             # Bearer Token 认证
-│   ├── rate_limit.py       # 令牌桶限流
-│   ├── metrics.py          # Prometheus 风格指标
-│   ├── security.py         # 工具只读/破坏性分类
-│   ├── prompts.py          # 5 个提示词工作流
-│   ├── tools/              # 7 个 Agent 工具
-│   │   ├── _registry.py    # 工具注册表（schema 自动派生）
-│   │   ├── create.py / edit.py / template.py / convert.py
-│   │   ├── validate.py / compare.py
-│   └── errors.py           # 结构化错误码 + 修复建议
-└── utils/             # 工具函数
-    └── file_utils.py
+└── tianshang_scribe/    # 可 import 包（tianshang_scribe.*）
+    ├── cli/               # Typer CLI 入口
+    │   ├── main.py        # 命令解析与分发
+    │   └── global_opts.py # 文件路径 / 类型推断
+    ├── core/              # 文档引擎抽象层
+    │   ├── document.py    # DocumentABC 统一接口
+    │   ├── word_engine.py # Word 引擎 (python-docx)
+    │   ├── excel_engine.py# Excel 引擎 (openpyxl)
+    │   └── ppt_engine.py  # PPT 引擎 (python-pptx)
+    ├── rendering/         # 样式与公式渲染
+    │   ├── styles.py      # TextStyle 数据类
+    │   ├── latex_parser.py # LaTeX 标记解析器
+    │   ├── math_omml.py   # LaTeX → OMML 数学公式转换
+    │   └── template.py    # 模板填充引擎
+    ├── transform/         # 格式转换
+    │   └── pdf.py         # PDF 导出（office2pdf + LibreOffice）
+    ├── mcp/                    # MCP Server（官方 mcp SDK 2.x）
+    │   ├── server.py           # build_server + 入口（stdio / SSE / Streamable HTTP）
+    │   ├── transport.py        # 传输接线 + ASGI 中间件
+    │   ├── schemas.py          # pydantic 模型 + as_dict
+    │   ├── auth.py             # Bearer Token 认证
+    │   ├── rate_limit.py       # 令牌桶限流
+    │   ├── metrics.py          # Prometheus 风格指标
+    │   ├── security.py         # 工具只读/破坏性分类
+    │   ├── prompts.py          # 5 个提示词工作流
+    │   ├── tools/              # 7 个 Agent 工具
+    │   │   ├── _registry.py    # 工具注册表（schema 自动派生）
+    │   │   ├── create.py / edit.py / template.py / convert.py
+    │   │   ├── validate.py / compare.py
+    │   └── errors.py           # 结构化错误码 + 修复建议
+    └── utils/             # 工具函数
+        └── file_utils.py
 ```
 
 ### 技术栈
@@ -472,7 +473,7 @@ src/
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._writer --hidden-import openpyxl.cell.read_only --hidden-import openpyxl.styles --hidden-import openpyxl.chart --hidden-import openpyxl.comments src/cli/main.py
+pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._writer --hidden-import openpyxl.cell.read_only --hidden-import openpyxl.styles --hidden-import openpyxl.chart --hidden-import openpyxl.comments src/tianshang_scribe/cli/main.py
 # dist/tianshang-scribe.exe (~35 MB)
 ```
 
@@ -499,8 +500,8 @@ cd TianshangScribe
 pip install -e ".[dev]"
 
 pytest tests/ -v      # 运行测试
-ruff check src/ tests/ # 代码检查
-mypy src/             # 类型检查
+ruff check src/tianshang_scribe/ tests/ # 代码检查
+mypy src/tianshang_scribe/             # 类型检查
 ```
 
 ## 许可

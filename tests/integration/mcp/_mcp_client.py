@@ -24,7 +24,7 @@ class MCPClient:
     def __init__(self, timeout: float = 30.0) -> None:
         self.timeout = timeout
         self.proc = subprocess.Popen(
-            [sys.executable, '-m', 'src.mcp.server'],
+            [sys.executable, '-m', 'tianshang_scribe.mcp.server'],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

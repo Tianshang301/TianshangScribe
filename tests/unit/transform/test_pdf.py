@@ -1,4 +1,4 @@
-"""Unit tests for PDF / Markdown / HTML conversion (src/transform/pdf.py)."""
+"""Unit tests for PDF / Markdown / HTML conversion (tianshang_scribe/transform/pdf.py)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.transform import pdf
+from tianshang_scribe.transform import pdf
 
 
 @pytest.fixture

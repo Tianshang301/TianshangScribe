@@ -52,7 +52,7 @@ docker compose up -d
 **.deb package** (Debian / Ubuntu):
 ```bash
 # Download from GitHub Releases
-sudo dpkg -i tianshang-scribe_0.4.0_all.deb
+sudo dpkg -i tianshang-scribe_0.5.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -92,10 +92,10 @@ tianshang-scribe template.docx -t data.json -o filled.docx
 tianshang-scribe input.docx --topdf -o output.pdf
 
 # MCP Server —stdio mode (Claude Code / Cursor)
-python -m src.mcp.server
+python -m tianshang_scribe.mcp.server
 
 # MCP Server —SSE mode (Dify / Coze / FastGPT)
-python -m src.mcp.server --transport sse --port 8080
+python -m tianshang_scribe.mcp.server --transport sse --port 8080
 
 # Excel: import CSV, sort, export JSON
 tianshang-scribe -e --create --from-csv data.csv --sort "A1:A10 asc" --to-json -o out.json
@@ -358,13 +358,13 @@ TianshangScribe includes an MCP (Model Context Protocol) server —AI Agents can
 **stdio** (Claude Code, Cursor):
 ```json
 {"mcpServers": {"tianshang-scribe": {
-  "command": "python", "args": ["-m", "src.mcp.server"]
+  "command": "python", "args": ["-m", "tianshang_scribe.mcp.server"]
 }}}
 ```
 
 **SSE** (Dify, Coze, FastGPT):
 ```bash
-python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
+python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```
 ```json
 {"mcpServers": {"tianshang-scribe": {
@@ -400,14 +400,14 @@ python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
 ```bash
 # With authentication
 SCRIBE_AUTH_TOKEN="secret" \
-python -m src.mcp.server --transport sse --host 0.0.0.0 --port 8080
+python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # Health check
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.4.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.5.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
 
 # CORS whitelist
-python -m src.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
+python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
 ```
 
 **Endpoints**: `GET /health` · `GET /sse` · `POST /message?session_id=X`
@@ -424,37 +424,38 @@ python tests/integration/mcp/mcp_agent_sim.py      # 11-scenario Agent simulatio
 
 ```
 src/
-├── cli/               # Typer CLI entry
-│  ├── main.py        # Command parsing & dispatch
-│  └── global_opts.py # File path / type inference
-├── core/              # Document engine abstraction
-│  ├── document.py    # DocumentABC unified interface
-│  ├── word_engine.py # Word engine (python-docx)
-│  ├── excel_engine.py# Excel engine (openpyxl)
-│  └── ppt_engine.py  # PPT engine (python-pptx)
-├── rendering/         # Style & formula rendering
-│  ├── styles.py      # TextStyle dataclass
-│  ├── latex_parser.py # LaTeX markup parser
-│  ├── math_omml.py   # LaTeX →OMML math converter
-│  └── template.py    # Template filling engine
-├── transform/         # Format conversion
-│  └── pdf.py         # PDF export (office2pdf + LibreOffice)
-├── mcp/                    # MCP Server (official mcp SDK 2.x)
-│  ├── server.py           # build_server + entry (stdio / SSE / Streamable HTTP)
-│  ├── transport.py        # transport wiring + ASGI middleware
-│  ├── schemas.py          # pydantic models + as_dict
-│  ├── auth.py             # Bearer token auth
-│  ├── rate_limit.py       # token bucket rate limiting
-│  ├── metrics.py          # Prometheus-style metrics
-│  ├── security.py         # read-only / destructive classification
-│  ├── prompts.py          # 5 prompt workflows
-│  ├── tools/              # 7 Agent tools
-│  │  ├── _registry.py    # tool registry (schemas auto-derived)
-│  │  ├── create.py / edit.py / template.py / convert.py
-│  │  ├── validate.py / compare.py
-│  └── errors.py           # structured error codes + fixes
-└── utils/             # Utility functions
-    └── file_utils.py
+└── tianshang_scribe/    # importable package (tianshang_scribe.*)
+    ├── cli/               # Typer CLI entry
+    │  ├── main.py        # Command parsing & dispatch
+    │  └── global_opts.py # File path / type inference
+    ├── core/              # Document engine abstraction
+    │  ├── document.py    # DocumentABC unified interface
+    │  ├── word_engine.py # Word engine (python-docx)
+    │  ├── excel_engine.py# Excel engine (openpyxl)
+    │  └── ppt_engine.py  # PPT engine (python-pptx)
+    ├── rendering/         # Style & formula rendering
+    │  ├── styles.py      # TextStyle dataclass
+    │  ├── latex_parser.py # LaTeX markup parser
+    │  ├── math_omml.py   # LaTeX →OMML math converter
+    │  └── template.py    # Template filling engine
+    ├── transform/         # Format conversion
+    │  └── pdf.py         # PDF export (office2pdf + LibreOffice)
+    ├── mcp/                    # MCP Server (official mcp SDK 2.x)
+    │  ├── server.py           # build_server + entry (stdio / SSE / Streamable HTTP)
+    │  ├── transport.py        # transport wiring + ASGI middleware
+    │  ├── schemas.py          # pydantic models + as_dict
+    │  ├── auth.py             # Bearer token auth
+    │  ├── rate_limit.py       # token bucket rate limiting
+    │  ├── metrics.py          # Prometheus-style metrics
+    │  ├── security.py         # read-only / destructive classification
+    │  ├── prompts.py          # 5 prompt workflows
+    │  ├── tools/              # 7 Agent tools
+    │  │  ├── _registry.py    # tool registry (schemas auto-derived)
+    │  │  ├── create.py / edit.py / template.py / convert.py
+    │  │  ├── validate.py / compare.py
+    │  └── errors.py           # structured error codes + fixes
+    └── utils/             # Utility functions
+        └── file_utils.py
 ```
 
 ### Tech Stack
@@ -474,7 +475,7 @@ src/
 
 ```bash
 pip install pyinstaller
-pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._writer --hidden-import openpyxl.cell.read_only --hidden-import openpyxl.styles --hidden-import openpyxl.chart --hidden-import openpyxl.comments src/cli/main.py
+pyinstaller --onefile --name tianshang-scribe --hidden-import openpyxl.cell._writer --hidden-import openpyxl.cell.read_only --hidden-import openpyxl.styles --hidden-import openpyxl.chart --hidden-import openpyxl.comments src/tianshang_scribe/cli/main.py
 # dist/tianshang-scribe.exe (~35 MB)
 ```
 
@@ -501,8 +502,8 @@ cd TianshangScribe
 pip install -e ".[dev]"
 
 pytest tests/ -v        # Run tests
-ruff check src/ tests/  # Lint
-mypy src/               # Type check
+ruff check src/tianshang_scribe/ tests/  # Lint
+mypy src/tianshang_scribe/               # Type check
 ```
 
 ## License

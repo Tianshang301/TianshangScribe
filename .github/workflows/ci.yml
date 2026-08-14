@@ -32,14 +32,14 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff check src/ tests/
-          ruff format --check src/ tests/
+          ruff check src/tianshang_scribe/ tests/
+          ruff format --check src/tianshang_scribe/ tests/
 
       - name: Type check with mypy
-        run: mypy src/
+        run: mypy src/tianshang_scribe/
 
       - name: Test with pytest
-        run: pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-fail-under=80 -m "not stress"
+        run: pytest tests/ -v --tb=short --cov=tianshang_scribe --cov-report=xml --cov-fail-under=80 -m "not stress"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -101,7 +101,7 @@ jobs:
             --hidden-import openpyxl.chart \
             --hidden-import openpyxl.comments \
             --hidden-import lxml.etree \
-            src/cli/main.py
+            src/tianshang_scribe/cli/main.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

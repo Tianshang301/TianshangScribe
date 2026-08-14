@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.utils.store import Schedule, ScheduleStore, now_iso
+from tianshang_scribe.utils.store import Schedule, ScheduleStore, now_iso
 
 
 class TestScheduleStore:

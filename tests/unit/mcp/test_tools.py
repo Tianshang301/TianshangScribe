@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from src.core.excel_engine import ExcelEngine
-from src.core.word_engine import WordEngine
-from src.mcp.errors import (
+from tianshang_scribe.core.excel_engine import ExcelEngine
+from tianshang_scribe.core.word_engine import WordEngine
+from tianshang_scribe.mcp.errors import (
     McpErrorCode,
     _make_content,
     _set_notify_writer,
@@ -22,13 +22,13 @@ from src.mcp.errors import (
     send_progress,
     success_response,
 )
-from src.mcp.schemas import ContentBlock, EditOperation, ToolOptions
-from src.mcp.tools.compare import compare_documents
-from src.mcp.tools.convert import convert_document, extract_document_data
-from src.mcp.tools.create import create_office_document
-from src.mcp.tools.edit import edit_office_document
-from src.mcp.tools.template import fill_template
-from src.mcp.tools.validate import validate_template
+from tianshang_scribe.mcp.schemas import ContentBlock, EditOperation, ToolOptions
+from tianshang_scribe.mcp.tools.compare import compare_documents
+from tianshang_scribe.mcp.tools.convert import convert_document, extract_document_data
+from tianshang_scribe.mcp.tools.create import create_office_document
+from tianshang_scribe.mcp.tools.edit import edit_office_document
+from tianshang_scribe.mcp.tools.template import fill_template
+from tianshang_scribe.mcp.tools.validate import validate_template
 
 
 @pytest.fixture
@@ -666,7 +666,7 @@ class TestValidateTemplateStructured:
         assert result['data']['valid'] is True
 
     def test_pptx_unsupported(self, tmp_path: Path) -> None:
-        from src.core.ppt_engine import PptEngine
+        from tianshang_scribe.core.ppt_engine import PptEngine
 
         e = PptEngine()
         e.create()

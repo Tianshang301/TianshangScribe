@@ -20,38 +20,38 @@ depends:
 contents:
   - src: pyproject.toml
     dst: /usr/lib/tianshang-scribe/pyproject.toml
-  - src: src/cli/
-    dst: /usr/lib/tianshang-scribe/src/cli/
-  - src: src/core/
-    dst: /usr/lib/tianshang-scribe/src/core/
-  - src: src/rendering/
-    dst: /usr/lib/tianshang-scribe/src/rendering/
-  - src: src/transform/
-    dst: /usr/lib/tianshang-scribe/src/transform/
-  - src: src/utils/
-    dst: /usr/lib/tianshang-scribe/src/utils/
-  - src: src/mcp/tools/
-    dst: /usr/lib/tianshang-scribe/src/mcp/tools/
-  - src: src/mcp/__init__.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/__init__.py
-  - src: src/mcp/server.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/server.py
-  - src: src/mcp/transport.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/transport.py
-  - src: src/mcp/schemas.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/schemas.py
-  - src: src/mcp/auth.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/auth.py
-  - src: src/mcp/metrics.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/metrics.py
-  - src: src/mcp/rate_limit.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/rate_limit.py
-  - src: src/mcp/security.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/security.py
-  - src: src/mcp/prompts.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/prompts.py
-  - src: src/mcp/errors.py
-    dst: /usr/lib/tianshang-scribe/src/mcp/errors.py
+  - src: src/tianshang_scribe/cli/
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/cli/
+  - src: src/tianshang_scribe/core/
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/core/
+  - src: src/tianshang_scribe/rendering/
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/rendering/
+  - src: src/tianshang_scribe/transform/
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/transform/
+  - src: src/tianshang_scribe/utils/
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/utils/
+  - src: src/tianshang_scribe/mcp/tools/
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/tools/
+  - src: src/tianshang_scribe/mcp/__init__.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/__init__.py
+  - src: src/tianshang_scribe/mcp/server.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/server.py
+  - src: src/tianshang_scribe/mcp/transport.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/transport.py
+  - src: src/tianshang_scribe/mcp/schemas.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/schemas.py
+  - src: src/tianshang_scribe/mcp/auth.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/auth.py
+  - src: src/tianshang_scribe/mcp/metrics.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/metrics.py
+  - src: src/tianshang_scribe/mcp/rate_limit.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/rate_limit.py
+  - src: src/tianshang_scribe/mcp/security.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/security.py
+  - src: src/tianshang_scribe/mcp/prompts.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/prompts.py
+  - src: src/tianshang_scribe/mcp/errors.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/mcp/errors.py
   - src: scripts/tianshang-scribe
     dst: /usr/bin/tianshang-scribe
     file_info:

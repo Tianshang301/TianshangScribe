@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.document import DocumentType, create_document, detect_document_type
-from src.core.excel_engine import ExcelEngine
-from src.core.ppt_engine import PptEngine
-from src.core.word_engine import WordEngine
+from tianshang_scribe.core.document import DocumentType, create_document, detect_document_type
+from tianshang_scribe.core.excel_engine import ExcelEngine
+from tianshang_scribe.core.ppt_engine import PptEngine
+from tianshang_scribe.core.word_engine import WordEngine
 
 
 class TestDetectDocumentType:

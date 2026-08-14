@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from docx.oxml.ns import qn
 
-from src.rendering.math_omml import _tokenize, latex_to_omml
+from tianshang_scribe.rendering.math_omml import _tokenize, latex_to_omml
 
 
 class TestMathTokenize:
@@ -141,7 +141,7 @@ class TestMathTokenize:
         assert tokens[0]['content'] == 'def'
 
     def test_collect_body_tokens_splits_digits(self) -> None:
-        from src.rendering.math_omml import _collect_body_tokens
+        from tianshang_scribe.rendering.math_omml import _collect_body_tokens
 
         tokens, _ = _collect_body_tokens('4ab', 0)
         assert tokens[0] == {'type': 'text', 'text': '4', 'norm': True}
@@ -409,7 +409,7 @@ class TestLatexToOMML:
         assert any(s.get(qn('m:val')) == 'b' for s in sty)
 
     def test_bold_italic_style_map(self) -> None:
-        from src.rendering.math_omml import _make_run_props
+        from tianshang_scribe.rendering.math_omml import _make_run_props
 
         rpr = _make_run_props('bold-italic')
         sty = rpr.find(qn('m:sty'))
@@ -540,44 +540,44 @@ class TestLatexToOMML:
 
 class TestInternalHelpers:
     def test_build_sub_omml_str(self) -> None:
-        from src.rendering.math_omml import _build_sub_omath
+        from tianshang_scribe.rendering.math_omml import _build_sub_omath
 
         els = _build_sub_omath('x')
         assert len(els) == 1
 
     def test_build_sub_omml_empty(self) -> None:
-        from src.rendering.math_omml import _build_sub_omath
+        from tianshang_scribe.rendering.math_omml import _build_sub_omath
 
         els = _build_sub_omath('')
         assert len(els) == 1
 
     def test_build_sub_omml_dict(self) -> None:
-        from src.rendering.math_omml import _build_sub_omath
+        from tianshang_scribe.rendering.math_omml import _build_sub_omath
 
         els = _build_sub_omath({'k': 1})
         assert len(els) == 1
 
     def test_stack_to_element_single(self) -> None:
-        from src.rendering.math_omml import _stack_to_element, _tokenize
+        from tianshang_scribe.rendering.math_omml import _stack_to_element, _tokenize
 
         el = _stack_to_element(_tokenize('x'))
         assert el is not None
         assert qn('m:t') in [c.tag for c in el]
 
     def test_stack_to_element_merged(self) -> None:
-        from src.rendering.math_omml import _stack_to_element, _tokenize
+        from tianshang_scribe.rendering.math_omml import _stack_to_element, _tokenize
 
         el = _stack_to_element(_tokenize('ab'))
         assert el.tag == qn('m:r')
 
     def test_stack_to_element_empty(self) -> None:
-        from src.rendering.math_omml import _stack_to_element
+        from tianshang_scribe.rendering.math_omml import _stack_to_element
 
         el = _stack_to_element([])
         assert el.tag == qn('m:r')
 
     def test_make_run_with_style(self) -> None:
-        from src.rendering.math_omml import _make_run
+        from tianshang_scribe.rendering.math_omml import _make_run
 
         r = _make_run('x', 'bold', norm=True)
         assert r.tag == qn('m:r')
@@ -585,13 +585,13 @@ class TestInternalHelpers:
         assert r.find(qn('m:t')).text == 'x'
 
     def test_make_run_auto_style(self) -> None:
-        from src.rendering.math_omml import _make_run
+        from tianshang_scribe.rendering.math_omml import _make_run
 
         r = _make_run('x', 'auto', norm=False)
         assert r.find(qn('m:rPr')) is None
 
     def test_make_run_props_unknown(self) -> None:
-        from src.rendering.math_omml import _make_run_props
+        from tianshang_scribe.rendering.math_omml import _make_run_props
 
         rpr = _make_run_props('weird')
         sty = rpr.find(qn('m:sty'))
@@ -599,19 +599,19 @@ class TestInternalHelpers:
         assert sty.get(qn('m:val')) == 'p'
 
     def test_token_to_omml_unknown_type(self) -> None:
-        from src.rendering.math_omml import _token_to_omml
+        from tianshang_scribe.rendering.math_omml import _token_to_omml
 
         el = _token_to_omml({'type': 'bogus'})
         assert el.tag == qn('m:r')
 
     def test_group_sup_sub_no_sub(self) -> None:
-        from src.rendering.math_omml import _group_sup_sub
+        from tianshang_scribe.rendering.math_omml import _group_sup_sub
 
         tokens = [{'type': 'text', 'text': 'x', 'norm': False}] * 2
         assert len(_group_sup_sub(tokens)) == 2
 
     def test_group_sup_sub_sub_only(self) -> None:
-        from src.rendering.math_omml import _group_sup_sub
+        from tianshang_scribe.rendering.math_omml import _group_sup_sub
 
         tokens = [
             {'type': 'text', 'text': 'a'},
@@ -622,7 +622,7 @@ class TestInternalHelpers:
         assert grouped[0]['base']['text'] == 'a'
 
     def test_extract_limits_single_chars(self) -> None:
-        from src.rendering.math_omml import _extract_limits
+        from tianshang_scribe.rendering.math_omml import _extract_limits
 
         r = _extract_limits('_{i=0}^{n} rest', 0)
         assert r is not None
@@ -630,63 +630,63 @@ class TestInternalHelpers:
         assert r[1] == 'n'
 
     def test_extract_limits_plain(self) -> None:
-        from src.rendering.math_omml import _extract_limits
+        from tianshang_scribe.rendering.math_omml import _extract_limits
 
         r = _extract_limits('x', 0)
         assert r is None
 
     def test_extract_limits_sub_single(self) -> None:
-        from src.rendering.math_omml import _extract_limits
+        from tianshang_scribe.rendering.math_omml import _extract_limits
 
         r = _extract_limits('_i x', 0)
         assert r is not None
         assert r[0] == 'i'
 
     def test_extract_sqrt_args_incomplete(self) -> None:
-        from src.rendering.math_omml import _extract_sqrt_args
+        from tianshang_scribe.rendering.math_omml import _extract_sqrt_args
 
         r = _extract_sqrt_args('[3]', 0)
         assert r is None
 
     def test_extract_sqrt_args_eof(self) -> None:
-        from src.rendering.math_omml import _extract_sqrt_args
+        from tianshang_scribe.rendering.math_omml import _extract_sqrt_args
 
         r = _extract_sqrt_args('', 0)
         assert r is None
 
     def test_extract_delim_unknown(self) -> None:
-        from src.rendering.math_omml import _extract_delim
+        from tianshang_scribe.rendering.math_omml import _extract_delim
 
         r = _extract_delim('\\unknown', 0)
         assert r is None
 
     def test_extract_delim_eof(self) -> None:
-        from src.rendering.math_omml import _extract_delim
+        from tianshang_scribe.rendering.math_omml import _extract_delim
 
         r = _extract_delim('', 0)
         assert r is None
 
     def test_extract_one_arg_no_brace(self) -> None:
-        from src.rendering.math_omml import _extract_one_arg
+        from tianshang_scribe.rendering.math_omml import _extract_one_arg
 
         r = _extract_one_arg('abc', 0)
         assert r is None
 
     def test_extract_one_arg_unbalanced(self) -> None:
-        from src.rendering.math_omml import _extract_one_arg
+        from tianshang_scribe.rendering.math_omml import _extract_one_arg
 
         r = _extract_one_arg('{abc', 0)
         assert r is not None
         assert r[0] == 'abc'
 
     def test_extract_two_args_missing_second(self) -> None:
-        from src.rendering.math_omml import _extract_two_args
+        from tianshang_scribe.rendering.math_omml import _extract_two_args
 
         r = _extract_two_args('{a}rest', 0)
         assert r is None
 
     def test_rpr_equivalent(self) -> None:
-        from src.rendering.math_omml import _rpr_equivalent
+        from tianshang_scribe.rendering.math_omml import _rpr_equivalent
 
         assert _rpr_equivalent(None, None) is True
         assert _rpr_equivalent(None, 'x') is False

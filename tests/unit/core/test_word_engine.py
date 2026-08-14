@@ -8,8 +8,8 @@ from typing import ClassVar
 
 import pytest
 
-from src.core.document import open_document
-from src.core.word_engine import WordEngine
+from tianshang_scribe.core.document import open_document
+from tianshang_scribe.core.word_engine import WordEngine
 
 
 class TestWordEngine:
@@ -169,7 +169,7 @@ class TestWordEngineEdge:
             engine.save()
 
     def test_add_text_with_style_object(self, engine: WordEngine) -> None:
-        from src.rendering.styles import TextStyle
+        from tianshang_scribe.rendering.styles import TextStyle
 
         style = TextStyle(font_name='Arial', font_size=16, alignment='center', color='FF0000')
         engine.add_text('Styled', text_style=style)
@@ -259,7 +259,7 @@ class TestWordEngineEdge:
         assert 'deep' in engine.doc.paragraphs[-1].text
 
     def test_render_tokens_inline(self, engine: WordEngine) -> None:
-        from src.rendering.styles import TextStyle
+        from tianshang_scribe.rendering.styles import TextStyle
 
         paragraph = engine.doc.add_paragraph()
         engine._render_tokens_inline(
@@ -276,11 +276,11 @@ class TestWordEngineEdge:
         assert 'a' in paragraph.text
 
     def test_add_omml_none(self, engine: WordEngine, monkeypatch) -> None:
-        monkeypatch.setattr('src.rendering.math_omml.latex_to_omml', lambda s: None)
+        monkeypatch.setattr('tianshang_scribe.rendering.math_omml.latex_to_omml', lambda s: None)
         engine.add_math_formula('x')
 
     def test_apply_cjk_font(self, engine: WordEngine) -> None:
-        from src.rendering.styles import TextStyle
+        from tianshang_scribe.rendering.styles import TextStyle
 
         engine.add_text('中文', text_style=TextStyle(cjk_font_name='SimSun'))
         r_pr = (
@@ -319,7 +319,7 @@ class TestWordEngineEdge:
             calls.append((s, d))
 
         monkeypatch.setattr(engine, 'save', fake_save)
-        monkeypatch.setattr('src.transform.pdf.word_to_pdf', fake_w2p)
+        monkeypatch.setattr('tianshang_scribe.transform.pdf.word_to_pdf', fake_w2p)
         engine.to_pdf(out)
         assert 'save' in calls
 
@@ -430,7 +430,7 @@ class TestWordEngineEdge:
         assert 'a | b' in text or 'a' in text
 
     def test_apply_font_config(self, engine: WordEngine) -> None:
-        from src.core.word_engine import _apply_font_config
+        from tianshang_scribe.core.word_engine import _apply_font_config
 
         _apply_font_config(engine, {'role': 'CJK', 'font': 'KaiTi'})
         assert engine._base_style.cjk_font_name == 'KaiTi'

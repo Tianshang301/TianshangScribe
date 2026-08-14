@@ -6,8 +6,8 @@ import asyncio
 import json
 from typing import Any
 
-from src.mcp.rate_limit import RateLimiter
-from src.mcp.transport import (
+from tianshang_scribe.mcp.rate_limit import RateLimiter
+from tianshang_scribe.mcp.transport import (
     PUBLIC_PATHS,
     AuthMiddleware,
     RateLimitMiddleware,

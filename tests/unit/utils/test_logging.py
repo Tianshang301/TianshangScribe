@@ -1,4 +1,4 @@
-"""Unit tests for structlog integration (src/utils/logging.py)."""
+"""Unit tests for structlog integration (tianshang_scribe/utils/logging.py)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import re
 import pytest
 import structlog
 
-from src.utils.config import Settings
-from src.utils.logging import configure_logging, get_logger, log_http_event
+from tianshang_scribe.utils.config import Settings
+from tianshang_scribe.utils.logging import configure_logging, get_logger, log_http_event
 
 _ANSI = re.compile(r'\x1b\[[0-9;]*m')
 

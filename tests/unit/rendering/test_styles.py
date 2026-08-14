@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.rendering.styles import TextStyle
+from tianshang_scribe.rendering.styles import TextStyle
 
 
 class TestTextStyleFromString:

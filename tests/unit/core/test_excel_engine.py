@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from src.core.document import open_document
-from src.core.excel_engine import ExcelEngine
+from tianshang_scribe.core.document import open_document
+from tianshang_scribe.core.excel_engine import ExcelEngine
 
 
 class TestExcelEngine:
@@ -270,7 +270,7 @@ class TestExcelEdge:
         assert cell.font.size == 14
 
     def test_add_text_with_style_object(self, engine: ExcelEngine) -> None:
-        from src.rendering.styles import TextStyle
+        from tianshang_scribe.rendering.styles import TextStyle
 
         engine.add_text('Styled', text_style=TextStyle(font_name='Arial', font_size=14))
         assert engine.wb.active['A1'].font.name == 'Arial'
@@ -319,7 +319,9 @@ class TestExcelEdge:
         out = tmp_path / 'o.pdf'
         calls = []
         monkeypatch.setattr(engine, 'save', lambda *a, **k: calls.append('save'))
-        monkeypatch.setattr('src.transform.pdf.excel_to_pdf', lambda s, d: calls.append((s, d)))
+        monkeypatch.setattr(
+            'tianshang_scribe.transform.pdf.excel_to_pdf', lambda s, d: calls.append((s, d))
+        )
         engine.to_pdf(out)
         assert 'save' in calls
 

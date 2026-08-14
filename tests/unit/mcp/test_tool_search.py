@@ -7,8 +7,8 @@ import asyncio
 import pytest
 from mcp_types import Tool
 
-from src.mcp.server import build_server
-from src.mcp.tool_search import (
+from tianshang_scribe.mcp.server import build_server
+from tianshang_scribe.mcp.tool_search import (
     TOOLS_LIST_METHOD,
     ToolSearchParams,
     install_tool_search,

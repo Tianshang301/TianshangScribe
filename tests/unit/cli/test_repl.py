@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
-from src.cli.repl import InteractiveSession
-from src.core.excel_engine import ExcelEngine
-from src.core.word_engine import WordEngine
+from tianshang_scribe.cli.repl import InteractiveSession
+from tianshang_scribe.core.excel_engine import ExcelEngine
+from tianshang_scribe.core.word_engine import WordEngine
 
 
 class TestInteractiveSession:
@@ -107,7 +107,7 @@ class TestInteractiveSession:
         w.open(str(target))
         s = self._session(w, target)
         s.execute('add "new"')
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: 'y')
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: 'y')
         assert s.execute('quit') is False
         assert 'new' in _read_text(target)
 
@@ -122,7 +122,8 @@ class TestInteractiveSession:
         s = self._session(w, target)
         s.execute('add "new"')
         monkeypatch.setattr(
-            'src.cli.repl.Prompt.ask', lambda *a, **k: (_ for _ in ()).throw(EOFError())
+            'tianshang_scribe.cli.repl.Prompt.ask',
+            lambda *a, **k: (_ for _ in ()).throw(EOFError()),
         )
         assert s.execute('quit') is False
         assert 'new' not in _read_text(target)
@@ -137,7 +138,7 @@ class TestInteractiveSession:
         w.open(str(target))
         s = self._session(w, target)
         s.execute('add "new"')
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: 'n')
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: 'n')
         assert s.execute('quit') is False
         assert 'new' not in _read_text(target)
 
@@ -314,7 +315,7 @@ class TestInteractiveSession:
         target = tmp_path / 't.docx'
         s = self._session(w, target)
         answers = iter(['add "hello"', 'quit', 'n'])
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
         s.run()
         assert 'hello' in w.extract_text()
 
@@ -324,7 +325,8 @@ class TestInteractiveSession:
         target = tmp_path / 't.docx'
         s = self._session(w, target)
         monkeypatch.setattr(
-            'src.cli.repl.Prompt.ask', lambda *a, **k: (_ for _ in ()).throw(EOFError())
+            'tianshang_scribe.cli.repl.Prompt.ask',
+            lambda *a, **k: (_ for _ in ()).throw(EOFError()),
         )
         s.run()
 
@@ -334,7 +336,7 @@ class TestInteractiveSession:
         target = tmp_path / 't.docx'
         s = self._session(w, target)
         answers = iter(['add', 'quit'])
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
         s.run()
 
     def test_run_loop_generic_error_continues(self, tmp_path: Path, monkeypatch) -> None:
@@ -343,7 +345,7 @@ class TestInteractiveSession:
         target = tmp_path / 't.docx'
         s = self._session(w, target)
         answers = iter(['table "A|B"', 'quit', 'n'])
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
         s.run()
 
     def test_run_loop_blank_line(self, tmp_path: Path, monkeypatch) -> None:
@@ -352,7 +354,7 @@ class TestInteractiveSession:
         target = tmp_path / 't.docx'
         s = self._session(w, target)
         answers = iter(['', '  ', 'quit'])
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: next(answers))
         s.run()
 
     def test_execute_empty(self, tmp_path: Path) -> None:
@@ -369,14 +371,14 @@ class TestInteractiveSession:
         assert s.execute('q') is False
 
     def test_split_tokens_quotes(self) -> None:
-        from src.cli.repl import _split_tokens
+        from tianshang_scribe.cli.repl import _split_tokens
 
         assert _split_tokens('add "hello world"') == ['add', 'hello world']
         assert _split_tokens(r'math \frac{a}{b}') == ['math', r'\frac{a}{b}']
 
 
 def _read_text(path: Path) -> str:
-    from src.core.word_engine import WordEngine
+    from tianshang_scribe.core.word_engine import WordEngine
 
     e = WordEngine()
     e.open(str(path))

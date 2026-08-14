@@ -92,7 +92,7 @@ def main() -> None:
         assert data['success']
 
         print('6. Fill template...')
-        from src.core.word_engine import WordEngine
+        from tianshang_scribe.core.word_engine import WordEngine
 
         e = WordEngine()
         e.create()

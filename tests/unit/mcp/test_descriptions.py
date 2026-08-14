@@ -2,13 +2,13 @@
 
 Guards the principle that a tool's ``description`` must disclose its side
 effects consistently with the ``readOnlyHint`` / ``destructiveHint``
-annotations derived in :mod:`src.mcp.security`.
+annotations derived in :mod:`tianshang_scribe.mcp.security`.
 """
 
 from __future__ import annotations
 
-from src.mcp.security import is_destructive, is_read_only
-from src.mcp.tools._registry import TOOLS
+from tianshang_scribe.mcp.security import is_destructive, is_read_only
+from tianshang_scribe.mcp.tools._registry import TOOLS
 
 WRITE_TOOLS = {
     'create_office_document',

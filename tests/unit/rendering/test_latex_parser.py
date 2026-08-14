@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.rendering.latex_parser import parse_latex_style, parse_structured
+from tianshang_scribe.rendering.latex_parser import parse_latex_style, parse_structured
 
 
 class TestParseLatexStyle:

@@ -1,4 +1,4 @@
-"""Unit tests for the one-shot CLI command dispatch (src/cli/main.py).
+"""Unit tests for the one-shot CLI command dispatch (tianshang_scribe/cli/main.py).
 
 Uses a recording fake engine injected via ``create_document`` to exercise
 every operation branch without touching the real document libraries.
@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-import src.cli.main as cli
-from src.core.document import DocumentType
+import tianshang_scribe.cli.main as cli
+from tianshang_scribe.core.document import DocumentType
 
 runner = CliRunner()
 
@@ -909,7 +909,7 @@ class TestReverseConversion:
         def fake_md2word(src, dst) -> None:
             calls.append((src, dst))
 
-        import src.transform.reverse as rev
+        import tianshang_scribe.transform.reverse as rev
 
         monkeypatch.setattr(rev, 'markdown_to_word', fake_md2word)
         code, _ = _run('--output', str(out), '--force', str(md))
@@ -921,7 +921,7 @@ class TestReverseConversion:
         html.write_text('<h1>Hi</h1>', encoding='utf-8')
         out = tmp_path / 'o.docx'
         calls = []
-        import src.transform.reverse as rev
+        import tianshang_scribe.transform.reverse as rev
 
         monkeypatch.setattr(rev, 'html_to_word', lambda s, d: calls.append((s, d)))
         code, _ = _run('--output', str(out), '--force', str(html))
@@ -947,7 +947,7 @@ class TestReverseConversion:
             def save(self, p: str) -> None:
                 calls.append(p)
 
-        import src.core.excel_engine as ee
+        import tianshang_scribe.core.excel_engine as ee
 
         monkeypatch.setattr(ee, 'ExcelEngine', _E)
         code, _ = _run('--output', str(out), '--force', str(data))
@@ -966,8 +966,8 @@ class TestReverseConversion:
         md.write_text('# Hi', encoding='utf-8')
         out = tmp_path / 'o.pdf'
         calls = []
-        import src.transform.pdf as pdf
-        import src.transform.reverse as rev
+        import tianshang_scribe.transform.pdf as pdf
+        import tianshang_scribe.transform.reverse as rev
 
         monkeypatch.setattr(rev, 'markdown_to_word', lambda s, d: calls.append((s, d)))
         monkeypatch.setattr(pdf, 'word_to_pdf', lambda s, d: calls.append(('pdf', s, d)))
@@ -980,8 +980,8 @@ class TestReverseConversion:
         data.write_text('[{"a":1}]', encoding='utf-8')
         out = tmp_path / 'o.pdf'
         calls = []
-        import src.core.excel_engine as ee
-        import src.transform.pdf as pdf
+        import tianshang_scribe.core.excel_engine as ee
+        import tianshang_scribe.transform.pdf as pdf
 
         class _E:
             def create(self) -> None:
@@ -1010,7 +1010,7 @@ class TestReverseConversion:
 class TestOutputFormats:
     def test_tomd(self, fake_engine, tmp_in: Path, tmp_path: Path, monkeypatch) -> None:
         out = tmp_path / 'o.md'
-        import src.transform.pdf as pdf
+        import tianshang_scribe.transform.pdf as pdf
 
         monkeypatch.setattr(pdf, 'word_to_markdown', lambda s, d: None)
         code, _ = _run('--tomd', '--output', str(out), '--force', str(tmp_in))
@@ -1021,7 +1021,7 @@ class TestOutputFormats:
         self, fake_engine, tmp_in: Path, tmp_path: Path, monkeypatch
     ) -> None:
         out = tmp_path / 'o.md'
-        import src.transform.pdf as pdf
+        import tianshang_scribe.transform.pdf as pdf
 
         monkeypatch.setattr(
             pdf, 'word_to_markdown', lambda s, d: (_ for _ in ()).throw(RuntimeError('boom'))
@@ -1046,7 +1046,7 @@ class TestOutputFormats:
 
         engine = _NoExportHtml()
         monkeypatch.setattr(cli, 'open_document', lambda p: engine)
-        import src.transform.pdf as pdf
+        import tianshang_scribe.transform.pdf as pdf
 
         monkeypatch.setattr(pdf, 'word_to_html', lambda s, d: None)
         out = tmp_path / 'o.html'
@@ -1064,7 +1064,7 @@ class TestOutputFormats:
 
         engine = _NoExportHtml()
         monkeypatch.setattr(cli, 'open_document', lambda p: engine)
-        import src.transform.pdf as pdf
+        import tianshang_scribe.transform.pdf as pdf
 
         monkeypatch.setattr(
             pdf, 'word_to_html', lambda s, d: (_ for _ in ()).throw(RuntimeError('boom'))
@@ -1171,7 +1171,7 @@ class TestOpenApp:
             def run(self) -> None:
                 calls.append(('run',))
 
-        import src.cli.repl as repl
+        import tianshang_scribe.cli.repl as repl
 
         monkeypatch.setattr(repl, 'InteractiveSession', _S)
         monkeypatch.setattr(cli, 'open_document', lambda p: _Base())
@@ -1191,8 +1191,8 @@ class TestOpenApp:
             def open(self, p: str) -> None:
                 calls.append(p)
 
-        import src.cli.repl as repl
-        import src.core.word_engine as we
+        import tianshang_scribe.cli.repl as repl
+        import tianshang_scribe.core.word_engine as we
 
         monkeypatch.setattr(cli, 'detect_document_type', lambda p: DocumentType.EXCEL)
         monkeypatch.setattr(we, 'WordEngine', _E)
@@ -1211,7 +1211,7 @@ class TestOpenApp:
         monkeypatch.setattr(cli, 'detect_document_type', lambda p: DocumentType.UNKNOWN)
         engine = _Base()
         monkeypatch.setattr(cli, 'open_document', lambda p: engine)
-        import src.cli.repl as repl
+        import tianshang_scribe.cli.repl as repl
 
         monkeypatch.setattr(
             repl,
@@ -1235,8 +1235,8 @@ def test_open_engine_unsupported_explicit(monkeypatch) -> None:
 def test_open_excel_explicit(tmp_path: Path, monkeypatch) -> None:
     docx = tmp_path / 't.xlsx'
     docx.write_bytes(b'x' * 10)
-    import src.cli.repl as repl
-    import src.core.excel_engine as ee
+    import tianshang_scribe.cli.repl as repl
+    import tianshang_scribe.core.excel_engine as ee
 
     class _E:
         def __init__(self) -> None:
@@ -1259,8 +1259,8 @@ def test_open_excel_explicit(tmp_path: Path, monkeypatch) -> None:
 def test_open_ppt_explicit(tmp_path: Path, monkeypatch) -> None:
     docx = tmp_path / 't.pptx'
     docx.write_bytes(b'x' * 10)
-    import src.cli.repl as repl
-    import src.core.ppt_engine as pe
+    import tianshang_scribe.cli.repl as repl
+    import tianshang_scribe.core.ppt_engine as pe
 
     class _E:
         def __init__(self) -> None:
@@ -1347,7 +1347,7 @@ class TestScheduleCli:
     def test_schedule_run_unsatisfied_dep(self, tmp_path: Path) -> None:
         db = tmp_path / 's.db'
         _run('--schedule-db', str(db), '--schedule-add', 'child|0 9 * * *|python -c pass')
-        from src.utils.store import Schedule, ScheduleStore
+        from tianshang_scribe.utils.store import Schedule, ScheduleStore
 
         with ScheduleStore(db) as store:
             store.upsert(
@@ -1374,7 +1374,7 @@ class TestScheduleCli:
                     return cls._fixed.replace(tzinfo=None)
                 return cls._fixed.astimezone(tz)
 
-        monkeypatch.setattr('src.core.scheduler.datetime', _FixedDT)
+        monkeypatch.setattr('tianshang_scribe.core.scheduler.datetime', _FixedDT)
         db = tmp_path / 's.db'
         _run('--schedule-db', str(db), '--schedule-add', 'a|* * * * *|python -c pass')
         code, out = _run('--schedule-db', str(db), '--schedule-run-all')

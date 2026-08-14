@@ -13,8 +13,8 @@ from pathlib import Path
 from PIL import Image
 from typer.testing import CliRunner
 
-from src.cli.main import app, open_app
-from src.core.word_engine import WordEngine
+from tianshang_scribe.cli.main import app, open_app
+from tianshang_scribe.core.word_engine import WordEngine
 
 runner = CliRunner()
 
@@ -244,7 +244,9 @@ class TestOpenSubcommand:
         e.add_text('base')
         e.save(str(docx))
         calls = []
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: calls.append(a) or 'quit')
+        monkeypatch.setattr(
+            'tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: calls.append(a) or 'quit'
+        )
         result = runner.invoke(open_app, [str(docx)])
         assert result.exit_code == 0
         assert 'Opened' in result.stdout
@@ -253,14 +255,14 @@ class TestOpenSubcommand:
     def test_open_main_cli_routes_to_open(self, tmp_path: Path, monkeypatch) -> None:
         import pytest
 
-        import src.cli.main as cli
+        import tianshang_scribe.cli.main as cli
 
         docx = tmp_path / 't.docx'
         e = WordEngine()
         e.create()
         e.add_text('base')
         e.save(str(docx))
-        monkeypatch.setattr('src.cli.repl.Prompt.ask', lambda *a, **k: 'quit')
+        monkeypatch.setattr('tianshang_scribe.cli.repl.Prompt.ask', lambda *a, **k: 'quit')
         monkeypatch.setattr('sys.argv', ['tianshang-scribe', 'open', str(docx)])
         with pytest.raises(SystemExit):
             cli.main_cli()
@@ -268,7 +270,7 @@ class TestOpenSubcommand:
     def test_open_main_cli_routes_to_oneshot(self, tmp_path: Path, monkeypatch) -> None:
         import pytest
 
-        import src.cli.main as cli
+        import tianshang_scribe.cli.main as cli
 
         docx = tmp_path / 't.docx'
         e = WordEngine()

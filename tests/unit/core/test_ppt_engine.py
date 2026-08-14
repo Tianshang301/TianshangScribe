@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from src.core.document import open_document
-from src.core.ppt_engine import PptEngine
+from tianshang_scribe.core.document import open_document
+from tianshang_scribe.core.ppt_engine import PptEngine
 
 
 class TestPptEngine:
@@ -135,7 +135,7 @@ class TestPptEdge:
         assert run.font.size.pt == 20
 
     def test_add_text_with_text_style_object(self, engine: PptEngine) -> None:
-        from src.rendering.styles import TextStyle
+        from tianshang_scribe.rendering.styles import TextStyle
 
         engine.add_text('Styled', text_style=TextStyle(font_name='Arial', font_size=20))
         slide = engine.prs.slides[-1]
@@ -275,7 +275,9 @@ class TestPptEdge:
         out = tmp_path / 'out.pdf'
         calls = []
         monkeypatch.setattr(engine, 'save', lambda *a, **k: calls.append('save'))
-        monkeypatch.setattr('src.transform.pdf.ppt_to_pdf', lambda s, d: calls.append((s, d)))
+        monkeypatch.setattr(
+            'tianshang_scribe.transform.pdf.ppt_to_pdf', lambda s, d: calls.append((s, d))
+        )
         engine.to_pdf(out)
         assert 'save' in calls
 

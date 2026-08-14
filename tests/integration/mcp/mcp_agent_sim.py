@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from src.core.word_engine import WordEngine
 from tests.integration.mcp._mcp_client import MCPClient
+from tianshang_scribe.core.word_engine import WordEngine
 
 OUT = Path(tempfile.mkdtemp(prefix='mcp_agent_test_'))
 

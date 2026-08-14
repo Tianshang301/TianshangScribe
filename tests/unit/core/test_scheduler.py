@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from src.core.scheduler import (
+from tianshang_scribe.core.scheduler import (
     RunResult,
     SchedulerError,
     TaskScheduler,
     build_command,
     parse_command,
 )
-from src.utils.store import Schedule, ScheduleStore
+from tianshang_scribe.utils.store import Schedule, ScheduleStore
 
 
 def _make_store(tmp_path: Path) -> ScheduleStore:

@@ -1,11 +1,11 @@
-"""Unit tests for centralized configuration (src/utils/config.py)."""
+"""Unit tests for centralized configuration (tianshang_scribe/utils/config.py)."""
 
 from __future__ import annotations
 
 import pytest
 from pydantic import ValidationError
 
-from src.utils.config import Settings
+from tianshang_scribe.utils.config import Settings
 
 
 class TestSettingsDefaults:
@@ -87,7 +87,7 @@ class TestSettingsValidation:
 
 class TestGetSettings:
     def test_returns_fresh_settings(self, monkeypatch) -> None:
-        from src.utils.config import get_settings
+        from tianshang_scribe.utils.config import get_settings
 
         assert get_settings().host == '127.0.0.1'
         monkeypatch.setenv('SCRIBE_HOST', '192.168.1.5')

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.core.script_runner import FORBIDDEN_BUILTINS, ScriptRunner
+from tianshang_scribe.core.script_runner import FORBIDDEN_BUILTINS, ScriptRunner
 
 
 class TestCheckImports:

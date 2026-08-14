@@ -47,7 +47,15 @@ def _wait_for_server(host: str, port: int, timeout: float = 10.0) -> None:
 
 def _start_server(port: int) -> subprocess.Popen:
     proc = subprocess.Popen(
-        [sys.executable, '-m', 'src.mcp.server', '--transport', 'sse', '--port', str(port)],
+        [
+            sys.executable,
+            '-m',
+            'tianshang_scribe.mcp.server',
+            '--transport',
+            'sse',
+            '--port',
+            str(port),
+        ],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         cwd=PROJECT_ROOT,

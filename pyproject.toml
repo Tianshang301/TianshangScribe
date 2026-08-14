@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tianshang-scribe"
-version = "0.4.0"
+version = "0.5.0"
 description = "Cross-platform CLI Office document processing tool with LaTeX math & MCP Server"
 readme = "README.md"
 license = {text = "Apache-2.0"}
@@ -64,11 +64,12 @@ Repository = "https://github.com/Tianshang301/TianshangScribe.git"
 Issues = "https://github.com/Tianshang301/TianshangScribe/issues"
 
 [project.scripts]
-tianshang-scribe = "src.cli.main:main_cli"
-scribe-mcp = "src.mcp.server:main"
+tianshang-scribe = "tianshang_scribe.cli.main:main_cli"
+scribe-mcp = "tianshang_scribe.mcp.server:main"
 
 [tool.setuptools.packages.find]
-include = ["src", "src.*"]
+where = ["src"]
+include = ["tianshang_scribe*"]
 
 [project.optional-dependencies]
 dev = [
@@ -116,7 +117,7 @@ ignore = [
 "demo/*.py" = ["E402", "RUF001", "RUF002", "RUF003", "B905", "SIM105", "D"]
 # store.py uses typing.List because the class method `list` shadows the builtin
 # in class scope for mypy (which requires py3.10 syntax compatibility).
-"src/utils/store.py" = ["UP006", "UP035"]
+"src/tianshang_scribe/utils/store.py" = ["UP006", "UP035"]
 
 [tool.ruff.format]
 quote-style = "single"
@@ -138,16 +139,16 @@ no_implicit_reexport = true
 
 [[tool.mypy.overrides]]
 module = [
-    "src.cli.main",
-    "src.mcp.transport",
+    "tianshang_scribe.cli.main",
+    "tianshang_scribe.mcp.transport",
 ]
 disallow_untyped_defs = false
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = [
-    "src.core.word_engine",
-    "src.core.ppt_engine",
+    "tianshang_scribe.core.word_engine",
+    "tianshang_scribe.core.ppt_engine",
 ]
 disable_error_code = ["no-untyped-call", "attr-defined"]
 
@@ -161,7 +162,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["tianshang_scribe"]
 branch = true
 parallel = true
 concurrency = ["thread"]

@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from src.core.document import DocumentType, create_document
-from src.rendering.template import TemplateEngine, defaultdict_from_yaml
+from tianshang_scribe.core.document import DocumentType, create_document
+from tianshang_scribe.rendering.template import TemplateEngine, defaultdict_from_yaml
 
 
 def _tmp_json(data: dict, name: str = 'data.json') -> Path:

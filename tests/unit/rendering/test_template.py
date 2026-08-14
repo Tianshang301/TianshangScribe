@@ -4,8 +4,8 @@ import json
 import tempfile
 from pathlib import Path
 
-from src.core.document import DocumentType, create_document
-from src.rendering.template import TemplateEngine
+from tianshang_scribe.core.document import DocumentType, create_document
+from tianshang_scribe.rendering.template import TemplateEngine
 
 
 class TestTemplateEngine:

@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from src.mcp import auth, prompts, security
-from src.mcp.metrics import (
+from tianshang_scribe.mcp import auth, prompts, security
+from tianshang_scribe.mcp.metrics import (
     instrumented,
     metrics_endpoint,
     observe_error,
     observe_operation,
     track_operation,
 )
-from src.mcp.rate_limit import RateLimiter, RateLimitError
-from src.mcp.security import PermissionLevel
-from src.mcp.server import INSTRUCTIONS, SERVER_NAME, build_server
+from tianshang_scribe.mcp.rate_limit import RateLimiter, RateLimitError
+from tianshang_scribe.mcp.security import PermissionLevel
+from tianshang_scribe.mcp.server import INSTRUCTIONS, SERVER_NAME, build_server
 
 
 class TestAuth:
@@ -134,14 +134,14 @@ class TestSecurity:
         assert security.is_idempotent('extract_document_data') is True
 
     def test_idempotent_table_covers_registry(self) -> None:
-        from src.mcp.tools._registry import TOOLS
+        from tianshang_scribe.mcp.tools._registry import TOOLS
 
         all_names = {t['name'] for t in TOOLS}
         extra = set(security.IDEMPOTENT_TOOLS) - all_names
         assert not extra
 
     def test_idempotent_equals_read_only(self) -> None:
-        from src.mcp.tools._registry import TOOLS
+        from tianshang_scribe.mcp.tools._registry import TOOLS
 
         for entry in TOOLS:
             name = entry['name']
@@ -190,15 +190,15 @@ class TestBuildServer:
 
 class TestMainEntry:
     def _patch_transport(self, monkeypatch, run: str) -> _Recorder:
-        monkeypatch.setattr('src.mcp.server.Settings', lambda: _FakeSettings())
+        monkeypatch.setattr('tianshang_scribe.mcp.server.Settings', lambda: _FakeSettings())
         recorder = _Recorder()
-        monkeypatch.setattr(f'src.mcp.transport.{run}', recorder)
+        monkeypatch.setattr(f'tianshang_scribe.mcp.transport.{run}', recorder)
         return recorder
 
     def test_main_stdio(self, monkeypatch, capsys) -> None:
         recorder = self._patch_transport(monkeypatch, 'run_stdio')
         monkeypatch.setattr('sys.argv', ['scribe-mcp', '--transport', 'stdio'])
-        from src.mcp import server as server_module
+        from tianshang_scribe.mcp import server as server_module
 
         server_module.main()
         assert recorder.called is True
@@ -209,7 +209,7 @@ class TestMainEntry:
             'sys.argv',
             ['scribe-mcp', '--transport', 'sse', '--host', '0.0.0.0', '--port', '9090'],
         )
-        from src.mcp import server as server_module
+        from tianshang_scribe.mcp import server as server_module
 
         server_module.main()
         assert recorder.called is True
@@ -220,7 +220,7 @@ class TestMainEntry:
             'sys.argv',
             ['scribe-mcp', '--transport', 'streamable-http', '--mcp-path', '/custom'],
         )
-        from src.mcp import server as server_module
+        from tianshang_scribe.mcp import server as server_module
 
         server_module.main()
         assert recorder.called is True

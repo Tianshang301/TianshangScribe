@@ -372,6 +372,9 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                         tokens.append({'type': 'frac', 'num': args[0], 'den': args[1]})
                         i = args[2]
                         continue
+                    tokens.append({'type': 'text', 'text': '\\' + cmd})
+                    i = cmd_end
+                    continue
 
                 elif cmd == 'sqrt':
                     args = _extract_sqrt_args(latex, cmd_end)
@@ -379,6 +382,9 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                         tokens.append({'type': 'sqrt', 'degree': args[0], 'content': args[1]})
                         i = args[2]
                         continue
+                    tokens.append({'type': 'text', 'text': '\\' + cmd})
+                    i = cmd_end
+                    continue
 
                 elif cmd in ('left', 'right'):
                     paren = _extract_delim(latex, cmd_end)
@@ -386,6 +392,9 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                         tokens.append({'type': 'delim', 'char': paren[0], 'side': cmd})
                         i = paren[1]
                         continue
+                    tokens.append({'type': 'text', 'text': '\\' + cmd})
+                    i = cmd_end
+                    continue
 
                 elif cmd in (
                     'sum',
@@ -526,6 +535,9 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                         )
                         i = style_args[1]
                         continue
+                    tokens.append({'type': 'text', 'text': '\\' + cmd})
+                    i = cmd_end
+                    continue
 
                 else:
                     tokens.append({'type': 'text', 'text': '\\' + cmd})
@@ -635,6 +647,7 @@ def _extract_delim(s: str, start: int) -> tuple[str | None, int] | None:
         '{': '\u007b',
         '}': '\u007d',
         '|': '\u007c',
+        '\\|': '\u007c',
         '.': None,
         '\\{': '\u007b',
         '\\}': '\u007d',
@@ -652,7 +665,10 @@ def _extract_delim(s: str, start: int) -> tuple[str | None, int] | None:
         if match:
             key = '\\' + match.group(1)
             if key in delim_map:
-                return delim_map[key], match.end()
+                return delim_map[key], start + match.end()
+        two_char = s[start : start + 2]
+        if two_char in ('\\{', '\\}', '\\|'):
+            return delim_map[two_char], start + 2
     elif ch in delim_map:
         return delim_map[ch], start + 1
 

@@ -78,7 +78,9 @@ class TestConfigSources:
 class TestLogHttpEvent:
     def test_log_http_event_json(self, capsys) -> None:
         configure_logging(Settings(log_json=True))
-        log_http_event('auth_rejected', method='POST', path='/mcp', status_code=401, reason='missing')
+        log_http_event(
+            'auth_rejected', method='POST', path='/mcp', status_code=401, reason='missing'
+        )
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload['event'] == 'auth_rejected'
         assert payload['method'] == 'POST'

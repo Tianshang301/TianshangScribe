@@ -124,7 +124,9 @@ def install_tool_search(server: MCPServer) -> None:
     """
     lowlevel: LowLevelServer[Any] = server._lowlevel_server
 
-    async def handler(ctx: ServerRequestContext[Any], params: ToolSearchParams | None) -> ListToolsResult:
+    async def handler(
+        ctx: ServerRequestContext[Any], params: ToolSearchParams | None
+    ) -> ListToolsResult:
         return await _handle_list_tools_search(ctx, params, server)
 
     lowlevel.add_request_handler(TOOLS_LIST_METHOD, ToolSearchParams, handler)

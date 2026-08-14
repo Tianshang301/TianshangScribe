@@ -651,6 +651,8 @@ def main(
                 engine.save(output_path)
                 console.print(f'[green]Saved:[/green] {output_path}')
 
+        except typer.Exit:
+            raise
         except FileNotFoundError as e:
             console.print(f'[red]Error:[/red] {e}')
             raise typer.Exit(code=1) from None

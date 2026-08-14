@@ -146,7 +146,9 @@ class TestSecurity:
             assert security.is_idempotent(name) == security.is_read_only(name), name
 
     def test_check_permission(self) -> None:
-        assert security.check_permission('create_office_document', {'create_office_document'}) is True
+        assert (
+            security.check_permission('create_office_document', {'create_office_document'}) is True
+        )
         assert security.check_permission('extract_document_data', set()) is True
         assert security.check_permission('create_office_document', set()) is False
 
@@ -159,3 +161,64 @@ class TestBuildServer:
     def test_instructions_embedded(self) -> None:
         assert 'edit_office_document' in INSTRUCTIONS
         assert 'Authorization' in INSTRUCTIONS
+
+
+class TestMainEntry:
+    def _patch_transport(self, monkeypatch, run: str) -> _Recorder:
+        monkeypatch.setattr('src.mcp.server.Settings', lambda: _FakeSettings())
+        recorder = _Recorder()
+        monkeypatch.setattr(f'src.mcp.transport.{run}', recorder)
+        return recorder
+
+    def test_main_stdio(self, monkeypatch, capsys) -> None:
+        recorder = self._patch_transport(monkeypatch, 'run_stdio')
+        monkeypatch.setattr('sys.argv', ['scribe-mcp', '--transport', 'stdio'])
+        from src.mcp import server as server_module
+
+        server_module.main()
+        assert recorder.called is True
+
+    def test_main_sse(self, monkeypatch, capsys) -> None:
+        recorder = self._patch_transport(monkeypatch, 'run_sse')
+        monkeypatch.setattr(
+            'sys.argv',
+            ['scribe-mcp', '--transport', 'sse', '--host', '0.0.0.0', '--port', '9090'],
+        )
+        from src.mcp import server as server_module
+
+        server_module.main()
+        assert recorder.called is True
+
+    def test_main_http(self, monkeypatch, capsys) -> None:
+        recorder = self._patch_transport(monkeypatch, 'run_http')
+        monkeypatch.setattr(
+            'sys.argv',
+            ['scribe-mcp', '--transport', 'streamable-http', '--mcp-path', '/custom'],
+        )
+        from src.mcp import server as server_module
+
+        server_module.main()
+        assert recorder.called is True
+
+
+class _FakeSettings:
+    transport = 'stdio'
+    host = '127.0.0.1'
+    port = 8080
+    auth_token = None
+    cors_origins = None
+    rate_limit_max = 100
+    rate_limit_window = 60
+    mcp_path = '/mcp'
+    api_keys = None
+    log_level = 'info'
+    log_json = False
+    log_file = None
+
+
+class _Recorder:
+    def __init__(self) -> None:
+        self.called = False
+
+    def __call__(self, *args: object, **kwargs: object) -> None:
+        self.called = True

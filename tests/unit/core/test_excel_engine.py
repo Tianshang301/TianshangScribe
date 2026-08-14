@@ -230,6 +230,192 @@ class TestExcelEngine:
         assert ws['A1'].comment.text == 'A note'
 
 
+class TestExcelEdge:
+    @pytest.fixture
+    def engine(self) -> ExcelEngine:
+        e = ExcelEngine()
+        e.create()
+        return e
+
+    def test_wb_property_unloaded(self) -> None:
+        e = ExcelEngine()
+        with pytest.raises(RuntimeError):
+            _ = e.wb
+
+    def test_open_nonexistent(self) -> None:
+        e = ExcelEngine()
+        with pytest.raises(FileNotFoundError):
+            e.open('nope.xlsx')
+
+    def test_save_without_path(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError):
+            engine.save()
+
+    def test_get_base_style(self, engine: ExcelEngine) -> None:
+        assert engine.get_base_style().font_name == 'Calibri'
+
+    def test_add_text_full_style(self, engine: ExcelEngine) -> None:
+        cell = engine.add_text(
+            'Styled',
+            bold=True,
+            italic=True,
+            font_name='Arial',
+            font_size=14,
+            color='FF0000',
+            alignment='center',
+        )
+        assert cell.value == 'Styled'
+        assert cell.font.bold is True
+        assert cell.font.name == 'Arial'
+        assert cell.font.size == 14
+
+    def test_add_text_with_style_object(self, engine: ExcelEngine) -> None:
+        from src.rendering.styles import TextStyle
+
+        engine.add_text('Styled', text_style=TextStyle(font_name='Arial', font_size=14))
+        assert engine.wb.active['A1'].font.name == 'Arial'
+
+    def test_add_styled_content(self, engine: ExcelEngine) -> None:
+        engine.add_styled_content(
+            [
+                {'type': 'text', 'content': 'plain'},
+                {'type': 'command', 'command': 'newpage'},
+                {'type': 'command', 'command': 'bfseries', 'content': 'bold'},
+                {'type': 'command', 'command': 'itshape', 'content': ''},
+            ]
+        )
+        assert engine.wb.active['A1'].value == 'plain'
+        assert engine.wb.active['A2'].value == 'bold'
+
+    def test_add_latex_content(self, engine: ExcelEngine) -> None:
+        engine.add_latex_content(r'\bfseries{Important}')
+        assert 'Important' in engine.extract_text()
+
+    def test_replace_text_regex(self, engine: ExcelEngine) -> None:
+        engine.add_text('Order 1')
+        count = engine.replace_text(r'\d+', '2', regex=True)
+        assert count >= 1
+        assert engine.wb.active['A1'].value == 'Order 2'
+
+    def test_replace_text_skips_none(self, engine: ExcelEngine) -> None:
+        engine.wb.active['A1'] = None
+        assert engine.replace_text('x', 'y') == 0
+
+    def test_apply_style_to_all(self, engine: ExcelEngine) -> None:
+        engine.add_text('data')
+        engine.set_style('font=Courier New,bold')
+        engine.apply_style_to_all()
+        assert engine.wb.active['A1'].font.name == 'Courier New'
+        assert engine.wb.active['A1'].font.bold is True
+
+    def test_delete_sheet_missing(self, engine: ExcelEngine) -> None:
+        engine.delete_sheet('NoSuchSheet')
+
+    def test_rename_sheet_missing(self, engine: ExcelEngine) -> None:
+        engine.rename_sheet('NoSuchSheet', 'x')
+
+    def test_to_pdf(self, engine: ExcelEngine, tmp_path: Path, monkeypatch) -> None:
+        engine.add_text('x')
+        out = tmp_path / 'o.pdf'
+        calls = []
+        monkeypatch.setattr(engine, 'save', lambda *a, **k: calls.append('save'))
+        monkeypatch.setattr('src.transform.pdf.excel_to_pdf', lambda s, d: calls.append((s, d)))
+        engine.to_pdf(out)
+        assert 'save' in calls
+
+    def test_import_json_non_list(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        p = tmp_path / 'd.json'
+        p.write_text('{"a":1}', encoding='utf-8')
+        with pytest.raises(ValueError, match='non-empty'):
+            engine.import_json(str(p))
+
+    def test_import_json_scalars(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        p = tmp_path / 'd.json'
+        p.write_text('[5, 6]', encoding='utf-8')
+        engine.import_json(str(p))
+        assert engine.wb.active['A1'].value == 5
+
+    def test_export_json_empty(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        out = tmp_path / 'o.json'
+        engine.export_json(str(out))
+        import json
+
+        assert json.loads(out.read_text()) == []
+
+    def test_export_json_with_nones(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        ws = engine.wb.active
+        ws['A1'] = 'H'
+        ws['A2'] = 'v'
+        out = tmp_path / 'o.json'
+        engine.export_json(str(out))
+        import json
+
+        data = json.loads(out.read_text())
+        assert data[0]['H'] == 'v'
+
+    def test_set_metadata_all_keys(self, engine: ExcelEngine) -> None:
+        engine.set_metadata(
+            author='a', title='t', subject='s', category='c', keywords='k', comments='m'
+        )
+        md = engine.get_metadata()
+        assert md['author'] == 'a'
+        assert md['title'] == 't'
+        assert md['comments'] == 'm'
+
+    def test_add_chart_line_pie(self, engine: ExcelEngine) -> None:
+        ws = engine.wb.active
+        ws['A1'] = 'x'
+        ws['A2'] = '1'
+        sheet = ws.title
+        engine.add_chart('line', f"'{sheet}'!A1:A2")
+        engine.add_chart('pie', f"'{sheet}'!A1:A2")
+        assert len(ws._charts) == 2
+
+    def test_sort_invalid_range(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Invalid cell range'):
+            engine.sort('badrange')
+
+    def test_sort_desc_with_none(self, engine: ExcelEngine) -> None:
+        ws = engine.wb.active
+        ws['A1'] = 'a'
+        ws['A2'] = 'b'
+        ws['A3'] = None
+        engine.sort('A1:A3', 'desc')
+        assert ws['A1'].value is None
+        assert ws['A2'].value == 'b'
+        assert ws['A3'].value == 'a'
+
+    def test_clear_formats(self, engine: ExcelEngine) -> None:
+        engine.add_text('styled', bold=True)
+        engine.clear_formats()
+        assert engine.wb.active['A1'].font.bold is not True
+
+    def test_clear_links(self, engine: ExcelEngine) -> None:
+        engine.add_text('x')
+        engine.clear_links()
+
+    def test_extract_text_no_data(self, engine: ExcelEngine) -> None:
+        assert engine.extract_text() == ''
+
+    def test_extract_tables_empty(self, engine: ExcelEngine) -> None:
+        assert engine.extract_tables() == []
+
+    def test_extract_images_no_images(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        saved = engine.extract_images(str(tmp_path / 'imgs'))
+        assert saved == []
+
+    def test_extract_images_with_image(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        from openpyxl.drawing.image import Image as XLImage
+        from PIL import Image
+
+        img = tmp_path / 'pic.png'
+        Image.new('RGB', (16, 16), (255, 0, 0)).save(img)
+        ws = engine.wb.active
+        ws.add_image(XLImage(str(img)), 'A1')
+        saved = engine.extract_images(str(tmp_path / 'out'))
+        assert len(saved) == 1
+
+
 class TestExcelImportJson:
     def test_import_json_dicts(self, tmp_path: Path) -> None:
         data = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]

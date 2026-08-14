@@ -483,7 +483,14 @@ class ExcelEngine(DocumentABC):
         idx = 0
         for ws in self.wb.worksheets:
             for image in getattr(ws, '_images', []):
-                blob = getattr(image, '_data', None) or getattr(image, 'blob', None)
+                data = getattr(image, '_data', None)
+                if callable(data):
+                    try:
+                        blob = data()
+                    except Exception:  # unreadable image part: skip, do not abort extraction
+                        blob = None
+                else:
+                    blob = data
                 if blob is None:
                     continue
                 ext = Path(image.format or 'png').suffix or f'.{image.format or "png"}'

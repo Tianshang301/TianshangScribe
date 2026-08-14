@@ -22,7 +22,11 @@ def _mock_which(monkeypatch, path: str) -> None:
 
 class TestEngineDiscovery:
     def test_find_office2pdf(self, monkeypatch) -> None:
-        monkeypatch.setattr(pdf.shutil, 'which', lambda name: '/usr/bin/office2pdf' if name == 'office2pdf' else None)
+        monkeypatch.setattr(
+            pdf.shutil,
+            'which',
+            lambda name: '/usr/bin/office2pdf' if name == 'office2pdf' else None,
+        )
         assert pdf._find_office2pdf() == '/usr/bin/office2pdf'
 
     def test_find_office2pdf_missing(self, monkeypatch) -> None:
@@ -80,7 +84,9 @@ class TestLibreOffice:
         out = tmp_path / 'out.pdf'
         calls: list[list[str]] = []
         monkeypatch.setattr(
-            pdf.shutil, 'which', lambda name: '/usr/bin/libreoffice' if name == 'libreoffice' else None
+            pdf.shutil,
+            'which',
+            lambda name: '/usr/bin/libreoffice' if name == 'libreoffice' else None,
         )
 
         def fake_run(cmd: list[str], **kwargs: object) -> None:
@@ -89,7 +95,15 @@ class TestLibreOffice:
         monkeypatch.setattr(pdf.subprocess, 'run', fake_run)
         pdf._convert_via_libreoffice(input_file, out)
         assert calls == [
-            ['/usr/bin/libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', str(tmp_path), str(input_file)]
+            [
+                '/usr/bin/libreoffice',
+                '--headless',
+                '--convert-to',
+                'pdf',
+                '--outdir',
+                str(tmp_path),
+                str(input_file),
+            ]
         ]
 
     def test_missing_binary_raises(self, monkeypatch, input_file: Path, tmp_path: Path) -> None:
@@ -160,7 +174,9 @@ class TestPublicConverters:
 
     def test_ppt_to_pdf(self, monkeypatch, input_file: Path, tmp_path: Path) -> None:
         out = tmp_path / 'o.pdf'
-        monkeypatch.setattr(pdf.shutil, 'which', lambda name: '/usr/bin/soffice' if name == 'soffice' else None)
+        monkeypatch.setattr(
+            pdf.shutil, 'which', lambda name: '/usr/bin/soffice' if name == 'soffice' else None
+        )
         monkeypatch.setattr(pdf.subprocess, 'run', lambda cmd, **kw: out.write_bytes(b'pdf'))
         pdf.ppt_to_pdf(input_file, out)
         assert out.exists()
@@ -180,7 +196,9 @@ def _disable_mammoth(monkeypatch) -> None:
 
 
 class TestMarkdownHtml:
-    def test_word_to_markdown_via_mammoth(self, monkeypatch, input_file: Path, tmp_path: Path) -> None:
+    def test_word_to_markdown_via_mammoth(
+        self, monkeypatch, input_file: Path, tmp_path: Path
+    ) -> None:
         import mammoth
 
         out = tmp_path / 'out.md'
@@ -193,13 +211,17 @@ class TestMarkdownHtml:
         pdf.word_to_markdown(input_file, out)
         assert out.read_text() == '# Hi'
 
-    def test_word_to_markdown_missing_deps(self, monkeypatch, input_file: Path, tmp_path: Path) -> None:
+    def test_word_to_markdown_missing_deps(
+        self, monkeypatch, input_file: Path, tmp_path: Path
+    ) -> None:
         _disable_mammoth(monkeypatch)
         monkeypatch.setattr(pdf.shutil, 'which', lambda name: None)
         with pytest.raises(RuntimeError, match='pandoc not found'):
             pdf.word_to_markdown(input_file, tmp_path / 'out.md')
 
-    def test_word_to_markdown_pandoc_fallback(self, monkeypatch, input_file: Path, tmp_path: Path) -> None:
+    def test_word_to_markdown_pandoc_fallback(
+        self, monkeypatch, input_file: Path, tmp_path: Path
+    ) -> None:
         out = tmp_path / 'out.md'
         calls: list[list[str]] = []
         _disable_mammoth(monkeypatch)
@@ -224,7 +246,9 @@ class TestMarkdownHtml:
         pdf.word_to_html(input_file, out)
         assert out.read_text() == '<p>Hi</p>'
 
-    def test_word_to_html_pandoc_fallback(self, monkeypatch, input_file: Path, tmp_path: Path) -> None:
+    def test_word_to_html_pandoc_fallback(
+        self, monkeypatch, input_file: Path, tmp_path: Path
+    ) -> None:
         out = tmp_path / 'out.html'
         _disable_mammoth(monkeypatch)
         monkeypatch.setattr(pdf.shutil, 'which', lambda name: '/usr/bin/pandoc')

@@ -107,6 +107,7 @@ ignore = [
 "tests/**/*.py" = [
     "N802", "N803", "N806",      # test naming conventions (snake_case helpers)
     "S101",                      # assert is idiomatic in pytest
+    "S104",                      # bind all interfaces in test fixtures
     "S105",                      # hardcoded credentials in test fixtures
     "S106",                      # hardcoded passwords in test fixtures
     "S602", "S603", "S607",      # subprocess invocation in tests
@@ -163,7 +164,7 @@ parallel = true
 concurrency = ["thread"]
 
 [tool.coverage.report]
-fail_under = 70
+fail_under = 80
 show_missing = true
 exclude_lines = [
     "pragma: no cover",

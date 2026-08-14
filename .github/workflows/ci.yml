@@ -39,7 +39,7 @@ jobs:
         run: mypy src/
 
       - name: Test with pytest
-        run: pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-fail-under=70 -m "not stress"
+        run: pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-fail-under=80 -m "not stress"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

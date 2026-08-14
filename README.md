@@ -17,6 +17,16 @@
 
 Cross-platform Office document processing for developers, CLI automation, and AI agents. Create, edit, template-fill, and convert Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents, with LaTeX-style markup, native OMML math formulas, and a template engine ({{placeholders}}, {{#each}} loops, {{#if}} conditions). Ships an MCP Server with 7 tools (create, edit, fill template, convert, extract, validate, compare) over stdio, SSE, and Streamable HTTP transports, with bearer-token auth and rate limiting.
 
+> **Warning: Unstable API \u2014 breaking changes expected**
+>
+> This project is pre-1.0 (0.x). The CLI options, MCP tool signatures, template
+> syntax, and output formats are **not frozen** and may change without notice.
+> **Compatibility commitment**: any breaking change will be announced in the
+> CHANGELOG at least one release in advance and accompanied by a migration guide.
+> For production use, pin to a specific version and review the CHANGELOG before
+> upgrading.
+
+
 ## Install
 
 ```bash

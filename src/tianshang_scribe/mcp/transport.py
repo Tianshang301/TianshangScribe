@@ -322,8 +322,8 @@ def run_stdio(server: Any) -> None:
 def _uvicorn_log_config() -> dict[str, Any]:
     """Return a uvicorn log config aligned with the structlog pipeline.
 
-    ``level`` is read from the current :class:`Settings` so ``SCRIBE_LOG_LEVEL``
-    and ``SCRIBE_LOG_JSON`` control uvicorn's access/error logs too.
+    ``level`` is read from the current :class:`Settings` so ``TIANSHANG_SCRIBE_LOG_LEVEL``
+    and ``TIANSHANG_SCRIBE_LOG_JSON`` control uvicorn's access/error logs too.
     """
     settings = Settings()
     level = settings.log_level.upper()

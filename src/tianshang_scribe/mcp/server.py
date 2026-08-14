@@ -29,7 +29,7 @@ from tianshang_scribe.utils.config import Settings
 from tianshang_scribe.utils.logging import configure_logging
 
 SERVER_NAME = 'tianshang-scribe'
-SERVER_VERSION = '0.5.0'
+SERVER_VERSION = '0.6.0'
 
 INSTRUCTIONS = (
     'TianshangScribe MCP Server — create, edit, fill, convert and extract '
@@ -41,7 +41,7 @@ INSTRUCTIONS = (
     'compare_documents is read-only in compare mode but writes to the snapshot '
     'store in snapshot/restore mode.\n'
     'HTTP transports may require an Authorization: Bearer <key> header '
-    '(configured via SCRIBE_API_KEYS or --auth-token) and are subject to '
+    '(configured via TIANSHANG_SCRIBE_API_KEYS or --auth-token) and are subject to '
     'per-client rate limits.'
 )
 
@@ -72,7 +72,7 @@ def build_server(version: str = SERVER_VERSION) -> MCPServer:
 
 
 def main() -> None:
-    """CLI entry point (``scribe-mcp`` / ``python -m tianshang_scribe.mcp.server``)."""
+    """CLI entry point (``tianshang-scribe-server`` / ``python -m tianshang_scribe.mcp.server``)."""
     settings = Settings()
     configure_logging(settings)
     parser = argparse.ArgumentParser(description='TianshangScribe MCP Server')
@@ -96,12 +96,12 @@ def main() -> None:
     parser.add_argument(
         '--auth-token',
         default=settings.auth_token,
-        help='Bearer token for HTTP auth (env: SCRIBE_AUTH_TOKEN)',
+        help='Bearer token for HTTP auth (env: TIANSHANG_SCRIBE_AUTH_TOKEN)',
     )
     parser.add_argument(
         '--cors-origins',
         default=settings.cors_origins,
-        help='CORS allowed origins, comma-separated (env: SCRIBE_CORS_ORIGINS)',
+        help='CORS allowed origins, comma-separated (env: TIANSHANG_SCRIBE_CORS_ORIGINS)',
     )
     parser.add_argument(
         '--rate-limit-max',

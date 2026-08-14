@@ -2,7 +2,7 @@
 
 Replaces ad-hoc ``print``/standard-library logging in the MCP server with
 context-rich, machine-parseable events. In default (console) mode output is
-human-friendly coloured text; setting ``SCRIBE_LOG_JSON=1`` (or
+human-friendly coloured text; setting ``TIANSHANG_SCRIBE_LOG_JSON=1`` (or
 ``log_json=True``) switches to JSON lines for ELK/Loki-style pipelines. Every
 event carries a timestamp, level, and event name plus caller-supplied key
 values.
@@ -28,7 +28,7 @@ def configure_logging(settings: Settings | None = None) -> None:
     """Configure structlog processors, level and output format globally.
 
     ``settings`` may be supplied explicitly (e.g. from a CLI-parsed config);
-    otherwise a fresh :class:`Settings` is read so ``SCRIBE_LOG_*`` env vars
+    otherwise a fresh :class:`Settings` is read so ``TIANSHANG_SCRIBE_LOG_*`` env vars
     and a ``.env`` file apply. Safe to call more than once.
     """
     settings = settings or Settings()

@@ -46,13 +46,13 @@ git clone https://github.com/Tianshang301/TianshangScribe.git
 cd TianshangScribe
 docker compose up -d
 # Streamable HTTP MCP Server at http://localhost:8080/mcp
-# (override transport / auth / rate limits via SCRIBE_* env vars)
+# (override transport / auth / rate limits via TIANSHANG_SCRIBE_* env vars)
 ```
 
 **.deb package** (Debian / Ubuntu):
 ```bash
 # Download from GitHub Releases
-sudo dpkg -i tianshang-scribe_0.5.0_all.deb
+sudo dpkg -i tianshang-scribe_0.6.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -399,12 +399,12 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 ```bash
 # With authentication
-SCRIBE_AUTH_TOKEN="secret" \
+TIANSHANG_SCRIBE_AUTH_TOKEN="secret" \
 python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # Health check
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.5.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.6.0","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
 
 # CORS whitelist
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"

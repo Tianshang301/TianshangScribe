@@ -44,13 +44,13 @@ git clone https://github.com/Tianshang301/TianshangScribe.git
 cd TianshangScribe
 docker compose up -d
 # Streamable HTTP MCP Server 监听 http://localhost:8080/mcp
-# （传输 / 认证 / 限流均可通过 SCRIBE_* 环境变量覆盖）
+# （传输 / 认证 / 限流均可通过 TIANSHANG_SCRIBE_* 环境变量覆盖）
 ```
 
 **.deb 包**（Debian / Ubuntu）：
 ```bash
 # 从 GitHub Releases 下载
-sudo dpkg -i tianshang-scribe_0.3.0_all.deb
+sudo dpkg -i tianshang-scribe_0.6.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -398,11 +398,11 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 ```bash
 # 带认证启动
-SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
+TIANSHANG_SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # 健康检查
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.3.0","active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.6.0","active_sessions":3,"tools_available":7}
 
 # CORS 白名单
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"

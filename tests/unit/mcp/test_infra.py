@@ -19,21 +19,21 @@ from tianshang_scribe.mcp.server import INSTRUCTIONS, SERVER_NAME, build_server
 
 class TestAuth:
     def test_open_when_no_keys(self, monkeypatch) -> None:
-        monkeypatch.delenv('SCRIBE_AUTH_TOKEN', raising=False)
-        monkeypatch.delenv('SCRIBE_API_KEYS', raising=False)
+        monkeypatch.delenv('TIANSHANG_SCRIBE_AUTH_TOKEN', raising=False)
+        monkeypatch.delenv('TIANSHANG_SCRIBE_API_KEYS', raising=False)
         assert auth.api_key_enabled() is False
         assert auth.validate_api_key('anything') is True
         assert auth.validate_api_key(None) is True
 
     def test_token_validation(self, monkeypatch) -> None:
-        monkeypatch.setenv('SCRIBE_AUTH_TOKEN', 'secret-token')
+        monkeypatch.setenv('TIANSHANG_SCRIBE_AUTH_TOKEN', 'secret-token')
         assert auth.api_key_enabled() is True
         assert auth.validate_api_key('secret-token') is True
         assert auth.validate_api_key('wrong') is False
         assert auth.validate_api_key(None) is False
 
     def test_comma_separated_keys(self, monkeypatch) -> None:
-        monkeypatch.setenv('SCRIBE_API_KEYS', 'k1, k2,')
+        monkeypatch.setenv('TIANSHANG_SCRIBE_API_KEYS', 'k1, k2,')
         assert auth.validate_api_key('k1') is True
         assert auth.validate_api_key('k2') is True
         assert auth.validate_api_key('k3') is False
@@ -197,7 +197,7 @@ class TestMainEntry:
 
     def test_main_stdio(self, monkeypatch, capsys) -> None:
         recorder = self._patch_transport(monkeypatch, 'run_stdio')
-        monkeypatch.setattr('sys.argv', ['scribe-mcp', '--transport', 'stdio'])
+        monkeypatch.setattr('sys.argv', ['tianshang-scribe-server', '--transport', 'stdio'])
         from tianshang_scribe.mcp import server as server_module
 
         server_module.main()
@@ -207,7 +207,15 @@ class TestMainEntry:
         recorder = self._patch_transport(monkeypatch, 'run_sse')
         monkeypatch.setattr(
             'sys.argv',
-            ['scribe-mcp', '--transport', 'sse', '--host', '0.0.0.0', '--port', '9090'],
+            [
+                'tianshang-scribe-server',
+                '--transport',
+                'sse',
+                '--host',
+                '0.0.0.0',
+                '--port',
+                '9090',
+            ],
         )
         from tianshang_scribe.mcp import server as server_module
 
@@ -218,7 +226,7 @@ class TestMainEntry:
         recorder = self._patch_transport(monkeypatch, 'run_http')
         monkeypatch.setattr(
             'sys.argv',
-            ['scribe-mcp', '--transport', 'streamable-http', '--mcp-path', '/custom'],
+            ['tianshang-scribe-server', '--transport', 'streamable-http', '--mcp-path', '/custom'],
         )
         from tianshang_scribe.mcp import server as server_module
 

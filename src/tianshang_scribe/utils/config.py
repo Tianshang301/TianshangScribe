@@ -5,7 +5,7 @@ environment variables into a single :class:`Settings` model backed by
 ``pydantic-settings``. Values resolve in priority order:
 
 1. explicit constructor arguments (e.g. CLI overrides);
-2. ``SCRIBE_*`` environment variables;
+2. ``TIANSHANG_SCRIBE_*`` environment variables;
 3. a local ``.env`` file (if present);
 4. the defaults declared below.
 
@@ -24,10 +24,10 @@ TransportName = Literal['stdio', 'sse', 'streamable-http']
 
 
 class Settings(BaseSettings):
-    """Server configuration. Environment variables use the ``SCRIBE_`` prefix."""
+    """Server configuration. Environment variables use the ``TIANSHANG_SCRIBE_`` prefix."""
 
     model_config = SettingsConfigDict(
-        env_prefix='SCRIBE_',
+        env_prefix='TIANSHANG_SCRIBE_',
         env_file='.env',
         env_file_encoding='utf-8',
         extra='ignore',
@@ -43,13 +43,13 @@ class Settings(BaseSettings):
     """Bind port for the HTTP transports."""
 
     auth_token: str | None = None
-    """Primary bearer token (env: ``SCRIBE_AUTH_TOKEN``)."""
+    """Primary bearer token (env: ``TIANSHANG_SCRIBE_AUTH_TOKEN``)."""
 
     api_keys: str | None = None
-    """Comma-separated additional bearer tokens (env: ``SCRIBE_API_KEYS``)."""
+    """Comma-separated additional bearer tokens (env: ``TIANSHANG_SCRIBE_API_KEYS``)."""
 
     cors_origins: str | None = None
-    """Comma-separated CORS allowed origins (env: ``SCRIBE_CORS_ORIGINS``)."""
+    """Comma-separated CORS allowed origins (env: ``TIANSHANG_SCRIBE_CORS_ORIGINS``)."""
 
     rate_limit_max: int = 100
     """Max requests per client per ``rate_limit_window``."""

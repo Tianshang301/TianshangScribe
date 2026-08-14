@@ -61,13 +61,13 @@ class TestJsonMode:
 
 class TestConfigSources:
     def test_env_log_json(self, monkeypatch, capsys) -> None:
-        monkeypatch.setenv('SCRIBE_LOG_JSON', 'true')
+        monkeypatch.setenv('TIANSHANG_SCRIBE_LOG_JSON', 'true')
         configure_logging()
         out = _capture(capsys, 'env_event')
         assert json.loads(out.strip())['event'] == 'env_event'
 
     def test_env_log_level(self, monkeypatch, capsys) -> None:
-        monkeypatch.setenv('SCRIBE_LOG_LEVEL', 'WARNING')
+        monkeypatch.setenv('TIANSHANG_SCRIBE_LOG_LEVEL', 'WARNING')
         configure_logging()
         get_logger('scribe.test').info('filtered')
         assert capsys.readouterr().out == ''
@@ -75,8 +75,8 @@ class TestConfigSources:
         assert 'kept' in capsys.readouterr().out
 
     def test_settings_log_fields(self, monkeypatch) -> None:
-        monkeypatch.setenv('SCRIBE_LOG_JSON', '1')
-        monkeypatch.setenv('SCRIBE_LOG_LEVEL', 'ERROR')
+        monkeypatch.setenv('TIANSHANG_SCRIBE_LOG_JSON', '1')
+        monkeypatch.setenv('TIANSHANG_SCRIBE_LOG_LEVEL', 'ERROR')
         settings = Settings()
         assert settings.log_json is True
         assert settings.log_level == 'ERROR'

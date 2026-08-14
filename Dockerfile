@@ -21,12 +21,12 @@ COPY --from=builder /app/src ./src
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     TMPDIR=/tmp/scribe \
-    SCRIBE_LOG_LEVEL=${SCRIBE_LOG_LEVEL:-INFO} \
-    SCRIBE_LOG_JSON=${SCRIBE_LOG_JSON:-0}
+    TIANSHANG_SCRIBE_LOG_LEVEL=${TIANSHANG_SCRIBE_LOG_LEVEL:-INFO} \
+    TIANSHANG_SCRIBE_LOG_JSON=${TIANSHANG_SCRIBE_LOG_JSON:-0}
 
 # Streamable HTTP MCP Server (default transport; override via CMD)
 EXPOSE 8080
-ENV SCRIBE_TRANSPORT=streamable-http
+ENV TIANSHANG_SCRIBE_TRANSPORT=streamable-http
 
 # Non-root user; scratch/output dir owned by that user.
 RUN useradd -m scribe && mkdir -p /tmp/scribe && chown -R scribe:scribe /app /tmp/scribe

@@ -1,6 +1,6 @@
 """API-key authentication for the HTTP transports.
 
-A single ``SCRIBE_AUTH_TOKEN`` (or a comma-separated ``SCRIBE_API_KEYS`` list)
+A single ``TIANSHANG_SCRIBE_AUTH_TOKEN`` (or a comma-separated ``TIANSHANG_SCRIBE_API_KEYS`` list)
 guards the SSE and streamable-HTTP endpoints. stdio mode is unaffected. When
 no key is configured the HTTP endpoint is open (local development).
 

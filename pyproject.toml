@@ -114,6 +114,9 @@ ignore = [
     "D",                         # docstrings not required in tests
 ]
 "demo/*.py" = ["E402", "RUF001", "RUF002", "RUF003", "B905", "SIM105", "D"]
+# store.py uses typing.List because the class method `list` shadows the builtin
+# in class scope for mypy (which requires py3.10 syntax compatibility).
+"src/utils/store.py" = ["UP006", "UP035"]
 
 [tool.ruff.format]
 quote-style = "single"

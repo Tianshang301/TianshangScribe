@@ -1298,3 +1298,108 @@ class TestMainDispatch:
         monkeypatch.setattr(cli, 'app', lambda: calls.append('app'))
         cli.main_cli()
         assert calls == ['app']
+
+
+class TestScheduleCli:
+    def test_schedule_add_list(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        code, out = _run('--schedule-db', str(db), '--schedule-add', 'daily|0 9 * * *|echo hi')
+        assert code == 0
+        assert 'daily' in out
+        code, out = _run('--schedule-db', str(db), '--schedule-list')
+        assert code == 0
+        assert 'daily' in out
+        assert '0 9 * * *' in out
+
+    def test_schedule_add_invalid(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        code, _ = _run('--schedule-db', str(db), '--schedule-add', 'onlyname')
+        assert code == 2
+
+    def test_schedule_rm(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        _run('--schedule-db', str(db), '--schedule-add', 'x|0 9 * * *|echo hi')
+        code, out = _run('--schedule-db', str(db), '--schedule-rm', 'x')
+        assert code == 0
+        assert 'removed' in out
+        code, out = _run('--schedule-db', str(db), '--schedule-rm', 'missing')
+        assert code == 0
+        assert 'not found' in out
+
+    def test_schedule_list_empty(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        code, out = _run('--schedule-db', str(db), '--schedule-list')
+        assert code == 0
+        assert 'No schedules' in out
+
+    def test_schedule_run_unknown(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        code, _ = _run('--schedule-db', str(db), '--schedule-run', 'nope')
+        assert code == 1
+
+    def test_schedule_run_success(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        _run('--schedule-db', str(db), '--schedule-add', 'ok|0 9 * * *|python -c pass')
+        code, out = _run('--schedule-db', str(db), '--schedule-run', 'ok')
+        assert code == 0
+        assert 'ok:' in out
+
+    def test_schedule_run_unsatisfied_dep(self, tmp_path: Path) -> None:
+        db = tmp_path / 's.db'
+        _run('--schedule-db', str(db), '--schedule-add', 'child|0 9 * * *|python -c pass')
+        from src.utils.store import Schedule, ScheduleStore
+
+        with ScheduleStore(db) as store:
+            store.upsert(
+                Schedule(
+                    name='child',
+                    cron='0 9 * * *',
+                    command=['python', '-c', 'pass'],
+                    depends_on=['base'],
+                )
+            )
+        code, out = _run('--schedule-db', str(db), '--schedule-run', 'child')
+        assert code == 1
+        assert 'unsatisfied' in out
+
+    def test_schedule_run_all_due(self, tmp_path: Path, monkeypatch) -> None:
+        import datetime as _dt
+
+        class _FixedDT(_dt.datetime):
+            _fixed = _dt.datetime(2026, 1, 1, 10, 1, 0, tzinfo=_dt.timezone.utc)
+
+            @classmethod
+            def now(cls, tz=None):
+                if tz is None:
+                    return cls._fixed.replace(tzinfo=None)
+                return cls._fixed.astimezone(tz)
+
+        monkeypatch.setattr('src.core.scheduler.datetime', _FixedDT)
+        db = tmp_path / 's.db'
+        _run('--schedule-db', str(db), '--schedule-add', 'a|* * * * *|python -c pass')
+        code, out = _run('--schedule-db', str(db), '--schedule-run-all')
+        assert code == 0
+        assert 'a:' in out
+
+
+class TestRunScriptCli:
+    def test_run_script_ok(self, tmp_path: Path) -> None:
+        script = tmp_path / 's.py'
+        script.write_text('x = 1\n', encoding='utf-8')
+        code, out = _run('--run-script', str(script))
+        assert code == 0
+        assert 'successfully' in out
+
+    def test_run_script_rejected(self, tmp_path: Path) -> None:
+        script = tmp_path / 's.py'
+        script.write_text('import os\n', encoding='utf-8')
+        code, out = _run('--run-script', str(script))
+        assert code == 2
+        assert 'rejected' in out
+
+    def test_run_script_error(self, tmp_path: Path) -> None:
+        script = tmp_path / 's.py'
+        script.write_text('raise RuntimeError("boom")\n', encoding='utf-8')
+        code, out = _run('--run-script', str(script))
+        assert code == 1
+        assert 'failed' in out

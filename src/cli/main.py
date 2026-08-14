@@ -311,8 +311,64 @@ def main(
             help='Glob pattern for batch processing (e.g. "reports/*.docx"). Implies --batch.',
         ),
     ] = None,
+    schedule_db: Annotated[
+        str | None,
+        typer.Option(
+            '--schedule-db',
+            help='SQLite database for schedules (default: ~/.tianshang-scribe/schedules.db)',
+        ),
+    ] = None,
+    schedule_add: Annotated[
+        str | None,
+        typer.Option(
+            '--schedule-add',
+            help='Register a schedule: "name|cron|command..." (e.g. "daily|0 9 * * *|echo hi")',
+        ),
+    ] = None,
+    schedule_rm: Annotated[
+        str | None,
+        typer.Option('--schedule-rm', help='Remove a schedule by name'),
+    ] = None,
+    schedule_list: Annotated[
+        bool,
+        typer.Option('--schedule-list', help='List registered schedules'),
+    ] = False,
+    schedule_run: Annotated[
+        str | None,
+        typer.Option(
+            '--schedule-run',
+            help='Run a schedule now by name (respecting dependencies)',
+        ),
+    ] = None,
+    schedule_run_all: Annotated[
+        bool,
+        typer.Option(
+            '--schedule-run-all',
+            help='Run every schedule whose cron window and dependencies are satisfied',
+        ),
+    ] = False,
+    run_script: Annotated[
+        str | None,
+        typer.Option(
+            '--run-script',
+            help='Execute a Python script in the sandboxed runner (import whitelist + timeout)',
+        ),
+    ] = None,
 ) -> None:
     """Run one-shot CLI operations on a single document or batch of files."""
+    if schedule_add or schedule_rm or schedule_list or schedule_run or schedule_run_all:
+        _handle_schedule(
+            schedule_db=schedule_db,
+            add_spec=schedule_add,
+            remove=schedule_rm,
+            list_only=schedule_list,
+            run_name=schedule_run,
+            run_all=schedule_run_all,
+        )
+        return
+    if run_script:
+        _handle_run_script(run_script)
+        return
     if not create and not input_file and not files and not stdin:
         console.print(app.info.help or 'tianshang-scribe — CLI Office document tool')
         return
@@ -826,6 +882,135 @@ def _handle_extract(
             f'[yellow]Extract mode "{mode}" not supported. '
             'Use text, tables, images, structure, or metadata.[/yellow]'
         )
+
+
+def _default_schedule_db() -> Path:
+    """Return the default schedule database path (~/.tianshang-scribe/schedules.db)."""
+    return Path.home() / '.tianshang-scribe' / 'schedules.db'
+
+
+def _open_schedule_store(db: str | None) -> Any:
+    """Open the schedule store, creating its parent directory as needed."""
+    path = Path(db) if db else _default_schedule_db()
+    from src.utils.store import ScheduleStore
+
+    return ScheduleStore(path)
+
+
+def _handle_schedule(
+    *,
+    schedule_db: str | None = None,
+    add_spec: str | None = None,
+    remove: str | None = None,
+    list_only: bool = False,
+    run_name: str | None = None,
+    run_all: bool = False,
+) -> None:
+    """Dispatch ``--schedule-*`` operations."""
+    store = _open_schedule_store(schedule_db)
+    try:
+        if add_spec:
+            from src.core.scheduler import parse_command
+            from src.utils.store import Schedule
+
+            parts = add_spec.split('|', 2)
+            if len(parts) < 3:
+                console.print('[red]Error:[/red] --schedule-add requires "name|cron|command"')
+                raise typer.Exit(code=2)
+            name, cron, command = parts[0].strip(), parts[1].strip(), parts[2].strip()
+            if not name or not cron or not command:
+                console.print('[red]Error:[/red] --schedule-add fields must be non-empty.')
+                raise typer.Exit(code=2)
+            store.upsert(Schedule(name=name, cron=cron, command=parse_command(command)))
+            console.print(f'[green]Schedule "{name}" registered:[/green] {cron}')
+            return
+
+        if remove:
+            if store.delete(remove):
+                console.print(f'[green]Schedule "{remove}" removed.[/green]')
+            else:
+                console.print(f'[yellow]Schedule "{remove}" not found.[/yellow]')
+            return
+
+        if list_only:
+            schedules = store.list()
+            if not schedules:
+                console.print('[dim]No schedules registered.[/dim]')
+                return
+            for s in schedules:
+                status = 'enabled' if s.enabled else 'disabled'
+                deps = f' (after: {", ".join(s.depends_on)})' if s.depends_on else ''
+                console.print(
+                    f'[cyan]{s.name}[/cyan]  {s.cron}  [{status}]{deps}'
+                    f'  last: {s.last_status or "never"}'
+                )
+            return
+
+        if run_name:
+            from src.core.scheduler import TaskScheduler
+
+            scheduler = TaskScheduler(store)
+            schedule = store.get(run_name)
+            if schedule is None:
+                console.print(f'[red]Error:[/red] Schedule "{run_name}" not found.')
+                raise typer.Exit(code=1)
+            if not scheduler.dependencies_satisfied(schedule):
+                console.print(
+                    f'[red]Error:[/red] Schedule "{run_name}" has unsatisfied dependencies.'
+                )
+                raise typer.Exit(code=1)
+            result = scheduler.run(schedule)
+            _print_run_result(result)
+            if result.exit_code != 0:
+                raise typer.Exit(code=1)
+            return
+
+        if run_all:
+            from src.core.scheduler import TaskScheduler
+
+            results = TaskScheduler(store).run_all_due()
+            if not results:
+                console.print('[dim]No schedules due.[/dim]')
+                return
+            for result in results:
+                _print_run_result(result)
+            if any(r.exit_code != 0 for r in results):
+                raise typer.Exit(code=1)
+            return
+
+        console.print('[yellow]No --schedule-* operation given.[/yellow]')
+    finally:
+        store.close()
+
+
+def _print_run_result(result: Any) -> None:
+    """Print one scheduler run result."""
+    color = 'green' if result.exit_code == 0 else 'red'
+    tag = 'timed out' if result.timed_out else f'exit {result.exit_code}'
+    console.print(f'[{color}]{result.name}:[/{color}] {tag}')
+    output = result.output.strip()
+    if output:
+        for line in output.splitlines():
+            console.print(f'  {line}')
+
+
+def _handle_run_script(path: str) -> None:
+    """Execute a Python script in the sandboxed runner."""
+    from src.core.script_runner import ScriptRunner
+
+    result = ScriptRunner().run_file(path)
+    if result.violations:
+        console.print('[red]Script rejected:[/red]')
+        for v in result.violations:
+            console.print(f'  [red]x[/red] {v}')
+        raise typer.Exit(code=2)
+    if result.timed_out:
+        console.print('[red]Script timed out.[/red]')
+        raise typer.Exit(code=1)
+    if result.error:
+        console.print(f'[red]Script failed:[/red] {result.error}')
+        raise typer.Exit(code=1)
+    console.print('[green]Script ran successfully.[/green]')
 
 
 open_app = typer.Typer(

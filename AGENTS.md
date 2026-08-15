@@ -32,7 +32,7 @@
 | **保护与元数据** | 设置/解除密码保护；读写作者、标题等文档属性 | P1 ✅ |
 | **高级结构操作** | Excel 工作表增删重命名；PPT 幻灯片增删移动；Word 目录生成、分节 | P1 ✅ |
 | **批量与管道** | 支持 stdin/stdout、退出码规范 | P1 ✅ |
-| **批注与修订** | Word 添加批注、开启修订；PPT 演讲者备注 | P2 |
+| **批注与修订** | Word 添加批注（`--comment`）✅；PPT 演讲者备注（`--notes`）✅；开启修订（track changes）待实现 | P2 🚧 |
 | **图表与媒体** | Excel 创建图表；PPT 压缩媒体、动画设置 | P2 ✅ |
 | **批量增强** | 通配符递归、`--batch` 模式 | P2 ✅ |
 
@@ -86,7 +86,13 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 | | `--add-table` | `--add-table "H1,H2\|a1,a2"` | 添加 Word 表格；`@file.csv` 从 CSV 读取（内联 `\|` 分行、`,` 分列） |
 | | `--batch` | `--batch` | 批量模式：逐文件执行、失败不中断、末尾汇总 |
 | | `--files` | `--files "reports/*.docx"` | 批量 glob 通配符（隐含 `--batch`） |
-| | `--compress-media` | `--compress-media "1920,80"` | 压缩 PPT 媒体（最大边长,JPEG 质量） |
+| | `--schedule-db` | `--schedule-db ~/.tianshang-scribe/schedules.db` | 指定调度 SQLite 数据库路径（默认 `~/.tianshang-scribe/schedules.db`） |
+| | `--schedule-add` | `--schedule-add "daily\|0 9 * * *\|echo hi"` | 注册调度：`名称\|cron表达式\|命令` |
+| | `--schedule-rm` | `--schedule-rm daily` | 按名称删除调度 |
+| | `--schedule-list` | `--schedule-list` | 列出已注册调度 |
+| | `--schedule-run` | `--schedule-run daily` | 立即按名称运行调度（尊重依赖链） |
+| | `--schedule-run-all` | `--schedule-run-all` | 运行所有 cron 窗口满足且依赖就绪的调度 |
+| | `--run-script` | `--run-script build.py` | 在沙箱中执行 Python 脚本（import 白名单 + 超时限制） |
 
 #### 4. 文档专属操作
 
@@ -205,14 +211,17 @@ src/                          # 构建隔离目录
     │   ├── document.py    # 统一接口 DocumentABC + DocumentType
     │   ├── word_engine.py # Word 引擎
     │   ├── excel_engine.py# Excel 引擎
-    │   └── ppt_engine.py  # PPT 引擎
+    │   ├── ppt_engine.py  # PPT 引擎
+    │   ├── scheduler.py   # Cron 调度器 + 依赖链（--schedule-*）
+    │   └── script_runner.py# 沙箱脚本执行（--run-script，import 白名单 + 超时）
     ├── rendering/         # 模板填充、样式解析、数学公式
     │   ├── template.py    # 模板引擎（{{key}}, {{#each}}, {{#if}}）
     │   ├── latex_parser.py# LaTeX 标记递归下降解析器（20 命令，三层嵌套）
     │   ├── math_omml.py   # LaTeX → OMML 数学公式转换器（110+ 符号）
     │   └── styles.py      # TextStyle 数据类（中西文字体分离）
     ├── transform/         # 格式转换器
-    │   └── pdf.py         # PDF/MD/HTML 转换（office2pdf + LibreOffice）
+    │   ├── pdf.py         # PDF/MD/HTML 转换（office2pdf + LibreOffice）
+    │   └── reverse.py     # 反向转换（HTML/Markdown→Word）
     ├── mcp/               # MCP Server（AI Agent 集成，官方 mcp SDK 2.x）
     │   ├── server.py      # build_server + 入口（stdio / SSE / Streamable HTTP）
     │   ├── transport.py   # 传输接线 + ASGI 中间件（认证/CORS/限流/指标/RBAC）
@@ -234,6 +243,8 @@ src/                          # 构建隔离目录
     │   └── errors.py      # 结构化错误码 + 修复建议
     └── utils/             # 公共工具
         ├── config.py      # pydantic-settings 集中配置（TIANSHANG_SCRIBE_* env + .env）
+        ├── logging.py     # structlog 结构化日志（console/JSON，uvicorn 统一格式）
+        ├── store.py       # SQLite 持久化（ScheduleStore：调度 + 运行历史）
         └── file_utils.py  # check_overwrite / ensure_parent_dir
 ```
 
@@ -253,7 +264,7 @@ src/                          # 构建隔离目录
 - 模板填充基础版（纯文本替换，无循环）。
 - 输出 `--help` 完整文档。
 
-#### Phase 2：功能完备 🚧 85% 完成
+#### Phase 2：功能完备 ✅ 已完成
 - ✅ 实现所有通用操作参数（`-d`, `-cl`, `-m`, `-x`, `--merge`, `--split`, `--meta`, `--protect`, `--comment`）。
 - ✅ 完善文档专属操作（标题、表格、工作表管理、幻灯片操作）。
 - ✅ Excel 导入导出 CSV/JSON，PPT 转图片。
@@ -268,6 +279,8 @@ src/                          # 构建隔离目录
 - ✅ reverse 格式转换（HTML/Markdown→Word、JSON→Excel，input_file 自动识别）。
 - ✅ `--extract` 全量（text / tables / images / structure / metadata）。
 - ✅ `--add-table`（内联或 `@file.csv`）与 PPT `--compress-media` 媒体压缩。
+- ✅ 调度与沙箱：cron 调度器 + SQLite store（`--schedule-*`）、沙箱脚本执行（`--run-script`，import 白名单 + 超时）。
+- ✅ 文档快照与 RBAC：`compare_documents`（snapshot/list_snapshots/restore）+ 角色矩阵（viewer/editor/owner）。
 
 #### Phase 3：优化与生态
 - 性能优化：大文件流式读写、多线程转换。

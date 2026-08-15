@@ -140,6 +140,19 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `--heading` | Add heading (Word) | `--heading "level:1 text:Intro"` |
 | `--regex` | Regex mode | Use with `--replace` `--delete` |
 | `--merge` | Merge files | `--merge "a.docx,b.docx"` |
+| `--split` | Split document | `--split by-page` |
+| `--comment` | Add comment / notes | `--comment "Note text"` |
+| `--add-table` | Add table (Word) | `--add-table "H1,H2\|a1,a2"` |
+| `--chart-add` | Add chart (Excel) | `--chart-add "type=bar data=B1:C10"` |
+| `--batch` | Batch mode | `--batch` |
+| `--files` | Glob pattern for batch | `--files "reports/*.docx"` |
+| `--schedule-db` | Schedule SQLite DB path | `--schedule-db ~/.tianshang-scribe/schedules.db` |
+| `--schedule-add` | Register schedule | `--schedule-add "daily\|0 9 * * *\|echo hi"` |
+| `--schedule-rm` | Remove schedule | `--schedule-rm daily` |
+| `--schedule-list` | List schedules | `--schedule-list` |
+| `--schedule-run` | Run schedule now | `--schedule-run daily` |
+| `--schedule-run-all` | Run due schedules | `--schedule-run-all` |
+| `--run-script` | Run script in sandbox | `--run-script build.py` |
 | `--stdin` | Read from stdin | |
 | `--stdout` | Write to stdout | |
 
@@ -338,6 +351,7 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Math formulas | `$...$` / `$$...$$` rendered as native OMML |
 | Transitions | Set slide transitions —fade, push, wipe, etc. (`--transition`) |
 | Export | Save slides as images (`--toimg`), convert to PDF (`--topdf`) |
+| Media compression | Compress images (`--compress-media "1920,80"`) |
 | Protection | Set/remove password (`--protect`, `--unprotect`) |
 
 ## Exit Codes

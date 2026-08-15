@@ -138,6 +138,19 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--heading` | 添加标题（Word） | `--heading "level:1 text:引言"` |
 | `--regex` | 正则模式 | 配合 `--replace` `--delete` 使用 |
 | `--merge` | 合并文件 | `--merge "a.docx,b.docx"` |
+| `--split` | 拆分文档 | `--split by-page` |
+| `--comment` | 添加批注/备注 | `--comment "批注文字"` |
+| `--add-table` | 添加表格（Word） | `--add-table "H1,H2\|a1,a2"` |
+| `--chart-add` | 创建图表（Excel） | `--chart-add "type=bar data=B1:C10"` |
+| `--batch` | 批量模式 | `--batch` |
+| `--files` | 批量 glob 通配符 | `--files "reports/*.docx"` |
+| `--schedule-db` | 调度 SQLite 数据库路径 | `--schedule-db ~/.tianshang-scribe/schedules.db` |
+| `--schedule-add` | 注册调度 | `--schedule-add "daily\|0 9 * * *\|echo hi"` |
+| `--schedule-rm` | 删除调度 | `--schedule-rm daily` |
+| `--schedule-list` | 列出调度 | `--schedule-list` |
+| `--schedule-run` | 立即运行调度 | `--schedule-run daily` |
+| `--schedule-run-all` | 运行所有到期调度 | `--schedule-run-all` |
+| `--run-script` | 沙箱执行脚本 | `--run-script build.py` |
 | `--stdin` | 从标准输入读取 | |
 | `--stdout` | 输出到标准输出 | |
 
@@ -337,6 +350,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 数学公式 | `$...$` / `$$...$$` 转为原生 OMML |
 | 切换效果 | fade、push、wipe 等 17 种（`--transition`） |
 | 导出 | 图片序列（`--toimg`）、PDF（`--topdf`） |
+| 媒体压缩 | 压缩图片（`--compress-media "1920,80"`） |
 | 保护 | 设置/解除密码（`--protect`、`--unprotect`） |
 
 ## 退出码

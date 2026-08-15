@@ -3,6 +3,19 @@
 !/README.md
 !/readme/README.zh-CN.md
 
+# Governance and release documentation (tracked)
+!/AGENTS.md
+!/CHANGELOG.md
+!/MIGRATION.md
+!/SECURITY.md
+!/CODE_OF_CONDUCT.md
+!/THIRD_PARTY_LICENSES.md
+!/docs/mcp/
+!/docs/mcp/README.md
+!/docs/mcp/README.zh-CN.md
+!/docs/mcp/ROADMAP.md
+!/docs/mcp/ROADMAP.zh-CN.md
+
 # Python
 __pycache__/
 *.py[cod]

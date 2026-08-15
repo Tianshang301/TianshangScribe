@@ -19,14 +19,14 @@ from starlette.responses import Response
 F = TypeVar('F', bound=Callable[..., Any])
 
 OPERATION_DURATION = Histogram(
-    'scribe_operation_duration_seconds',
+    'tianshang_scribe_operation_duration_seconds',
     'Duration of TianshangScribe MCP tool operations',
     ['tool_name'],
     buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 OPERATION_COUNT = Counter(
-    'scribe_operations_total',
+    'tianshang_scribe_operations_total',
     'Total number of TianshangScribe MCP tool operations',
     ['tool_name', 'status'],
 )

@@ -15,7 +15,7 @@ services:
       - TIANSHANG_SCRIBE_LOG_LEVEL=${TIANSHANG_SCRIBE_LOG_LEVEL:-INFO}
       - TIANSHANG_SCRIBE_LOG_JSON=${TIANSHANG_SCRIBE_LOG_JSON:-0}
     volumes:
-      - scribe_output:/tmp/scribe
+      - tianshang_scribe_output:/tmp/scribe
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2); print(r.read().decode())"]
@@ -25,4 +25,4 @@ services:
       retries: 3
 
 volumes:
-  scribe_output:
+  tianshang_scribe_output:

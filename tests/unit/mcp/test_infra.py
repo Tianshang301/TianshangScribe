@@ -90,7 +90,7 @@ class TestMetrics:
         resp = metrics_endpoint(object())
         assert resp.media_type.startswith('text/plain')
         body = resp.body.decode()
-        assert 'scribe_operation_duration_seconds' in body
+        assert 'tianshang_scribe_operation_duration_seconds' in body
 
 
 class TestPrompts:

@@ -138,7 +138,7 @@ def main(
         typer.Option(
             '-x',
             '--extract',
-            help='Extract data: text, tables, images, structure, or metadata',
+            help='Extract data: text, tables, images, structure, metadata, math, or latex',
         ),
     ] = None,
     to_md: Annotated[
@@ -169,6 +169,27 @@ def main(
         str | None,
         typer.Option('--math', help='Add LaTeX math formula to Word document'),
     ] = None,
+    math_style: Annotated[
+        str | None,
+        typer.Option(
+            '--math-style',
+            help='Math parsing dialect: office (standard) or mathtype (MathType-compatible)',
+        ),
+    ] = None,
+    math_font: Annotated[
+        str | None,
+        typer.Option(
+            '--math-font',
+            help='Math rendering font for Word OMML formulas (e.g. "Times New Roman"; default Cambria Math)',
+        ),
+    ] = None,
+    math_mtef: Annotated[
+        bool,
+        typer.Option(
+            '--math-mtef',
+            help='Embed the formula as a MathType OLE object (MTEF) instead of native OMML',
+        ),
+    ] = False,
     regex: Annotated[
         bool,
         typer.Option('--regex', help='Enable regex for --replace and --delete'),
@@ -479,7 +500,10 @@ def main(
                     engine.add_text(add_text, column=column)
 
             if math_formula:
-                _add_math_formula(engine, math_formula)
+                _add_math_formula(engine, math_formula, math_style, math_mtef)
+
+            if math_font:
+                _set_math_font(engine, math_font)
 
             if add_table_spec:
                 if not hasattr(engine, 'add_table_data'):
@@ -789,13 +813,29 @@ def _add_latex_content(engine: Any, text: str, column: int = 1) -> None:
         engine.add_text(text, column=column)
 
 
-def _add_math_formula(engine: Any, latex: str) -> None:
-    if hasattr(engine, 'add_math_formula'):
-        engine.add_math_formula(latex)
-        console.print(f'[green]Math formula added:[/green] ${latex}$')
-    else:
+def _add_math_formula(
+    engine: Any, latex: str, math_style: str | None = None, math_mtef: bool = False
+) -> None:
+    if not hasattr(engine, 'add_math_formula'):
         console.print('[red]Error:[/red] --math is only supported for Word documents.')
         raise typer.Exit(code=2)
+    if math_mtef:
+        if not hasattr(engine, 'add_matheq_object'):
+            console.print('[yellow]--math-mtef requires MathType support (Word).[/yellow]')
+            return
+        engine.add_matheq_object(latex)
+        console.print(f'[green]MathType object added:[/green] ${latex}$')
+        return
+    engine.add_math_formula(latex, math_style=math_style or 'office')
+    console.print(f'[green]Math formula added:[/green] ${latex}$')
+
+
+def _set_math_font(engine: Any, font: str) -> None:
+    if hasattr(engine, 'set_math_font'):
+        engine.set_math_font(font)
+        console.print(f'[green]Math font set:[/green] {font}')
+    else:
+        console.print('[yellow]--math-font is only supported for Word documents.[/yellow]')
 
 
 def _apply_template(engine: Any, template_path: str) -> None:
@@ -882,10 +922,26 @@ def _handle_extract(
         console.print(f'[green]Extracted[/green] {len(saved)} image(s) to {output_dir}/.')
         for s in saved:
             console.print(f'  {s}')
+    elif mode == 'math':
+        if not hasattr(engine, 'convert_ole_equations'):
+            console.print('[yellow]Math extraction is only supported for Word documents.[/yellow]')
+            return
+        converted = engine.convert_ole_equations()
+        console.print(f'[green]Converted[/green] {converted} MathType equation(s) to native OMML.')
+    elif mode == 'latex':
+        if not hasattr(engine, 'extract_math_latex'):
+            console.print('[yellow]Math extraction is only supported for Word documents.[/yellow]')
+            return
+        latex_list = engine.extract_math_latex()
+        if not latex_list:
+            console.print('[yellow]No MathType equations found.[/yellow]')
+            return
+        for idx, latex in enumerate(latex_list, 1):
+            console.print(f'{idx}. ${latex}$')
     else:
         console.print(
             f'[yellow]Extract mode "{mode}" not supported. '
-            'Use text, tables, images, structure, or metadata.[/yellow]'
+            'Use text, tables, images, structure, metadata, math, or latex.[/yellow]'
         )
 
 

@@ -295,18 +295,84 @@ class WordEngine(DocumentABC):
         tokens = parse_structured(text)
         return self.add_styled_content(tokens)
 
-    def add_math_formula(self, latex: str) -> Any:
+    def add_math_formula(self, latex: str, math_style: str = 'office') -> Any:
         """Add ``latex`` as a native OMML formula and return its paragraph."""
         paragraph = self.doc.add_paragraph()
-        self._add_omath(paragraph, latex)
+        self._add_omath(paragraph, latex, math_style)
         return paragraph
 
-    def _add_omath(self, paragraph: Any, latex: str) -> None:
+    def _add_omath(self, paragraph: Any, latex: str, math_style: str = 'office') -> None:
         from tianshang_scribe.rendering.math_omml import latex_to_omml
 
-        omml = latex_to_omml(latex)
+        omml = latex_to_omml(latex, style=math_style)
         if omml is not None:
             paragraph._p.append(omml)
+
+    def set_math_font(self, font: str) -> None:
+        """Set the document-level math font used to render OMML formulas.
+
+        Controls ``<m:mathPr><m:mathFont m:val="..."/></m:mathPr>`` in
+        ``settings.xml``. Cambria Math is the Word default; use e.g. "Times
+        New Roman" for a MathType-style serif look.
+        """
+        if not font or not font.strip():
+            return
+        font = font.strip()
+        settings = self.doc.settings.element
+        math_pr = settings.find(qn('m:mathPr'))
+        if math_pr is None:
+            math_pr = OxmlElement('m:mathPr')
+            settings.append(math_pr)
+        math_font = math_pr.find(qn('m:mathFont'))
+        if math_font is None:
+            math_font = OxmlElement('m:mathFont')
+            math_pr.insert(0, math_font)
+        math_font.set(qn('m:val'), font)
+
+    def add_matheq_object(self, latex: str) -> Any:
+        """Embed ``latex`` as a MathType OLE object in a new paragraph.
+
+        Renders the LaTeX to MTEF, wraps it in an OLE compound file, attaches
+        the result as an embedded part and inserts a ``<w:object>`` referencing
+        it. Returns the new paragraph.
+        """
+        from docx.opc.constants import RELATIONSHIP_TYPE
+        from docx.opc.packuri import PackURI
+        from docx.opc.part import Part
+        from docx.oxml.ns import qn as _qn
+        from lxml import etree
+
+        from tianshang_scribe.rendering.mtef.cfb_writer import make_ole
+        from tianshang_scribe.rendering.mtef.mtef_writer import latex_to_mtef
+
+        mtef = latex_to_mtef(latex)
+        ole_blob = make_ole('Equation Native', mtef)
+
+        paragraph = self.doc.add_paragraph()
+        obj = OxmlElement('w:object')
+        ole_ns = 'urn:schemas-microsoft-com:office:office'
+
+        shape = etree.SubElement(obj, f'{{{ole_ns}}}shape')
+        shape.set('id', '_x0000_i1025')
+        shape.set('type', '#_x0000_t75')
+
+        ole_obj = etree.SubElement(obj, f'{{{ole_ns}}}OLEObject')
+        ole_obj.set('Type', 'Embed')
+        ole_obj.set('ProgID', 'Equation.DSMT4')
+        ole_obj.set('ShapeID', '_x0000_i1025')
+
+        partname = PackURI('/word/embeddings/oleObject1.bin')
+        part = Part(
+            partname,
+            'application/vnd.openxmlformats-officedocument.oleObject',
+            ole_blob,
+            self.doc.part.package,
+        )
+        r_id = self.doc.part.relate_to(part, RELATIONSHIP_TYPE.OLE_OBJECT)
+        ole_obj.set(_qn('r:id'), r_id)
+
+        paragraph._p.append(obj)
+        return paragraph
 
     def _apply_run_style(self, run: Any, style: TextStyle) -> None:
         if style.font_name is not None:
@@ -602,6 +668,84 @@ class WordEngine(DocumentABC):
         return [
             [[cell.text for cell in row.cells] for row in table.rows] for table in self.doc.tables
         ]
+
+    def _ole_equation_parts(self) -> list[tuple[Any, str, bytes]]:
+        """Locate MathType OLE equation objects.
+
+        Returns ``(w:object element, r_id, ole_bytes)`` for every ``<w:object>``
+        whose OLE object references an embedded ``oleObject*.bin`` part. The
+        blob is the raw OLE compound file containing the MTEF ``Equation
+        Native`` stream.
+        """
+        ole_ns = '{urn:schemas-microsoft-com:office:office}'
+        results: list[tuple[Any, str, bytes]] = []
+        for paragraph in self.doc.paragraphs:
+            for obj in paragraph._p.findall(qn('w:object')):
+                ole_obj = obj.find(f'{ole_ns}OLEObject')
+                if ole_obj is None:
+                    continue
+                r_id = ole_obj.get(qn('r:id'))
+                if not r_id:
+                    continue
+                try:
+                    rel = self.doc.part.rels[r_id]
+                    blob = rel.target_part.blob
+                except Exception:  # noqa: S112  # unresolvable OLE part: skip
+                    continue
+                results.append((obj, r_id, blob))
+        return results
+
+    def _mtef_from_blob(self, blob: bytes) -> bytes:
+        """Return MTEF payload from an OLE blob, tolerating both forms.
+
+        MathType stores equations either inside an OLE compound file
+        (``Equation Native`` stream) or as a raw MTEF byte stream.
+        """
+        from tianshang_scribe.rendering.mtef import extract_native_stream
+        from tianshang_scribe.rendering.mtef.ole_util import OleError
+
+        try:
+            return extract_native_stream(blob)
+        except (OleError, KeyError):
+            return blob
+
+    def extract_math_latex(self) -> list[str]:
+        """Return the LaTeX form of every MathType equation in the document."""
+        from tianshang_scribe.rendering.mtef.mtef_reader import mtef_to_latex
+
+        latex: list[str] = []
+        for _, _, blob in self._ole_equation_parts():
+            try:
+                latex.append(mtef_to_latex(self._mtef_from_blob(blob)))
+            except Exception:  # noqa: S112  # unparseable equation: skip
+                continue
+        return latex
+
+    def convert_ole_equations(self, math_style: str = 'office') -> int:
+        """Replace MathType OLE equation objects with native OMML formulas.
+
+        Each ``<w:object>`` embedding a MathType equation is converted to an
+        ``<m:oMath>`` element using the MTEF reader and the LaTeX->OMML
+        engine. Returns the number of equations converted.
+        """
+        from tianshang_scribe.rendering.math_omml import latex_to_omml
+        from tianshang_scribe.rendering.mtef.mtef_reader import MTEFParseError, mtef_to_latex
+
+        converted = 0
+        for obj, _, blob in self._ole_equation_parts():
+            try:
+                latex = mtef_to_latex(self._mtef_from_blob(blob))
+                omml = latex_to_omml(latex, style=math_style)
+            except (MTEFParseError, ValueError, KeyError):
+                continue
+            if omml is None:
+                continue
+            parent = obj.getparent()
+            if parent is None:
+                continue
+            parent.replace(obj, omml)
+            converted += 1
+        return converted
 
     def _image_parts(self) -> list[tuple[bytes, str]]:
         blobs: list[tuple[bytes, str]] = []

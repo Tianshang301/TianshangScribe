@@ -131,10 +131,13 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `-m` `--modify` | 修改内容 | `-m "旧值" --modify-new "新值"` |
 | `-s` `--style` | 设置样式 | `-s "font=Times,size=14,bold"` |
 | `-t` `--template` | 模板填充 | `-t data.json` |
-| `-x` `--extract` | 提取数据 | `-x metadata` |
+| `-x` `--extract` | 提取数据（`math`/`latex` 等） | `-x latex` |
 | `--meta` | 设置属性 | `--meta "title=报告,author=张三"` |
 | `--latex-style` | 启用 LaTeX 标记解析 | |
 | `--math` | 添加数学公式（Word） | `--math "\frac{a}{b}"` |
+| `--math-style` | 公式解析方言（office/mathtype） | `--math-style mathtype` |
+| `--math-font` | OMML 公式渲染字体（默认 Cambria Math） | `--math-font "Times New Roman"` |
+| `--math-mtef` | 以 MathType OLE 对象（MTEF）嵌入 | `--math "\frac{a}{b}" --math-mtef` |
 | `--heading` | 添加标题（Word） | `--heading "level:1 text:引言"` |
 | `--regex` | 正则模式 | 配合 `--replace` `--delete` 使用 |
 | `--merge` | 合并文件 | `--merge "a.docx,b.docx"` |
@@ -230,7 +233,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## 数学公式
 
-通过 `--math` 支持完整的 LaTeX 数学公式，内部转换为 Word 原生 OMML。
+通过 `--math` 支持完整的 LaTeX 数学公式，内部转换为 Word 原生 OMML。使用 `--math-font "Times New Roman"` 可让公式以 MathType 风格衬线字体渲染，替代 Word 默认的 Cambria Math（通过 `<m:mathPr><m:mathFont>`）。`--math-style mathtype` 切换到 MathType 兼容的 LaTeX 解析方言。使用 `--math-mtef` 可将公式以真正的 MathType OLE 对象（MTEF 二进制）嵌入——供老版 MathType（6.x 及更早）编辑，与 `--extract math` 读取的是同一格式。
 
 ### 公式语法
 

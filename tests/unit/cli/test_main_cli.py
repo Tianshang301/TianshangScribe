@@ -22,6 +22,8 @@ class _Base:
 
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.math_kwargs: dict = {}
+        self.math_font: str | None = None
 
     def set_style(self, *a, **k) -> None:
         self.calls.append('set_style')
@@ -44,6 +46,11 @@ class _Base:
 
     def add_math_formula(self, *a, **k) -> None:
         self.calls.append('add_math_formula')
+        self.math_kwargs = k
+
+    def add_matheq_object(self, *a, **k) -> None:
+        self.calls.append('add_matheq_object')
+        self.math_kwargs = k
 
     def add_table_data(self, *a, **k) -> None:
         self.calls.append('add_table_data')
@@ -77,6 +84,18 @@ class _Base:
     def extract_images(self, *a, **k) -> list[str]:
         self.calls.append('extract_images')
         return ['img1.png']
+
+    def extract_math_latex(self) -> list[str]:
+        self.calls.append('extract_math_latex')
+        return [r'\frac{a}{b}']
+
+    def convert_ole_equations(self, math_style: str = 'office') -> int:
+        self.calls.append('convert_ole_equations')
+        return 1
+
+    def set_math_font(self, font: str) -> None:
+        self.calls.append('set_math_font')
+        self.math_font = font
 
     def merge_workbooks(self, *a, **k) -> None:
         self.calls.append('merge_workbooks')
@@ -429,6 +448,93 @@ class TestWordOps:
         code, _ = _run('--math', r'\frac{a}{b}', '--output', str(out), '--force', str(tmp_in))
         assert code == 0
         assert 'add_math_formula' in fake_engine.calls
+
+    def test_math_style_defaults_to_office(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        out = tmp_path / 'o.docx'
+        code, _ = _run('--math', 'x^2', '--output', str(out), '--force', str(tmp_in))
+        assert code == 0
+        assert fake_engine.math_kwargs.get('math_style') == 'office'
+
+    def test_math_style_mathtype(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        out = tmp_path / 'o.docx'
+        code, _ = _run(
+            '--math',
+            r'\text{a b}',
+            '--math-style',
+            'mathtype',
+            '--output',
+            str(out),
+            '--force',
+            str(tmp_in),
+        )
+        assert code == 0
+        assert fake_engine.math_kwargs.get('math_style') == 'mathtype'
+
+    def test_math_font_applied(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        out = tmp_path / 'o.docx'
+        code, _ = _run(
+            '--math',
+            r'\frac{a}{b}',
+            '--math-font',
+            'Times New Roman',
+            '--output',
+            str(out),
+            '--force',
+            str(tmp_in),
+        )
+        assert code == 0
+        assert 'add_math_formula' in fake_engine.calls
+        assert 'set_math_font' in fake_engine.calls
+        assert fake_engine.math_font == 'Times New Roman'
+
+    def test_math_font_absent_no_call(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        out = tmp_path / 'o.docx'
+        code, _ = _run('--math', 'x^2', '--output', str(out), '--force', str(tmp_in))
+        assert code == 0
+        assert 'set_math_font' not in fake_engine.calls
+
+    def test_math_mtef_uses_ole_object(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        out = tmp_path / 'o.docx'
+        code, _ = _run(
+            '--math', r'\frac{a}{b}', '--math-mtef', '--output', str(out), '--force', str(tmp_in)
+        )
+        assert code == 0
+        assert 'add_matheq_object' in fake_engine.calls
+        assert 'add_math_formula' not in fake_engine.calls
+
+    def test_math_mtef_with_style_still_ole(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        out = tmp_path / 'o.docx'
+        code, _ = _run(
+            '--math',
+            r'\frac{a}{b}',
+            '--math-mtef',
+            '--math-style',
+            'mathtype',
+            '--output',
+            str(out),
+            '--force',
+            str(tmp_in),
+        )
+        assert code == 0
+        assert 'add_matheq_object' in fake_engine.calls
+
+    def test_extract_math(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        code, _ = _run('--extract', 'math', str(tmp_in))
+        assert code == 0
+        assert 'convert_ole_equations' in fake_engine.calls
+
+    def test_extract_math_applies_font(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        code, _ = _run('--extract', 'math', '--math-font', 'Times', str(tmp_in))
+        assert code == 0
+        assert 'convert_ole_equations' in fake_engine.calls
+        assert 'set_math_font' in fake_engine.calls
+        assert fake_engine.math_font == 'Times'
+
+    def test_extract_latex(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+        code, out = _run('--extract', 'latex', str(tmp_in))
+        assert code == 0
+        assert 'extract_math_latex' in fake_engine.calls
+        assert r'\frac' in out
 
     def test_add_table_word(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
         out = tmp_path / 'o.docx'

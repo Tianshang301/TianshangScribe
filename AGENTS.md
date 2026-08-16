@@ -24,7 +24,7 @@
 | **基础 CRUD** | 创建空白文档 / 打开文档 / 保存 / 另存 | P0 ✅ |
 | **内容编辑** | 添加文本、表格、图片、分页符；删除指定元素；修改现有内容 | P0 ✅ |
 | **样式与排版** | 字体、字号、颜色、加粗、斜体、对齐、行距、段落缩进、标题层级、LaTeX 风格标记、中西文分离字体 | P0 ✅ |
-| **数学公式** | LaTeX → OMML 原生渲染，110+ 符号，\frac \sqrt \sum \int，AMS/Springer 字体规范 | P0 ✅ |
+| **数学公式** | LaTeX → OMML 原生渲染，110+ 符号，\frac \sqrt \sum \int，AMS/Springer 字体规范，`--math-font` 可配置渲染字体（默认 Cambria Math，支持 Times New Roman 等 MathType 风格衬线），`--math-mtef` 以 MathType OLE 对象（MTEF）嵌入 | P0 ✅ |
 | **模板填充** | 用 JSON/CSV/YAML 数据源填充占位符 `{{key}}`，保留原样式，支持 `{{#each}}` 循环、`{{#if}}` 条件 | P0 ✅ |
 | **格式转换** | Word ↔ PDF/Markdown/HTML；Excel ↔ CSV/JSON/HTML；PPT → PDF/图片序列<br>PDF: office2pdf（主，~2MB）+ LibreOffice（回退） | P0 ✅ |
 | **MCP Server** | stdio + SSE + Streamable HTTP 三传输，官方 mcp SDK 2.x，7 tools（create/edit/fill/convert/extract/validate/compare），认证/限流/指标，Tool Search（SEP-1821，`tools/list` 支持 `query` 参数），Dify/Coze 可接入 | P1 ✅ |
@@ -74,7 +74,7 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 | `-m` | `--modify` | `--modify "old" --modify-new "new"` | 修改内容（旧值→新值） |
 | `-r` | `--replace` | `--replace "search" --replace-new "replacement"` | 查找替换文本（支持 `--regex` 启用正则） |
 | | `--regex` | | 配合 `--replace` `--delete` 使用，启用正则表达式 |
-| `-x` | `--extract` | `--extract text` | 提取 text/tables/images/structure/metadata（images 需 `-o <目录>`） |
+| `-x` | `--extract` | `--extract text` | 提取 text/tables/images/structure/metadata/math/latex（images 需 `-o <目录>`；math 把 MathType 公式转为 OMML 写回，latex 输出公式的 LaTeX） |
 | `-t` | `--template` | `--template data.json` | 用数据文件填充模板中的 `{{placeholder}}` |
 | `-s` | `--style` | `--style "font=Times,size=12,bold,cjk-font=SimSun"` | 设置全局样式或当前段落默认样式（逗号分隔键值对，支持中西文分离字体） |
 | | `--merge` | `--merge file1.docx file2.docx` | 合并多个文档（支持通配符） |
@@ -99,6 +99,9 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 **Word 特有：**
 - `--heading` ：添加指定级别的标题（格式：`"level:1 text:标题"`）
 - `--math "\frac{a}{b}"` ：添加 LaTeX 数学公式（自动转为原生 OMML）
+- `--math-style office|mathtype` ：公式 LaTeX 解析方言（默认 `office` 标准 LaTeX；`mathtype` 兼容 MathType 方言，`\text{}` 保留空格、`~` 视为非断空格）
+- `--math-font "Times New Roman"` ：Word OMML 公式渲染字体（默认 `Cambria Math`；如 `Times New Roman`/`Times`/`STIX Two Math`/`Latin Modern Math`，替代 Word 默认数学字体，实现 MathType 风格衬线排版）
+- `--math-mtef` ：将公式以 MathType OLE 对象（MTEF 二进制嵌入 `word/embeddings/oleObject*.bin`）插入 Word，供老版 MathType（6.x 及更早）编辑；默认生成 Word 原生 OMML
 - `--latex-style` ：启用 LaTeX 风格排版标记解析
 - `--toc` ：生成目录
 - `--section-break` ：插入分节符
@@ -218,7 +221,13 @@ src/                          # 构建隔离目录
     │   ├── template.py    # 模板引擎（{{key}}, {{#each}}, {{#if}}）
     │   ├── latex_parser.py# LaTeX 标记递归下降解析器（20 命令，三层嵌套）
     │   ├── math_omml.py   # LaTeX → OMML 数学公式转换器（110+ 符号）
-    │   └── styles.py      # TextStyle 数据类（中西文字体分离）
+    │   ├── styles.py      # TextStyle 数据类（中西文字体分离）
+    │   └── mtef/          # MathType 兼容（MTEF/OLE ↔ LaTeX → OMML）
+    │       ├── ole_util.py    # OLE 复合文档（CFB）解析器
+    │       ├── mtef_reader.py # MTEF 二进制读取器（→ LaTeX）
+    │       ├── mtef_writer.py # LaTeX → MTEF 二进制写入器
+    │       ├── cfb_writer.py  # MTEF → OLE 复合文件（make_ole）
+    │       └── symbols.py     # LaTeX ↔ mtcode+typeface 双向符号表（281 项）
     ├── transform/         # 格式转换器
     │   ├── pdf.py         # PDF/MD/HTML 转换（office2pdf + LibreOffice）
     │   └── reverse.py     # 反向转换（HTML/Markdown→Word）

@@ -691,3 +691,44 @@ class TestInternalHelpers:
         assert _rpr_equivalent(None, None) is True
         assert _rpr_equivalent(None, 'x') is False
         assert _rpr_equivalent('x', None) is False
+
+
+class TestMathStyleDialects:
+    def test_office_keeps_strict_text_space_behavior(self) -> None:
+        result = latex_to_omml(r'\text{hello world}')
+        assert result is not None
+        texts = [t.text or '' for t in result.findall('.//' + qn('m:t'))]
+        assert ''.join(texts) == 'helloworld'
+
+    def test_mathtype_preserves_text_spaces(self) -> None:
+        result = latex_to_omml(r'\text{hello world}', style='mathtype')
+        assert result is not None
+        texts = [t.text or '' for t in result.findall('.//' + qn('m:t'))]
+        assert ''.join(texts) == 'hello world'
+
+    def test_mathtype_tilde_is_nbsp(self) -> None:
+        result = latex_to_omml('a~b', style='mathtype')
+        assert result is not None
+        texts = [t.text or '' for t in result.findall('.//' + qn('m:t'))]
+        assert ''.join(texts) == 'a b'
+
+    def test_office_tilde_untouched(self) -> None:
+        result = latex_to_omml('a~b')
+        assert result is not None
+        texts = [t.text or '' for t in result.findall('.//' + qn('m:t'))]
+        assert 'a~b' in ''.join(texts)
+
+    def test_mathtype_fraction_regression(self) -> None:
+        result = latex_to_omml(r'\frac{a}{b}', style='mathtype')
+        assert result is not None
+        assert result.find('.//' + qn('m:f')) is not None
+
+    def test_mathtype_mathrm_spaces(self) -> None:
+        result = latex_to_omml(r'\mathrm{sin x}', style='mathtype')
+        assert result is not None
+        texts = [t.text or '' for t in result.findall('.//' + qn('m:t'))]
+        assert ''.join(texts) == 'sin x'
+
+    def test_unknown_style_falls_back_to_office(self) -> None:
+        result = latex_to_omml(r'\text{a b}', style='unknown')
+        assert result is not None

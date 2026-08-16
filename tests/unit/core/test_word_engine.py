@@ -276,8 +276,63 @@ class TestWordEngineEdge:
         assert 'a' in paragraph.text
 
     def test_add_omml_none(self, engine: WordEngine, monkeypatch) -> None:
-        monkeypatch.setattr('tianshang_scribe.rendering.math_omml.latex_to_omml', lambda s: None)
+        monkeypatch.setattr(
+            'tianshang_scribe.rendering.math_omml.latex_to_omml', lambda s, **k: None
+        )
         engine.add_math_formula('x')
+
+    def test_set_math_font_sets_mathfont(self, engine: WordEngine) -> None:
+        engine.set_math_font('Times New Roman')
+        math_font = engine.doc.settings.element.find(
+            './/{http://schemas.openxmlformats.org/officeDocument/2006/math}mathFont'
+        )
+        assert math_font is not None
+        assert (
+            math_font.get('{http://schemas.openxmlformats.org/officeDocument/2006/math}val')
+            == 'Times New Roman'
+        )
+
+    def test_set_math_font_roundtrip(self, engine: WordEngine) -> None:
+        engine.set_math_font('Latin Modern Math')
+        with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as f:
+            tmp = Path(f.name)
+        try:
+            engine.save(tmp)
+            reopened = WordEngine()
+            reopened.open(tmp)
+            math_font = reopened.doc.settings.element.find(
+                './/{http://schemas.openxmlformats.org/officeDocument/2006/math}mathFont'
+            )
+            assert math_font is not None
+            assert (
+                math_font.get('{http://schemas.openxmlformats.org/officeDocument/2006/math}val')
+                == 'Latin Modern Math'
+            )
+        finally:
+            Path(tmp).unlink(missing_ok=True)
+
+    def test_set_math_font_empty_is_noop(self, engine: WordEngine) -> None:
+        engine.set_math_font('   ')
+        math_font = engine.doc.settings.element.find(
+            './/{http://schemas.openxmlformats.org/officeDocument/2006/math}mathFont'
+        )
+        assert math_font is not None
+        assert (
+            math_font.get('{http://schemas.openxmlformats.org/officeDocument/2006/math}val')
+            == 'Cambria Math'
+        )
+
+    def test_set_math_font_overrides_default(self, engine: WordEngine) -> None:
+        engine.set_math_font('Times')
+        engine.set_math_font('STIX Two Math')
+        math_font = engine.doc.settings.element.find(
+            './/{http://schemas.openxmlformats.org/officeDocument/2006/math}mathFont'
+        )
+        assert math_font is not None
+        assert (
+            math_font.get('{http://schemas.openxmlformats.org/officeDocument/2006/math}val')
+            == 'STIX Two Math'
+        )
 
     def test_apply_cjk_font(self, engine: WordEngine) -> None:
         from tianshang_scribe.rendering.styles import TextStyle

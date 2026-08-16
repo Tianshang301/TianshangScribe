@@ -133,10 +133,13 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `-m` `--modify` | Modify content | `-m "old" --modify-new "new"` |
 | `-s` `--style` | Set style | `-s "font=Times,size=14,bold"` |
 | `-t` `--template` | Template filling | `-t data.json` |
-| `-x` `--extract` | Extract data (`metadata`) | `-x metadata` |
+| `-x` `--extract` | Extract data (`math`/`latex` etc.) | `-x latex` |
 | `--meta` | Set properties | `--meta "title=Report,author=John"` |
 | `--latex-style` | Enable LaTeX parsing | |
 | `--math` | Add math formula (Word) | `--math "\frac{a}{b}"` |
+| `--math-style` | Math parsing dialect (office/mathtype) | `--math-style mathtype` |
+| `--math-font` | OMML math font (default Cambria Math) | `--math-font "Times New Roman"` |
+| `--math-mtef` | Embed as MathType OLE object (MTEF) | `--math "\frac{a}{b}" --math-mtef` |
 | `--heading` | Add heading (Word) | `--heading "level:1 text:Intro"` |
 | `--regex` | Regex mode | Use with `--replace` `--delete` |
 | `--merge` | Merge files | `--merge "a.docx,b.docx"` |
@@ -232,7 +235,7 @@ Word OOXML natively separates `w:ascii` (Western) and `w:eastAsia` (CJK) fonts, 
 
 ## Math Formulas
 
-LaTeX math formulas via `--math` are converted to native Word OMML (Office Math Markup Language).
+LaTeX math formulas via `--math` are converted to native Word OMML (Office Math Markup Language). Use `--math-font "Times New Roman"` to render equations with a MathType-style serif font instead of Word's default Cambria Math (`<m:mathPr><m:mathFont>`). `--math-style mathtype` switches the LaTeX parsing dialect for MathType compatibility. Use `--math-mtef` to embed the formula as a real MathType OLE object (MTEF binary) instead — editable by legacy MathType (6.x and earlier), the same format `--extract math` reads back.
 
 ### Supported Syntax
 

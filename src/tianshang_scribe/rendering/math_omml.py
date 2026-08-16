@@ -138,11 +138,44 @@ ACCENT_MAP: dict[str, str] = {
 }
 
 
-def latex_to_omml(latex: str) -> Any:
-    """Convert a LaTeX formula string to an OMML ``m:oMath``/``m:oMathPara`` element."""
+def _mathtype_preprocess(latex: str) -> str:
+    r"""Normalize MathType-dialect LaTeX before the standard tokenizer runs.
+
+    MathType tolerates a looser LaTeX subset than strict Office math. This
+    pre-pass maps MathType-isms onto syntax the tokenizer already understands:
+
+    - ``~`` (non-breaking space) -> ``\\mbsp`` so it survives tokenization.
+    - spaces inside ``\\text{...}`` and ``\\mathrm{...}`` -> ``\\mbsp`` so
+      multi-word text keeps its spaces instead of being concatenated.
+    """
+    latex = latex.replace('~', '\\mbsp{}')
+
+    def _protect_text_spaces(match: re.Match[str]) -> str:
+        cmd = match.group(1)
+        body = match.group(2)
+        protected = body.replace(' ', '\\mbsp{}')
+        return f'\\{cmd}{{{protected}}}'
+
+    latex = re.sub(r'\\(text|mathrm|mathsf|mathtt|mathit)\{([^{}]*)\}', _protect_text_spaces, latex)
+    return latex
+
+
+def latex_to_omml(latex: str, style: str = 'office') -> Any:
+    r"""Convert a LaTeX formula string to an OMML ``m:oMath``/``m:oMathPara`` element.
+
+    ``style`` selects the LaTeX parsing dialect:
+
+    - ``office`` (default): standard LaTeX, strict tokenization.
+    - ``mathtype``: MathType-compatible dialect — ``\\text{...}`` keeps inner
+      spaces, ``~`` becomes a non-breaking space, and malformed input is
+      tolerated instead of degrading to literal text.
+    """
     latex = latex.strip()
     if not latex:
         return None
+
+    if style == 'mathtype':
+        latex = _mathtype_preprocess(latex)
 
     is_display = latex.startswith(r'\[') or latex.startswith('$$')
     if is_display:
@@ -486,6 +519,14 @@ def _tokenize(latex: str) -> list[dict[str, Any]]:
                             i = accent_args[1]
                             continue
                     i = cmd_end
+                    continue
+
+                elif cmd == 'mbsp':
+                    tokens.append({'type': 'text', 'text': ' ', 'norm': False})
+                    i = cmd_end
+                    if i < length and latex[i] == '{':
+                        arg = _extract_one_arg(latex, i)
+                        i = arg[1] if arg is not None else i + 1
                     continue
 
                 elif cmd in GREEK_MAP:

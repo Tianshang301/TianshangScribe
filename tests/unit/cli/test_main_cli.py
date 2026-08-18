@@ -502,7 +502,9 @@ class TestWordOps:
         assert 'add_matheq_object' in fake_engine.calls
         assert 'add_math_formula' not in fake_engine.calls
 
-    def test_math_mtef_with_style_still_ole(self, fake_engine, tmp_in: Path, tmp_path: Path) -> None:
+    def test_math_mtef_with_style_still_ole(
+        self, fake_engine, tmp_in: Path, tmp_path: Path
+    ) -> None:
         out = tmp_path / 'o.docx'
         code, _ = _run(
             '--math',

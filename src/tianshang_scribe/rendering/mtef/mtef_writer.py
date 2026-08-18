@@ -166,15 +166,11 @@ def _records_for_token(token: Any) -> bytes:
         return _operator_records(token)
 
     if isinstance(token, FracToken):
-        return _tmpl_records(
-            _TM_FRACT, [token.num, token.den]
-        )
+        return _tmpl_records(_TM_FRACT, [token.num, token.den])
 
     if isinstance(token, SqrtToken):
         if token.degree:
-            return _tmpl_records(
-                _TM_ROOT, [token.content, token.degree], variation=1
-            )
+            return _tmpl_records(_TM_ROOT, [token.content, token.degree], variation=1)
         return _tmpl_records(_TM_ROOT, [token.content])
 
     if isinstance(token, NaryToken):
@@ -362,9 +358,7 @@ def _fence_close_char(char: str) -> bytes:
     return _char(ord(open_char), 3)
 
 
-def _tmpl_records(
-    selector: int, slots: list[list[Any]], variation: int = 0
-) -> bytes:
+def _tmpl_records(selector: int, slots: list[list[Any]], variation: int = 0) -> bytes:
     """Emit a template whose slots are filled from ``slots`` in order."""
     out = bytearray(_tmpl(selector, variation))
     for slot in slots:

@@ -477,9 +477,7 @@ class TestLatexToOMML:
         assert result is not None
 
     def test_arrows(self) -> None:
-        result = latex_to_omml(
-            r'\to\rightarrow\leftarrow\Leftarrow\Leftrightarrow'
-        )
+        result = latex_to_omml(r'\to\rightarrow\leftarrow\Leftarrow\Leftrightarrow')
         assert result is not None
 
     def test_neg(self) -> None:
@@ -503,9 +501,7 @@ class TestLatexToOMML:
         assert result is not None
 
     def test_vartheta_varrho(self) -> None:
-        result = latex_to_omml(
-            r'\vartheta \varrho \varphi \varpi \varsigma'
-        )
+        result = latex_to_omml(r'\vartheta \varrho \varphi \varpi \varsigma')
         assert result is not None
 
     def test_det_pr(self) -> None:
@@ -541,8 +537,14 @@ class TestLatexToOMML:
 
     def test_bare_operator_commands(self) -> None:
         for t in (
-            r'\lim', r'\max', r'\min', r'\sup', r'\inf', r'\det',
-            r'\gcd', r'\Pr',
+            r'\lim',
+            r'\max',
+            r'\min',
+            r'\sup',
+            r'\inf',
+            r'\det',
+            r'\gcd',
+            r'\Pr',
         ):
             result = latex_to_omml(t)
             assert result is not None
@@ -596,10 +598,14 @@ class TestInternalHelpers:
         assert els[0].tag == qn('m:r')
 
     def test_build_sub_omml_nested(self) -> None:
-        els = _build_sub_omath([FracToken(
-            num=[TextToken(text='a', norm=False)],
-            den=[TextToken(text='b', norm=False)],
-        )])
+        els = _build_sub_omath(
+            [
+                FracToken(
+                    num=[TextToken(text='a', norm=False)],
+                    den=[TextToken(text='b', norm=False)],
+                )
+            ]
+        )
         assert len(els) == 1
         assert els[0].tag == qn('m:f')
 

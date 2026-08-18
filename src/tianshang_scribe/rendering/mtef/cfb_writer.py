@@ -114,8 +114,15 @@ def _make_ole_mini(stream_name: str, name_utf16: bytes, payload: bytes) -> bytes
     mini_fat_sector = num_stream_sectors + 2
 
     dir_bytes = bytearray(_SECTOR_SIZE)
-    _write_entry(dir_bytes, 0, 'Root Entry', 'Root Entry'.encode('utf-16-le') + b'\x00\x00',
-                 _ROOT, 0, len(mini_stream))
+    _write_entry(
+        dir_bytes,
+        0,
+        'Root Entry',
+        'Root Entry'.encode('utf-16-le') + b'\x00\x00',
+        _ROOT,
+        0,
+        len(mini_stream),
+    )
     _write_entry(dir_bytes, 1, stream_name, name_utf16, _STREAM, 0, len(payload))
 
     fat = bytearray(_SECTOR_SIZE)

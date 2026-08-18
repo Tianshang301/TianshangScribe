@@ -233,7 +233,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 
 ## 数学公式
 
-通过 `--math` 支持完整的 LaTeX 数学公式，内部转换为 Word 原生 OMML。使用 `--math-font "Times New Roman"` 可让公式以 MathType 风格衬线字体渲染，替代 Word 默认的 Cambria Math（通过 `<m:mathPr><m:mathFont>`）。`--math-style mathtype` 切换到 MathType 兼容的 LaTeX 解析方言。使用 `--math-mtef` 可将公式以真正的 MathType OLE 对象（MTEF 二进制）嵌入——供老版 MathType（6.x 及更早）编辑，与 `--extract math` 读取的是同一格式。
+通过 `--math` 支持完整的 LaTeX 数学公式，内部转换为 Word 原生 OMML。转换器为自研递归下降解析器（表达式→项→因子→原子），基于不可变嵌套 Token 树（分式/根号/大运算符/上下标/重音/样式/定界符 Token），经 O(1) 命令分发表、预编译正则与零拷贝参数切片驱动。使用 `--math-font "Times New Roman"` 可让公式以 MathType 风格衬线字体渲染，替代 Word 默认的 Cambria Math（通过 `<m:mathPr><m:mathFont>`）。`--math-style mathtype` 切换到 MathType 兼容的 LaTeX 解析方言。使用 `--math-mtef` 可将公式以真正的 MathType OLE 对象（MTEF 二进制）嵌入——供老版 MathType（6.x 及更早）编辑，与 `--extract math` 读取的是同一格式。输出跨版本逐字节稳定（由黄金快照回归套件保障）。
 
 ### 公式语法
 
@@ -249,7 +249,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 符号 | `\pm` `\times` `\div` `\cdot` `\infty` `\partial` `\nabla` `\forall` `\exists` … |
 | 关系符 | `\leq` `\geq` `\neq` `\approx` `\equiv` `\propto` `\subset` `\supset` `\in` … |
 | 箭头 | `\to` `\rightarrow` `\leftarrow` `\mapsto` `\uparrow` … |
-| 重音 | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` … |
+| 重音 | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` `\widetilde{x}` … |
 | 括号 | `\left( \right)` `\left[ \right]` `\left\{ \right\}` |
 | 数学字体 | `\mathrm{abc}` `\mathbf{abc}` `\mathit{abc}` `\mathcal{ABC}` `\mathbb{ABC}` `\mathsf{abc}` `\mathtt{abc}` |
 
@@ -481,10 +481,10 @@ src/
 | Word | python-docx |
 | Excel | openpyxl |
 | PPT | python-pptx |
-| 数学公式 | 自研递归下降解析器 → OMML XML |
+| 数学公式 | 自研递归下降解析器 → OMML XML（不可变 Token 树 + 命令分发表） |
 | 模板 | 自研引擎（{{placeholder}}、{{#each}}、{{#if}}） |
 | PDF | office2pdf（~2MB Rust 二进制，零依赖）+ LibreOffice 回退 |
-| 质量 | pytest（414 用例）· ruff · mypy |
+| 质量 | pytest（936 用例）· ruff · mypy |
 
 ## 构建 EXE
 

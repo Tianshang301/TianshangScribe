@@ -329,12 +329,14 @@ class WordEngine(DocumentABC):
             math_pr.insert(0, math_font)
         math_font.set(qn('m:val'), font)
 
-    def add_matheq_object(self, latex: str) -> Any:
-        """Embed ``latex`` as a MathType OLE object in a new paragraph.
+    def add_matheq_object(self, latex: str, paragraph: Any | None = None) -> Any:
+        """Embed ``latex`` as a MathType OLE object.
 
         Renders the LaTeX to MTEF, wraps it in an OLE compound file, attaches
         the result as an embedded part and inserts a ``<w:object>`` referencing
-        it. Returns the new paragraph.
+        it. Appends to a new paragraph unless ``paragraph`` is given, in which
+        case the object is appended to that paragraph (inline math). Returns
+        the paragraph.
         """
         from docx.opc.constants import RELATIONSHIP_TYPE
         from docx.opc.packuri import PackURI
@@ -348,7 +350,7 @@ class WordEngine(DocumentABC):
         mtef = latex_to_mtef(latex)
         ole_blob = make_ole('Equation Native', mtef)
 
-        paragraph = self.doc.add_paragraph()
+        paragraph = paragraph if paragraph is not None else self.doc.add_paragraph()
         obj = OxmlElement('w:object')
         ole_ns = 'urn:schemas-microsoft-com:office:office'
 
@@ -361,7 +363,8 @@ class WordEngine(DocumentABC):
         ole_obj.set('ProgID', 'Equation.DSMT4')
         ole_obj.set('ShapeID', '_x0000_i1025')
 
-        partname = PackURI('/word/embeddings/oleObject1.bin')
+        self._ole_counter = getattr(self, '_ole_counter', 0) + 1
+        partname = PackURI(f'/word/embeddings/oleObject{self._ole_counter}.bin')
         part = Part(
             partname,
             'application/vnd.openxmlformats-officedocument.oleObject',

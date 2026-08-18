@@ -2,8 +2,8 @@
 
 Converts LaTeX into MathType Equation Format (MTEF v5) binary records that can
 be embedded in a Word document as a MathType OLE object.  The writer consumes
-the same token stream produced by ``math_omml._tokenize`` so the syntax
-handling stays consistent with the OMML path.
+the same nested ``Token`` stream produced by ``math_omml.parse_expression`` so
+the syntax handling stays consistent with the OMML path.
 
 The record encoding mirrors what ``mtef_reader.parse_mtef`` decodes:
 
@@ -22,7 +22,19 @@ from __future__ import annotations
 import struct
 from typing import Any
 
-from tianshang_scribe.rendering.math_omml import _group_sup_sub, _tokenize
+from tianshang_scribe.rendering.math_omml import (
+    AccentToken,
+    DelimToken,
+    FracToken,
+    NaryToken,
+    OperatorToken,
+    ParserContext,
+    SqrtToken,
+    StyledToken,
+    SubSupToken,
+    TextToken,
+    parse_expression,
+)
 from tianshang_scribe.rendering.mtef.symbols import latex_to_char
 
 # Record types (MTEF v5)
@@ -109,7 +121,7 @@ def latex_to_mtef(latex: str) -> bytes:
     Returns the raw MTEF records (without any OLE container wrapper).  The
     payload can be embedded directly or wrapped via ``cfb_writer.make_ole``.
     """
-    tokens = _group_sup_sub(_tokenize(latex))
+    tokens = parse_expression(ParserContext(latex))
     body = bytearray(_header())
     body += _line()
     body += _records_for_tokens(tokens)
@@ -139,55 +151,55 @@ def _tmpl(selector: int, variation: int = 0) -> bytes:
     return bytes([_TMPL, 0, selector, variation, 0])
 
 
-def _records_for_tokens(tokens: list[dict[str, Any]]) -> bytes:
+def _records_for_tokens(tokens: list[Any]) -> bytes:
     out = bytearray()
     for token in tokens:
         out += _records_for_token(token)
     return bytes(out)
 
 
-def _records_for_token(token: dict[str, Any]) -> bytes:
-    t = token.get('type', 'text')
+def _records_for_token(token: Any) -> bytes:
+    if isinstance(token, TextToken):
+        return _char_records(token.text)
 
-    if t == 'text':
-        return _char_records(token.get('text', ''))
-
-    if t == 'operator':
+    if isinstance(token, OperatorToken):
         return _operator_records(token)
 
-    if t == 'frac':
-        return _tmpl_records(_TM_FRACT, [token.get('num', ''), token.get('den', '')])
+    if isinstance(token, FracToken):
+        return _tmpl_records(
+            _TM_FRACT, [token.num, token.den]
+        )
 
-    if t == 'sqrt':
-        degree = token.get('degree')
-        content = token.get('content', '')
-        if degree:
-            return _tmpl_records(_TM_ROOT, [content, degree], variation=1)
-        return _tmpl_records(_TM_ROOT, [content])
+    if isinstance(token, SqrtToken):
+        if token.degree:
+            return _tmpl_records(
+                _TM_ROOT, [token.content, token.degree], variation=1
+            )
+        return _tmpl_records(_TM_ROOT, [token.content])
 
-    if t == 'nary':
+    if isinstance(token, NaryToken):
         return _nary_records(token)
 
-    if t == 'sub':
-        return _script_records(_TM_SUB, token)
+    if isinstance(token, SubSupToken):
+        selector = _TM_SUBSUP
+        if token.sub and token.sup:
+            pass
+        elif token.sub:
+            selector = _TM_SUB
+        elif token.sup:
+            selector = _TM_SUP
+        else:
+            return _base_records(token.base)
+        return _script_records(selector, token)
 
-    if t == 'sup':
-        return _script_records(_TM_SUP, token)
-
-    if t == 'subsup':
-        return _script_records(_TM_SUBSUP, token)
-
-    if t == 'accent':
+    if isinstance(token, AccentToken):
         return _accent_records(token)
 
-    if t == 'styled':
-        return _content_records(token.get('content', ''))
+    if isinstance(token, StyledToken):
+        return _records_for_tokens(token.content)
 
-    if t == 'delim':
+    if isinstance(token, DelimToken):
         return _delim_records(token)
-
-    if t == 'el':
-        return _content_records(token.get('content', ''))
 
     return b''
 
@@ -205,12 +217,19 @@ def _char_records(text: str) -> bytes:
     return bytes(out)
 
 
-def _content_records(content: str) -> bytes:
-    tokens = _group_sup_sub(_tokenize(content))
-    return _records_for_tokens(tokens)
+def _base_records(base: Any) -> bytes:
+    if base is None:
+        return b''
+    if isinstance(base, TextToken):
+        return _char_records(base.text)
+    return _records_for_token(base)
 
 
-def _slot_records(content: str) -> bytes:
+def _content_records(content: list[Any]) -> bytes:
+    return _records_for_tokens(content)
+
+
+def _slot_records(content: list[Any]) -> bytes:
     """Wrap ``content`` in a LINE record so multi-char slots stay one node.
 
     The reader's template renderers read fixed child slots (``children[0]``,
@@ -223,12 +242,12 @@ def _slot_records(content: str) -> bytes:
     return bytes(out)
 
 
-def _operator_records(token: dict[str, Any]) -> bytes:
-    op = token.get('op', '')
+def _operator_records(token: OperatorToken) -> bytes:
+    op = token.op
     name = _OPERATORS.get(op, op)
     base = _char_records(name)
-    sub_val = token.get('sub')
-    sup_val = token.get('sup')
+    sub_val = token.sub
+    sup_val = token.sup
     if not sub_val and not sup_val:
         return base
     if sub_val and sup_val:
@@ -246,43 +265,40 @@ def _operator_records(token: dict[str, Any]) -> bytes:
     out += base
     out += _end()
     slot = sub_val if sub_val is not None else sup_val
-    out += _slot_records(slot if slot is not None else '')
+    out += _slot_records(slot if slot is not None else [])
     out += _end()
     return bytes(out)
 
 
-def _script_records(selector: int, token: dict[str, Any]) -> bytes:
+def _script_records(selector: int, token: SubSupToken) -> bytes:
     """Emit a SUB/SUP/SUBSUP template.
 
     Slots are base, then optional sub/sup in MTEF order.  SUBSUP uses the
     order base, sub, sup.
     """
-    base = token.get('base')
-    base_records = (
-        _records_for_token(base) if isinstance(base, dict) else _char_records(str(base))
-    )
+    base_records = _base_records(token.base)
     out = bytearray(_tmpl(selector))
     out += _line()
     out += base_records
     out += _end()
     if selector == _TM_SUBSUP:
-        sub_val = token.get('sub')
-        sup_val = token.get('sup')
-        if sub_val:
-            out += _slot_records(sub_val)
-        if sup_val:
-            out += _slot_records(sup_val)
+        if token.sub:
+            out += _slot_records(token.sub)
+        if token.sup:
+            out += _slot_records(token.sup)
+    elif selector == _TM_SUB:
+        out += _slot_records(token.sub if token.sub is not None else [])
     else:
-        out += _slot_records(token.get('content', ''))
+        out += _slot_records(token.sup if token.sup is not None else [])
     out += _end()
     return bytes(out)
 
 
-def _nary_records(token: dict[str, Any]) -> bytes:
-    op = token.get('op', 'sum')
-    sub_val = token.get('sub')
-    sup_val = token.get('sup')
-    body_tokens = token.get('body', [])
+def _nary_records(token: NaryToken) -> bytes:
+    op = token.op
+    sub_val = token.sub
+    sup_val = token.sup
+    body_tokens = token.body
 
     selector = _NARY_SELECTOR.get(op, _TM_SUM)
     variation = _INTEG_VARIATION.get(op, 0)
@@ -302,16 +318,16 @@ def _nary_records(token: dict[str, Any]) -> bytes:
     return bytes(out)
 
 
-def _accent_records(token: dict[str, Any]) -> bytes:
-    accent = token.get('accent', '')
-    content = token.get('content', '')
+def _accent_records(token: AccentToken) -> bytes:
+    accent = token.accent
+    content = token.content
     selector = _ACCENT_SELECTOR.get(accent)
     if selector is None:
-        return _content_records(content)
+        return _records_for_tokens(content)
     return _tmpl_records(selector, [content])
 
 
-def _delim_records(token: dict[str, Any]) -> bytes:
+def _delim_records(token: DelimToken) -> bytes:
     """Render a fence template.
 
     The tokenizer emits separate ``left`` and ``right`` delim tokens around a
@@ -320,8 +336,8 @@ def _delim_records(token: dict[str, Any]) -> bytes:
     the delims, so the PAREN template's main slot wraps it via the reader's
     fence renderer which only reads ``children[0]``.
     """
-    char = token.get('char', '')
-    side = token.get('side', 'left')
+    char = token.char or ''
+    side = token.side
     if side == 'right':
         return _fence_close_char(char)
     selector = _delim_selector(char)
@@ -346,7 +362,9 @@ def _fence_close_char(char: str) -> bytes:
     return _char(ord(open_char), 3)
 
 
-def _tmpl_records(selector: int, slots: list[str], variation: int = 0) -> bytes:
+def _tmpl_records(
+    selector: int, slots: list[list[Any]], variation: int = 0
+) -> bytes:
     """Emit a template whose slots are filled from ``slots`` in order."""
     out = bytearray(_tmpl(selector, variation))
     for slot in slots:

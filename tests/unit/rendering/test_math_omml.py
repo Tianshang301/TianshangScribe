@@ -1,151 +1,193 @@
 from __future__ import annotations
 
-from docx.oxml.ns import qn
+import json
+from pathlib import Path
 
-from tianshang_scribe.rendering.math_omml import _tokenize, latex_to_omml
+from docx.oxml.ns import qn
+from lxml import etree
+
+from tianshang_scribe.rendering.math_omml import (
+    AccentToken,
+    DelimToken,
+    FracToken,
+    NaryToken,
+    OperatorToken,
+    ParserContext,
+    SqrtToken,
+    StyledToken,
+    SubSupToken,
+    TextToken,
+    _build_sub_omath,
+    _collect_body_tokens,
+    _extract_delim,
+    _extract_limits,
+    _extract_one_arg,
+    _extract_sqrt_args,
+    _extract_two_args,
+    _make_run,
+    _make_run_props,
+    _rpr_equivalent,
+    _stack_to_element,
+    _token_to_omml,
+    latex_to_omml,
+    parse_expression,
+)
+
+GOLDEN_FILE = Path(__file__).resolve().parents[2] / 'testdata' / 'omml_golden.json'
+
+
+def parse(s: str) -> list:
+    return parse_expression(ParserContext(s))
 
 
 class TestMathTokenize:
     def test_plain_text(self) -> None:
-        tokens = _tokenize('x')
+        tokens = parse('x')
         assert len(tokens) == 1
-        assert tokens[0] == {'type': 'text', 'text': 'x', 'norm': False}
+        assert tokens[0] == TextToken(text='x', norm=False)
 
     def test_superscript(self) -> None:
-        tokens = _tokenize('x^2')
-        assert len(tokens) == 2
-        assert tokens[0]['type'] == 'text'
-        assert tokens[0]['text'] == 'x'
-        assert tokens[1]['type'] == 'sup'
-        assert tokens[1]['content'] == '2'
+        tokens = parse('x^2')
+        assert len(tokens) == 1
+        assert isinstance(tokens[0], SubSupToken)
+        assert tokens[0].base == TextToken(text='x', norm=False)
+        assert tokens[0].sup == [TextToken(text='2', norm=True)]
 
     def test_superscript_braces(self) -> None:
-        tokens = _tokenize('x^{n+1}')
-        assert tokens[1]['type'] == 'sup'
-        assert tokens[1]['content'] == 'n+1'
+        tokens = parse('x^{n+1}')
+        assert isinstance(tokens[0], SubSupToken)
+        assert tokens[0].sup == [
+            TextToken(text='n+', norm=False),
+            TextToken(text='1', norm=True),
+        ]
 
     def test_subscript(self) -> None:
-        tokens = _tokenize('x_i')
-        assert tokens[1]['type'] == 'sub'
-        assert tokens[1]['content'] == 'i'
+        tokens = parse('x_i')
+        assert isinstance(tokens[0], SubSupToken)
+        assert tokens[0].sub == [TextToken(text='i', norm=False)]
 
     def test_subscript_braces(self) -> None:
-        tokens = _tokenize('x_{i+1}')
-        assert tokens[1]['content'] == 'i+1'
+        tokens = parse('x_{i+1}')
+        assert tokens[0].sub == [
+            TextToken(text='i+', norm=False),
+            TextToken(text='1', norm=True),
+        ]
 
     def test_sub_and_sup(self) -> None:
-        tokens = _tokenize('x_i^2')
-        types = [t['type'] for t in tokens]
-        assert 'sub' in types
-        assert 'sup' in types
+        tokens = parse('x_i^2')
+        assert isinstance(tokens[0], SubSupToken)
+        assert tokens[0].sub == [TextToken(text='i', norm=False)]
+        assert tokens[0].sup == [TextToken(text='2', norm=True)]
 
     def test_fraction(self) -> None:
-        tokens = _tokenize(r'\frac{a}{b}')
-        assert tokens[0]['type'] == 'frac'
-        assert tokens[0]['num'] == 'a'
-        assert tokens[0]['den'] == 'b'
+        tokens = parse(r'\frac{a}{b}')
+        assert isinstance(tokens[0], FracToken)
+        assert tokens[0].num == [TextToken(text='a', norm=False)]
+        assert tokens[0].den == [TextToken(text='b', norm=False)]
 
     def test_fraction_complex(self) -> None:
-        tokens = _tokenize(r'\frac{x+y}{z}')
-        assert tokens[0]['type'] == 'frac'
-        assert tokens[0]['num'] == 'x+y'
-        assert tokens[0]['den'] == 'z'
+        tokens = parse(r'\frac{x+y}{z}')
+        assert tokens[0].num == [
+            TextToken(text='x+y', norm=False),
+        ]
+        assert tokens[0].den == [TextToken(text='z', norm=False)]
 
     def test_sqrt(self) -> None:
-        tokens = _tokenize(r'\sqrt{x}')
-        assert tokens[0]['type'] == 'sqrt'
-        assert tokens[0]['degree'] == ''
-        assert tokens[0]['content'] == 'x'
+        tokens = parse(r'\sqrt{x}')
+        assert isinstance(tokens[0], SqrtToken)
+        assert tokens[0].degree is None
+        assert tokens[0].content == [TextToken(text='x', norm=False)]
 
     def test_sqrt_nth(self) -> None:
-        tokens = _tokenize(r'\sqrt[3]{x}')
-        assert tokens[0]['degree'] == '3'
-        assert tokens[0]['content'] == 'x'
+        tokens = parse(r'\sqrt[3]{x}')
+        assert tokens[0].degree == [TextToken(text='3', norm=True)]
+        assert tokens[0].content == [TextToken(text='x', norm=False)]
 
     def test_greek_letters(self) -> None:
-        tokens = _tokenize(r'\alpha \beta \Gamma')
-        assert tokens[0]['text'] == '\u03b1'
-        assert tokens[1]['text'] == '\u03b2'
-        assert tokens[2]['text'] == '\u0393'
+        tokens = parse(r'\alpha \beta \Gamma')
+        assert tokens[0] == TextToken(text='\u03b1', norm=False)
+        assert tokens[1] == TextToken(text='\u03b2', norm=False)
+        assert tokens[2] == TextToken(text='\u0393', norm=True)
 
     def test_operator_sum(self) -> None:
-        tokens = _tokenize(r'\sum_{i=0}^{n}')
-        assert tokens[0]['type'] == 'nary'
-        assert tokens[0]['op'] == 'sum'
-        assert tokens[0]['sub'] == 'i=0'
-        assert tokens[0]['sup'] == 'n'
+        tokens = parse(r'\sum_{i=0}^{n}')
+        assert isinstance(tokens[0], NaryToken)
+        assert tokens[0].op == 'sum'
+        assert tokens[0].sub == [
+            TextToken(text='i=', norm=False),
+            TextToken(text='0', norm=True),
+        ]
+        assert tokens[0].sup == [TextToken(text='n', norm=False)]
 
     def test_operator_int(self) -> None:
-        tokens = _tokenize(r'\int_{0}^{\infty}')
-        assert tokens[0]['op'] == 'int'
-        assert tokens[0]['sub'] == '0'
-        assert tokens[0]['sup'] == r'\infty'
+        tokens = parse(r'\int_{0}^{\infty}')
+        assert tokens[0].op == 'int'
+        assert tokens[0].sub == [TextToken(text='0', norm=True)]
+        assert tokens[0].sup == [TextToken(text='\u221e', norm=False)]
 
     def test_accent(self) -> None:
-        tokens = _tokenize(r'\hat{x}')
-        assert tokens[0]['type'] == 'accent'
-        assert tokens[0]['accent'] == 'hat'
-        assert tokens[0]['content'] == 'x'
+        tokens = parse(r'\hat{x}')
+        assert isinstance(tokens[0], AccentToken)
+        assert tokens[0].accent == 'hat'
+        assert tokens[0].content == [TextToken(text='x', norm=False)]
 
     def test_accent_bar(self) -> None:
-        tokens = _tokenize(r'\bar{y}')
-        assert tokens[0]['accent'] == 'bar'
+        tokens = parse(r'\bar{y}')
+        assert tokens[0].accent == 'bar'
 
     def test_symbols(self) -> None:
-        tokens = _tokenize(r'\infty \pm \times \div')
-        assert tokens[0]['text'] == '\u221e'
-        assert tokens[1]['text'] == '\u00b1'
-        assert tokens[2]['text'] == '\u00d7'
-        assert tokens[3]['text'] == '\u00f7'
+        tokens = parse(r'\infty \pm \times \div')
+        assert tokens[0] == TextToken(text='\u221e', norm=False)
+        assert tokens[1] == TextToken(text='\u00b1', norm=False)
+        assert tokens[2] == TextToken(text='\u00d7', norm=False)
+        assert tokens[3] == TextToken(text='\u00f7', norm=False)
 
     def test_digits_have_norm_true(self) -> None:
-        tokens = _tokenize(r'\frac{42}{2a}')
+        tokens = parse(r'\frac{42}{2a}')
         frac = tokens[0]
-        assert frac['num'] == '42'
-        inner = _tokenize('42')
-        assert len(inner) == 1
-        assert inner[0]['type'] == 'text'
-        assert inner[0]['norm'] is True
+        assert frac.num == [TextToken(text='42', norm=True)]
+        assert frac.den == [
+            TextToken(text='2', norm=True),
+            TextToken(text='a', norm=False),
+        ]
 
     def test_mixed_text_splits_at_digit_boundary(self) -> None:
-        tokens = _tokenize(r'\frac{4ac}{2}')
+        tokens = parse(r'\frac{4ac}{2}')
         frac = tokens[0]
-        inner = _tokenize(frac['num'])
-        assert len(inner) == 2
-        assert inner[0] == {'type': 'text', 'text': '4', 'norm': True}
-        assert inner[1] == {'type': 'text', 'text': 'ac', 'norm': False}
+        assert frac.num == [
+            TextToken(text='4', norm=True),
+            TextToken(text='ac', norm=False),
+        ]
+        assert frac.den == [TextToken(text='2', norm=True)]
 
     def test_plain_letters_no_norm(self) -> None:
-        tokens = _tokenize('abc')
-        assert tokens[0] == {'type': 'text', 'text': 'abc', 'norm': False}
+        tokens = parse('abc')
+        assert tokens == [TextToken(text='abc', norm=False)]
 
     def test_greek_uppercase_has_norm(self) -> None:
-        tokens = _tokenize(r'\Gamma \Delta \Theta \alpha \beta')
-        assert tokens[0]['norm'] is True
-        assert tokens[1]['norm'] is True
-        assert tokens[2]['norm'] is True
-        assert tokens[3]['norm'] is False
-        assert tokens[4]['norm'] is False
+        tokens = parse(r'\Gamma \Delta \Theta \alpha \beta')
+        assert tokens[0].norm is True
+        assert tokens[1].norm is True
+        assert tokens[2].norm is True
+        assert tokens[3].norm is False
+        assert tokens[4].norm is False
 
     def test_styled_mathrm_not_lost(self) -> None:
-        tokens = _tokenize(r'\mathrm{abc}')
+        tokens = parse(r'\mathrm{abc}')
         assert len(tokens) == 1
-        assert tokens[0]['type'] == 'styled'
-        assert tokens[0]['style'] == 'normal'
-        assert tokens[0]['content'] == 'abc'
+        assert isinstance(tokens[0], StyledToken)
+        assert tokens[0].style == 'normal'
+        assert tokens[0].content == [TextToken(text='abc', norm=False)]
 
     def test_styled_mathbf_not_lost(self) -> None:
-        tokens = _tokenize(r'\mathbf{def}')
-        assert tokens[0]['type'] == 'styled'
-        assert tokens[0]['style'] == 'bold'
-        assert tokens[0]['content'] == 'def'
+        tokens = parse(r'\mathbf{def}')
+        assert tokens[0].style == 'bold'
+        assert tokens[0].content == [TextToken(text='def', norm=False)]
 
     def test_collect_body_tokens_splits_digits(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _collect_body_tokens
-
         tokens, _ = _collect_body_tokens('4ab', 0)
-        assert tokens[0] == {'type': 'text', 'text': '4', 'norm': True}
-        assert tokens[1] == {'type': 'text', 'text': 'ab', 'norm': False}
+        assert tokens[0] == TextToken(text='4', norm=True)
+        assert tokens[1] == TextToken(text='ab', norm=False)
 
 
 class TestLatexToOMML:
@@ -409,8 +451,6 @@ class TestLatexToOMML:
         assert any(s.get(qn('m:val')) == 'b' for s in sty)
 
     def test_bold_italic_style_map(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _make_run_props
-
         rpr = _make_run_props('bold-italic')
         sty = rpr.find(qn('m:sty'))
         assert sty is not None
@@ -437,7 +477,9 @@ class TestLatexToOMML:
         assert result is not None
 
     def test_arrows(self) -> None:
-        result = latex_to_omml(r'\to\rightarrow\leftarrow\Leftarrow\Leftrightarrow')
+        result = latex_to_omml(
+            r'\to\rightarrow\leftarrow\Leftarrow\Leftrightarrow'
+        )
         assert result is not None
 
     def test_neg(self) -> None:
@@ -461,7 +503,9 @@ class TestLatexToOMML:
         assert result is not None
 
     def test_vartheta_varrho(self) -> None:
-        result = latex_to_omml(r'\vartheta \varrho \varphi \varpi \varsigma')
+        result = latex_to_omml(
+            r'\vartheta \varrho \varphi \varpi \varsigma'
+        )
         assert result is not None
 
     def test_det_pr(self) -> None:
@@ -486,8 +530,8 @@ class TestLatexToOMML:
 
     def test_all_accent_commands(self) -> None:
         result = latex_to_omml(
-            r'\vec{v}\hat{w}\bar{x}\tilde{y}\dot{z}\ddot{a}\widehat{AB}\widetilde{CD}'
-            r'\check{e}\acute{o}\grave{u}\breve{i}'
+            r'\vec{v}\hat{w}\bar{x}\tilde{y}\dot{z}\ddot{a}\widehat{AB}'
+            r'\widetilde{CD}\check{e}\acute{o}\grave{u}\breve{i}'
         )
         assert result is not None
 
@@ -496,7 +540,10 @@ class TestLatexToOMML:
         assert result is not None
 
     def test_bare_operator_commands(self) -> None:
-        for t in (r'\lim', r'\max', r'\min', r'\sup', r'\inf', r'\det', r'\gcd', r'\Pr'):
+        for t in (
+            r'\lim', r'\max', r'\min', r'\sup', r'\inf', r'\det',
+            r'\gcd', r'\Pr',
+        ):
             result = latex_to_omml(t)
             assert result is not None
 
@@ -505,7 +552,7 @@ class TestLatexToOMML:
         assert result is not None
 
     def test_subsup_both(self) -> None:
-        result = latex_to_omml(r'x_i^2')
+        result = latex_to_omml('x_i^2')
         assert result is not None
         assert result.find('.//' + qn('m:sSubSup')) is not None
 
@@ -539,155 +586,110 @@ class TestLatexToOMML:
 
 
 class TestInternalHelpers:
-    def test_build_sub_omml_str(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _build_sub_omath
-
-        els = _build_sub_omath('x')
+    def test_build_sub_omml_tokens(self) -> None:
+        els = _build_sub_omath([TextToken(text='x', norm=False)])
         assert len(els) == 1
 
     def test_build_sub_omml_empty(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _build_sub_omath
-
-        els = _build_sub_omath('')
+        els = _build_sub_omath([])
         assert len(els) == 1
+        assert els[0].tag == qn('m:r')
 
-    def test_build_sub_omml_dict(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _build_sub_omath
-
-        els = _build_sub_omath({'k': 1})
+    def test_build_sub_omml_nested(self) -> None:
+        els = _build_sub_omath([FracToken(
+            num=[TextToken(text='a', norm=False)],
+            den=[TextToken(text='b', norm=False)],
+        )])
         assert len(els) == 1
+        assert els[0].tag == qn('m:f')
 
     def test_stack_to_element_single(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _stack_to_element, _tokenize
-
-        el = _stack_to_element(_tokenize('x'))
+        el = _stack_to_element(parse('x'))
         assert el is not None
         assert qn('m:t') in [c.tag for c in el]
 
     def test_stack_to_element_merged(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _stack_to_element, _tokenize
-
-        el = _stack_to_element(_tokenize('ab'))
+        el = _stack_to_element(parse('ab'))
         assert el.tag == qn('m:r')
 
     def test_stack_to_element_empty(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _stack_to_element
-
         el = _stack_to_element([])
         assert el.tag == qn('m:r')
 
     def test_make_run_with_style(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _make_run
-
         r = _make_run('x', 'bold', norm=True)
         assert r.tag == qn('m:r')
         assert r.find(qn('m:t')) is not None
         assert r.find(qn('m:t')).text == 'x'
 
     def test_make_run_auto_style(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _make_run
-
         r = _make_run('x', 'auto', norm=False)
         assert r.find(qn('m:rPr')) is None
 
     def test_make_run_props_unknown(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _make_run_props
-
         rpr = _make_run_props('weird')
         sty = rpr.find(qn('m:sty'))
         assert sty is not None
         assert sty.get(qn('m:val')) == 'p'
 
     def test_token_to_omml_unknown_type(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _token_to_omml
-
-        el = _token_to_omml({'type': 'bogus'})
+        el = _token_to_omml(object())
         assert el.tag == qn('m:r')
 
-    def test_group_sup_sub_no_sub(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _group_sup_sub
-
-        tokens = [{'type': 'text', 'text': 'x', 'norm': False}] * 2
-        assert len(_group_sup_sub(tokens)) == 2
-
-    def test_group_sup_sub_sub_only(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _group_sup_sub
-
-        tokens = [
-            {'type': 'text', 'text': 'a'},
-            {'type': 'sub', 'content': 'i'},
-        ]
-        grouped = _group_sup_sub(tokens)
-        assert grouped[0]['type'] == 'sub'
-        assert grouped[0]['base']['text'] == 'a'
+    def test_token_to_omml_delim(self) -> None:
+        el = _token_to_omml(DelimToken(char='\u0028', side='left'))
+        assert el.tag == qn('m:r')
 
     def test_extract_limits_single_chars(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_limits
-
-        r = _extract_limits('_{i=0}^{n} rest', 0)
-        assert r is not None
-        assert r[0] == 'i=0'
-        assert r[1] == 'n'
+        sub, sup, _pos = _extract_limits('_{i=0}^{n} rest', 0)
+        assert sub == [
+            TextToken(text='i=', norm=False),
+            TextToken(text='0', norm=True),
+        ]
+        assert sup == [TextToken(text='n', norm=False)]
 
     def test_extract_limits_plain(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_limits
-
-        r = _extract_limits('x', 0)
-        assert r is None
+        assert _extract_limits('x', 0) is None
 
     def test_extract_limits_sub_single(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_limits
-
-        r = _extract_limits('_i x', 0)
-        assert r is not None
-        assert r[0] == 'i'
+        sub, sup, _pos = _extract_limits('_i x', 0)
+        assert sub == [TextToken(text='i', norm=False)]
+        assert sup is None
 
     def test_extract_sqrt_args_incomplete(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_sqrt_args
-
-        r = _extract_sqrt_args('[3]', 0)
-        assert r is None
+        assert _extract_sqrt_args('[3]', 0) is None
 
     def test_extract_sqrt_args_eof(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_sqrt_args
-
-        r = _extract_sqrt_args('', 0)
-        assert r is None
+        assert _extract_sqrt_args('', 0) is None
 
     def test_extract_delim_unknown(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_delim
-
-        r = _extract_delim('\\unknown', 0)
-        assert r is None
+        assert _extract_delim('\\unknown', 0) is None
 
     def test_extract_delim_eof(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_delim
-
-        r = _extract_delim('', 0)
-        assert r is None
+        assert _extract_delim('', 0) is None
 
     def test_extract_one_arg_no_brace(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_one_arg
-
-        r = _extract_one_arg('abc', 0)
-        assert r is None
+        assert _extract_one_arg('abc', 0) is None
 
     def test_extract_one_arg_unbalanced(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_one_arg
-
         r = _extract_one_arg('{abc', 0)
         assert r is not None
-        assert r[0] == 'abc'
+        assert r[0] == 1
+        assert r[1] == 4
+        assert r[2] == 4
+
+    def test_extract_one_arg_balanced(self) -> None:
+        r = _extract_one_arg('{abc}', 0)
+        assert r == (1, 4, 5)
 
     def test_extract_two_args_missing_second(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _extract_two_args
+        assert _extract_two_args('{a}rest', 0) is None
 
-        r = _extract_two_args('{a}rest', 0)
-        assert r is None
+    def test_extract_two_args_both(self) -> None:
+        r = _extract_two_args('{a}{b}rest', 0)
+        assert r == ((1, 2, 3), (4, 5, 6))
 
     def test_rpr_equivalent(self) -> None:
-        from tianshang_scribe.rendering.math_omml import _rpr_equivalent
-
         assert _rpr_equivalent(None, None) is True
         assert _rpr_equivalent(None, 'x') is False
         assert _rpr_equivalent('x', None) is False
@@ -732,3 +734,30 @@ class TestMathStyleDialects:
     def test_unknown_style_falls_back_to_office(self) -> None:
         result = latex_to_omml(r'\text{a b}', style='unknown')
         assert result is not None
+
+
+class TestGoldenSnapshot:
+    def test_golden_snapshot_matches(self) -> None:
+        if not GOLDEN_FILE.exists():
+            import pytest
+
+            pytest.skip('golden snapshot file not present')
+
+        with GOLDEN_FILE.open('r', encoding='utf-8') as f:
+            golden = json.load(f)
+
+        for formula, old_xml in golden.items():
+            result = latex_to_omml(formula)
+            if old_xml is None:
+                assert result is None, f'{formula!r} should be None'
+                continue
+            assert result is not None, f'{formula!r} should produce output'
+            new_xml = etree.tostring(result, encoding='unicode')
+            assert new_xml == old_xml, f'golden mismatch for {formula!r}'
+
+    def test_operator_token_plain(self) -> None:
+        tokens = parse(r'\sin x')
+        assert isinstance(tokens[0], OperatorToken)
+        assert tokens[0].op == 'sin'
+        assert tokens[0].sub is None
+        assert tokens[0].sup is None

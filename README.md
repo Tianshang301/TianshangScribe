@@ -235,7 +235,7 @@ Word OOXML natively separates `w:ascii` (Western) and `w:eastAsia` (CJK) fonts, 
 
 ## Math Formulas
 
-LaTeX math formulas via `--math` are converted to native Word OMML (Office Math Markup Language). Use `--math-font "Times New Roman"` to render equations with a MathType-style serif font instead of Word's default Cambria Math (`<m:mathPr><m:mathFont>`). `--math-style mathtype` switches the LaTeX parsing dialect for MathType compatibility. Use `--math-mtef` to embed the formula as a real MathType OLE object (MTEF binary) instead — editable by legacy MathType (6.x and earlier), the same format `--extract math` reads back.
+LaTeX math formulas via `--math` are converted to native Word OMML (Office Math Markup Language). The converter is a hand-written recursive-descent parser (expression → term → factor → atom) over a nested, immutable token tree (fraction, root, N-ary, sub/sup, accent, styled, delimiter tokens), dispatched through an O(1) command table with precompiled regexes and zero-copy argument slicing. Use `--math-font "Times New Roman"` to render equations with a MathType-style serif font instead of Word's default Cambria Math (`<m:mathPr><m:mathFont>`). `--math-style mathtype` switches the LaTeX parsing dialect for MathType compatibility. Use `--math-mtef` to embed the formula as a real MathType OLE object (MTEF binary) instead — editable by legacy MathType (6.x and earlier), the same format `--extract math` reads back. Output is byte-for-byte stable across releases (guarded by a golden-snapshot regression suite).
 
 ### Supported Syntax
 
@@ -251,7 +251,7 @@ LaTeX math formulas via `--math` are converted to native Word OMML (Office Math 
 | Symbols | `\pm` `\times` `\div` `\cdot` `\infty` `\partial` `\nabla` `\forall` `\exists` —|
 | Relations | `\leq` `\geq` `\neq` `\approx` `\equiv` `\propto` `\subset` `\supset` `\in` —|
 | Arrows | `\to` `\rightarrow` `\leftarrow` `\mapsto` `\uparrow` —|
-| Accents | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` —|
+| Accents | `\hat{x}` `\bar{x}` `\tilde{x}` `\dot{x}` `\ddot{x}` `\vec{x}` `\widehat{x}` `\widetilde{x}` —|
 | Brackets | `\left( \right)` `\left[ \right]` `\left\{ \right\}` |
 | Math Fonts | `\mathrm{abc}` `\mathbf{abc}` `\mathit{abc}` `\mathcal{ABC}` `\mathbb{ABC}` `\mathsf{abc}` `\mathtt{abc}` |
 
@@ -483,10 +483,10 @@ src/
 | Word | python-docx |
 | Excel | openpyxl |
 | PPT | python-pptx |
-| Math | Custom recursive descent parser →OMML XML |
+| Math | Hand-written recursive-descent parser → OMML XML (immutable token tree, command dispatch table) |
 | Templates | Custom engine ({{placeholder}}, {{#each}}, {{#if}}) |
 | PDF | office2pdf (~2MB Rust binary, zero deps) + LibreOffice fallback |
-| Quality | pytest (414 tests) · ruff · mypy |
+| Quality | pytest (936 tests) · ruff · mypy |
 
 ## Build EXE
 

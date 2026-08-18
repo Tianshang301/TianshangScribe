@@ -222,3 +222,30 @@ def test_add_matheq_object_then_convert_roundtrip() -> None:
     xml = engine.doc.paragraphs[0]._p.xml
     assert 'm:oMath' in xml
     assert 'w:object' not in xml
+
+
+def test_multiple_matheq_objects_unique_partnames() -> None:
+    """Embedding several formulas must produce distinct OLE part names."""
+    import os
+    import tempfile
+    from zipfile import ZipFile
+
+    engine = WordEngine()
+    engine.create()
+    engine.add_matheq_object(r'\frac{a}{b}')
+    engine.add_matheq_object('x^2')
+    engine.add_matheq_object(r'\sum_{i=1}^{n} i')
+    with tempfile.NamedTemporaryFile(suffix='.docx', delete=False) as tf:
+        tmp = tf.name
+    try:
+        engine.save(tmp)
+        with ZipFile(tmp) as z:
+            emb = [n for n in z.namelist() if '/embeddings/' in n]
+        assert len(emb) == 3
+        assert len(set(emb)) == 3
+        reopened = WordEngine()
+        reopened.open(tmp)
+        latex = reopened.extract_math_latex()
+        assert len(latex) == 3
+    finally:
+        os.unlink(tmp)

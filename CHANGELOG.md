@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-08-19
+
+### Added
+- `--math-mtef`: embed formulas as real MathType OLE objects (MTEF binary,
+  written to `word/embeddings/oleObject*.bin`) so they remain editable by legacy
+  MathType (6.x and earlier); the default remains native Word OMML. Reads back
+  through the same format `--extract math` understands
+  (`src/tianshang_scribe/rendering/mtef/`).
+- `--math-font "Times New Roman"`: configurable OMML math rendering font
+  (default Cambria Math), switching to a MathType-style serif font via
+  `<m:mathPr><m:mathFont>` (`src/tianshang_scribe/rendering/math_omml.py`).
+
+### Changed
+- The math converter is rewritten as a recursive-descent parser
+  (expression → term → factor → atom) over an immutable nested token tree
+  (fraction, root, N-ary, sub/sup, accent, styled, delimiter tokens), driven by
+  an O(1) command dispatch table with precompiled regexes and zero-copy argument
+  slicing; output is byte-for-byte stable across releases, guarded by a
+  golden-snapshot regression suite.
+
 ## [0.6.0] - 2026-08-14
 
 ### Changed

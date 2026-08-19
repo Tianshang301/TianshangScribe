@@ -24,8 +24,10 @@ contents:
     dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/cli/
   - src: src/tianshang_scribe/core/
     dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/core/
-  - src: src/tianshang_scribe/rendering/
+  - src: src/tianshang_scribe/rendering/*.py
     dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/rendering/
+  - src: src/tianshang_scribe/rendering/mtef/*.py
+    dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/rendering/mtef/
   - src: src/tianshang_scribe/transform/
     dst: /usr/lib/tianshang-scribe/src/tianshang_scribe/transform/
   - src: src/tianshang_scribe/utils/

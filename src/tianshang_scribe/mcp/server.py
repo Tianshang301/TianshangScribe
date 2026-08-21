@@ -29,7 +29,7 @@ from tianshang_scribe.utils.config import Settings
 from tianshang_scribe.utils.logging import configure_logging
 
 SERVER_NAME = 'tianshang-scribe'
-SERVER_VERSION = '0.6.0'
+SERVER_VERSION = '0.7.0'
 
 INSTRUCTIONS = (
     'TianshangScribe MCP Server — create, edit, fill, convert and extract '

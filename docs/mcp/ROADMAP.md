@@ -119,7 +119,7 @@ MAX_MEMORY_MB = 512
   "version": "0.2.0",
   "uptime_seconds": 86400,
   "active_sessions": 3,
-  "tools_available": 5,
+  "tools_available": 7,
   "pdf_engine": "office2pdf"
 }
 ```

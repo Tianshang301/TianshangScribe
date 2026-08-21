@@ -204,7 +204,10 @@ def main(
     ] = None,
     comment: Annotated[
         str | None,
-        typer.Option('--comment', help='Add comment/notes (format: "cell_or_index text")'),
+        typer.Option(
+            '--comment',
+            help='Add comment/notes (format: "index text"; index is an integer slide/position)',
+        ),
     ] = None,
     meta: Annotated[
         str | None,
@@ -559,13 +562,12 @@ def main(
                 parts = comment.split(None, 1)
                 if len(parts) == 2:
                     try:
-                        engine.add_comment(int(parts[0]), parts[1])
+                        engine.add_comment(parts[1], int(parts[0]))
                     except ValueError:
-                        engine.add_comment(parts[0], parts[1])
-                    console.print('[green]Comment added.[/green]')
+                        engine.add_comment(comment, 0)
                 else:
-                    engine.add_comment(0, comment)
-                    console.print('[green]Comment added.[/green]')
+                    engine.add_comment(comment, 0)
+                console.print('[green]Comment added.[/green]')
 
             if sheet_add and hasattr(engine, 'add_sheet'):
                 engine.add_sheet(sheet_add)

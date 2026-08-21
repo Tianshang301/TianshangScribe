@@ -77,12 +77,12 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 | `-x` | `--extract` | `--extract text` | 提取 text/tables/images/structure/metadata/math/latex（images 需 `-o <目录>`；math 把 MathType 公式转为 OMML 写回，latex 输出公式的 LaTeX） |
 | `-t` | `--template` | `--template data.json` | 用数据文件填充模板中的 `{{placeholder}}` |
 | `-s` | `--style` | `--style "font=Times,size=12,bold,cjk-font=SimSun"` | 设置全局样式或当前段落默认样式（逗号分隔键值对，支持中西文分离字体） |
-| | `--merge` | `--merge file1.docx file2.docx` | 合并多个文档（支持通配符） |
-| | `--split` | `--split by-page` | 拆分文档（按页/工作表/幻灯片） |
+| | `--merge` | `--merge "a.docx,b.docx"` | 合并多个文档（逗号分隔；不支持通配符；Word/Excel/PPT 均支持 `merge_workbooks`） |
+| | `--split` | `--split by-sheet` | 拆分文档（当前仅 Excel 支持：`--split by-sheet` 按工作表拆分；Word 按页 / PPT 按幻灯片拆分待实现） |
 | | `--meta` | `--meta title="报告" author="张三"` | 读写文档属性 |
 | | `--protect` | `--protect password123` | 设置打开密码或编辑限制 |
 | | `--unprotect` | `--unprotect password123` | 解除密码保护 |
-| | `--comment` | `--comment "这是批注"` | 添加批注（Word）/演讲者备注（PPT） |
+| | `--comment` | `--comment "index text"` | 添加批注（Word）/演讲者备注（PPT，追加到备注文本区，与 `--notes` 重叠；格式 `index text`，index 为幻灯片/位置的整型序号） |
 | | `--add-table` | `--add-table "H1,H2\|a1,a2"` | 添加 Word 表格；`@file.csv` 从 CSV 读取（内联 `\|` 分行、`,` 分列） |
 | | `--batch` | `--batch` | 批量模式：逐文件执行、失败不中断、末尾汇总 |
 | | `--files` | `--files "reports/*.docx"` | 批量 glob 通配符（隐含 `--batch`） |

@@ -212,6 +212,25 @@ class TestExcelEngine:
         with pytest.raises(ValueError, match='Invalid cell range'):
             engine.set_number_format('not-a-range', '0.00')
 
+    # ---- Step 3 (E4): conditional formatting ----
+    def test_add_conditional_format_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        ws = engine.wb.active
+        for i in range(1, 6):
+            ws.cell(row=i, column=1, value=i * 10)
+        engine.add_conditional_format('A1:A5', 'color_scale')
+        engine.add_conditional_format('B1:B5', 'data_bar')
+        engine.add_conditional_format('C1:C5', 'cell_is', operator='greaterThan', formula='20')
+        out = tmp_path / 'cf.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        rules = list(reopened.wb.active.conditional_formatting)
+        assert len(rules) >= 3
+
+    def test_add_conditional_format_unsupported_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Unsupported conditional format type'):
+            engine.add_conditional_format('A1:A5', 'bogus')
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
             engine.add_chart('scatter', 'A1:B2')

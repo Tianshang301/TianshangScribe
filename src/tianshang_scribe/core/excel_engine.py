@@ -485,6 +485,49 @@ class ExcelEngine(DocumentABC):
             for c in range(c1, c2 + 1):
                 ws.cell(row=r, column=c).number_format = fmt
 
+    def add_conditional_format(self, cell_range: str, cf_type: str = 'color_scale', **opts: object) -> None:
+        """Add a conditional formatting rule to ``cell_range``.
+
+        ``cf_type`` is one of: 'color_scale', 'data_bar', 'cell_is', 'formula'.
+        """
+        from openpyxl.formatting.rule import (
+            CellIsRule,
+            ColorScaleRule,
+            DataBarRule,
+            FormulaRule,
+        )
+
+        ws = self._ws()
+        if cf_type == 'color_scale':
+            rule = ColorScaleRule(
+                start_type='min',
+                start_color=opts.get('min_color', 'FFFFFF'),
+                mid_type='percentile',
+                mid_value=50,
+                mid_color=opts.get('mid_color', 'FFEB84'),
+                end_type='max',
+                end_color=opts.get('max_color', '63BE7B'),
+            )
+        elif cf_type == 'data_bar':
+            rule = DataBarRule(
+                start_type='min',
+                end_type='max',
+                color=opts.get('color', '638EC6'),
+            )
+        elif cf_type == 'cell_is':
+            rule = CellIsRule(
+                operator=opts.get('operator', 'greaterThan'),
+                formula=[opts.get('formula', '0')],
+            )
+        elif cf_type == 'formula':
+            rule = FormulaRule(
+                formula=[opts.get('formula', 'TRUE')],
+                fill=opts.get('fill'),
+            )
+        else:
+            raise ValueError(f'Unsupported conditional format type: {cf_type!r}')
+        ws.conditional_formatting.add(cell_range, rule)
+
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""
         for p in paths:

@@ -720,6 +720,12 @@ class TestExcelGrouping:
 class TestExcelTabColor:
     """0.9.0 P1: sheet tab color."""
 
+    @pytest.fixture
+    def engine(self) -> ExcelEngine:
+        e = ExcelEngine()
+        e.create()
+        return e
+
     def test_set_tab_color_baseline(self, tmp_path: Path) -> None:
         e = ExcelEngine()
         e.create()

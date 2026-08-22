@@ -744,3 +744,19 @@ class TestErrorsHelpers:
     def test_send_progress_no_writer(self) -> None:
         _set_notify_writer(None)
         send_progress(1, 10)  # must be a no-op
+
+
+class TestSchemasMcpP0:
+    def test_content_block_new_fields_roundtrip(self) -> None:
+        b = ContentBlock(type='table', rows=[['A', 'B'], ['1', '2']], slide_index=0, chart_type='bar', number_format='A1:A10=0.00%')
+        d = b.model_dump()
+        assert d['slide_index'] == 0
+        assert d['chart_type'] == 'bar'
+        assert d['number_format'] == 'A1:A10=0.00%'
+
+    def test_edit_operation_new_actions_accepted(self) -> None:
+        op = EditOperation(action='set_formula', cell='A1', formula='=SUM(B1:B10)')
+        d = op.model_dump()
+        assert d['action'] == 'set_formula'
+        assert d['cell'] == 'A1'
+        assert d['formula'] == '=SUM(B1:B10)'

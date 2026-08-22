@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `bar`/`column`/`line`/`pie`/`area`/`doughnut`), `add_picture`, `add_shape`
   (autoshapes), and `replace_text` now preserves run-level styles across runs
   that span a match.
+- MCP Server: the existing 7 tools now expose the Excel/PPT engine capabilities
+  above. `create_office_document`'s `ContentBlock` and `edit_office_document`'s
+  `EditOperation` gained optional fields (`slide_index`, `slide_layout`, `notes`,
+  `transition`, `sheet_name`, `cell`, `formula`, `chart_type`, `chart_data_range`,
+  `chart_data`, `rows`, `number_format`, `conditional_format`, `data_validation`,
+  `freeze`, `hyperlink`, `named_range`) so agents can build formula cells, frozen
+  panes, number formats, conditional formats, data validation, Excel/PPT charts,
+  PPT tables/pictures/shapes/layouts/transitions/notes. Fixed a crash where
+  `create_office_document` raised on a PPT `table` block (signature mismatch with
+  `PptEngine.add_table`); PPT content blocks now stack onto a single slide.
+  Parsing helpers live in `src/tianshang_scribe/mcp/tools/_parse.py`.
 - Bumped `SERVER_VERSION` to `0.8.0` so the MCP health endpoint reports the
   current release.
 

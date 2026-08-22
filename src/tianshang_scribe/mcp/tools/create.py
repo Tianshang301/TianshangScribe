@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 from typing import Annotated, Any
@@ -217,10 +218,8 @@ def _apply_mcp_capabilities(engine: Any, doc_type: Any, item: dict[str, Any]) ->
     if doc_type == DocumentType.EXCEL:
         sheet = item.get('sheet_name')
         if sheet and hasattr(engine, 'select_sheet'):
-            try:
+            with contextlib.suppress(ValueError):
                 engine.select_sheet(sheet)
-            except ValueError:
-                pass
         cell = item.get('cell')
         if item.get('formula') is not None and cell and hasattr(engine, 'set_formula'):
             engine.set_formula(cell, item['formula'])

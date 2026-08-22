@@ -16,9 +16,13 @@ WRITE_TOOLS = {
     'fill_template',
     'convert_document',
     'compare_documents',
+    'create_excel_workbook',
+    'edit_excel_workbook',
+    'create_presentation',
+    'edit_presentation',
 }
-READ_ONLY_TOOLS = {'extract_document_data', 'validate_template'}
-DESTRUCTIVE_TOOLS = {'edit_office_document'}
+READ_ONLY_TOOLS = {'extract_document_data', 'validate_template', 'analyze_excel_data'}
+DESTRUCTIVE_TOOLS = {'edit_office_document', 'edit_excel_workbook', 'edit_presentation'}
 
 
 def _desc(name: str) -> str:

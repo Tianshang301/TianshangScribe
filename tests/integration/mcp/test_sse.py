@@ -196,7 +196,7 @@ def test_sse_server_lifecycle():
         assert init['result']['serverInfo']['name'] == 'tianshang-scribe'
 
         tools = client.request('tools/list', {}, 2)
-        assert len(tools['result']['tools']) == 7
+        assert len(tools['result']['tools']) == 12
 
         call = client.request(
             'tools/call',

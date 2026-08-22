@@ -118,6 +118,11 @@ class TestRegisteredHandler:
             'extract_document_data',
             'validate_template',
             'compare_documents',
+            'create_excel_workbook',
+            'edit_excel_workbook',
+            'create_presentation',
+            'edit_presentation',
+            'analyze_excel_data',
         ]
 
     def test_query_returns_matching_subset(self) -> None:
@@ -138,7 +143,7 @@ class TestRegisteredHandler:
             result = await handler(None, None)
             return len(result.tools)
 
-        assert asyncio.run(run()) == 7
+        assert asyncio.run(run()) == 12
 
     def test_install_is_idempotent(self) -> None:
         server = build_server()

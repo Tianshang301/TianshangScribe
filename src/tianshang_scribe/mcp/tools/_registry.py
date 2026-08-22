@@ -10,10 +10,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, cast
 
+from tianshang_scribe.mcp.tools.analyze_excel import analyze_excel_data
 from tianshang_scribe.mcp.tools.compare import compare_documents
 from tianshang_scribe.mcp.tools.convert import convert_document, extract_document_data
 from tianshang_scribe.mcp.tools.create import create_office_document
 from tianshang_scribe.mcp.tools.edit import edit_office_document
+from tianshang_scribe.mcp.tools.excel_create import create_excel_workbook
+from tianshang_scribe.mcp.tools.excel_edit import edit_excel_workbook
+from tianshang_scribe.mcp.tools.ppt_create import create_presentation
+from tianshang_scribe.mcp.tools.ppt_edit import edit_presentation
 from tianshang_scribe.mcp.tools.template import fill_template
 from tianshang_scribe.mcp.tools.validate import validate_template
 
@@ -113,6 +118,67 @@ TOOLS: list[ToolEntry] = [
             '~/.tianshang-scribe/snapshots/). The compare mode never modifies its '
             'inputs; snapshot/restore write to the snapshot store. To read a single '
             'document, use extract_document_data.'
+        ),
+    },
+    # --- Dedicated document-type-specific tools (v0.8.0 expansion) ---
+    {
+        'name': 'create_excel_workbook',
+        'fn': create_excel_workbook,
+        'description': (
+            'Create a NEW Excel workbook from typed sheet specs: each sheet '
+            'carries name, headers, rows, cell formulas, freeze panes, '
+            'number_format, conditional_format, data_validation, and column '
+            'widths. Writes a new .xlsx at output_path and overwrites any file '
+            'already there. For targeted changes to an existing workbook use '
+            'edit_excel_workbook; for read-only inspection use analyze_excel_data.'
+        ),
+    },
+    {
+        'name': 'edit_excel_workbook',
+        'fn': edit_excel_workbook,
+        'description': (
+            'Edit an existing .xlsx workbook with typed operations: write_cell, '
+            'set_formula, freeze_panes, add_chart, conditional_format, '
+            'data_validation, add_table, sort, add_sheet, set_range_style, and '
+            'number_format. Rewrites the file — when output_path is omitted the '
+            'INPUT FILE IS OVERWRITTEN IN PLACE, so pass output_path or options '
+            '{"backup": true} to keep a .bak copy. To build a new workbook use '
+            'create_excel_workbook; to inspect one first use analyze_excel_data.'
+        ),
+    },
+    {
+        'name': 'create_presentation',
+        'fn': create_presentation,
+        'description': (
+            'Create a NEW PowerPoint deck from typed slide specs: layout, title, '
+            'bullets, positioned text boxes, tables, charts, pictures, speaker '
+            'notes, and transitions. Writes a new .pptx at output_path and '
+            'overwrites any file already there. To change an existing deck slide '
+            'by slide instead, use edit_presentation.'
+        ),
+    },
+    {
+        'name': 'edit_presentation',
+        'fn': edit_presentation,
+        'description': (
+            'Edit an existing .pptx with typed operations: add_slide, add_text, '
+            'replace_text, add_table, add_chart, add_picture, add_shape, '
+            'apply_layout, set_transition, and add_notes. Rewrites the deck — '
+            'when output_path is omitted the INPUT FILE IS OVERWRITTEN IN PLACE, '
+            'so pass output_path or options {"backup": true} for a .bak copy. To '
+            'generate a new deck use create_presentation.'
+        ),
+    },
+    {
+        'name': 'analyze_excel_data',
+        'fn': analyze_excel_data,
+        'description': (
+            'Analyze an Excel workbook without touching it: per-sheet row/column '
+            'counts, headers, inferred column types (numeric min/max/mean, '
+            'categorical values), null counts, sample rows, and duplicate-row '
+            'detection. Read-only — never modifies the input file. After analysis '
+            'use edit_excel_workbook to apply fixes, or extract_document_data for '
+            'raw text and metadata.'
         ),
     },
 ]

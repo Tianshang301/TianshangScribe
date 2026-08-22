@@ -43,6 +43,12 @@ TOOL_PERMISSIONS: dict[str, PermissionLevel] = {
     'extract_document_data': PermissionLevel.READ_ONLY,
     'validate_template': PermissionLevel.READ_ONLY,
     'compare_documents': PermissionLevel.STANDARD,
+    # Dedicated document-type-specific tools (v0.8.0 expansion).
+    'create_excel_workbook': PermissionLevel.STANDARD,
+    'edit_excel_workbook': PermissionLevel.DESTRUCTIVE,
+    'create_presentation': PermissionLevel.STANDARD,
+    'edit_presentation': PermissionLevel.DESTRUCTIVE,
+    'analyze_excel_data': PermissionLevel.READ_ONLY,
 }
 
 #: Permission levels each role is allowed to exercise (escalating).
@@ -71,7 +77,9 @@ ROLE_TOOL_MATRIX: dict[Role, frozenset[str]] = {
 #: Read-only tools are idempotent by construction; file-writing tools are not
 #: (each call re-writes, possibly creating temp output files), so they are
 #: excluded even though the final bytes could in principle converge.
-IDEMPOTENT_TOOLS: frozenset[str] = frozenset({'extract_document_data', 'validate_template'})
+IDEMPOTENT_TOOLS: frozenset[str] = frozenset(
+    {'extract_document_data', 'validate_template', 'analyze_excel_data'}
+)
 
 
 def levels_for(tool_name: str) -> set[PermissionLevel]:

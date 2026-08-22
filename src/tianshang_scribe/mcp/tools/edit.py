@@ -207,3 +207,17 @@ def _edit_write_cell(engine: Any, op: dict[str, Any]) -> None:
         ws = engine._ws()
     if ws is not None:
         ws[cell] = val
+    style = op.get('style')
+    if style and ws is not None and hasattr(engine, 'set_range_style'):
+        prev = getattr(engine, '_selected_sheet', None)
+        try:
+            if sheet:
+                with contextlib.suppress(ValueError):
+                    engine.select_sheet(sheet)
+            engine.set_range_style(f'{cell}:{cell}', style)
+        finally:
+            if prev is None:
+                engine._selected_sheet = None
+            else:
+                with contextlib.suppress(ValueError):
+                    engine.select_sheet(prev)

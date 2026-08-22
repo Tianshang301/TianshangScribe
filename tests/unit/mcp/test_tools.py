@@ -956,3 +956,21 @@ class TestRegistryMcpP1:
         assert 'sheet_name' in tools['create_office_document']
         assert 'slide_index' in tools['create_office_document']
         assert 'Excel' in tools['compare_documents'] and 'PowerPoint' in tools['compare_documents']
+
+
+    def test_write_cell_with_style(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import create_document, DocumentType
+        from tianshang_scribe.core.document import open_document
+        book = tmp_path / 'b.xlsx'
+        e = create_document(DocumentType.EXCEL)
+        e.save(str(book))
+        res = edit_office_document(str(book), [
+            {'action': 'write_cell', 'cell': 'A1', 'text': 'x', 'style': 'bold,fill=FF0000,align=center'},
+        ])
+        assert res['success'] is True, res
+        e2 = open_document(str(book))
+        cell = e2.wb.active['A1']
+        assert cell.value == 'x'
+        assert cell.font.bold is True
+        assert 'FF0000' in str(cell.fill.fgColor.rgb)
+        assert cell.alignment.horizontal == 'center'

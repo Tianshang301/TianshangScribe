@@ -287,6 +287,71 @@ class PptEngine(DocumentABC):
             kwargs['height'] = Inches(height)
         return slide.shapes.add_picture(str(path), Inches(left), Inches(top), **kwargs)
 
+    # ---- Media (video / audio) ------------------------------------------- #
+    _MEDIA_MIME: dict[str, str] = {
+        '.mp4': 'video/mp4',
+        '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo',
+        '.mkv': 'video/x-matroska',
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/x-wav',
+        '.m4a': 'audio/mp4',
+    }
+
+    def add_movie(
+        self,
+        slide_index: int,
+        media_path: str | Path,
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float = 6.0,
+        height: float = 4.5,
+        poster: str | Path | None = None,
+    ) -> Any:
+        """Insert a video at inch coordinates on the given slide.
+
+        The video plays on click (autoplay timing injection is not supported
+        by python-pptx and is intentionally out of scope). MP4 is the most
+        interoperable container; some players reject other codecs.
+        """
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        path = Path(media_path)
+        if not path.exists():
+            raise FileNotFoundError(f'media file not found: {path}')
+        mime = self._MEDIA_MIME.get(path.suffix.lower(), 'video/unknown')
+        poster_arg = str(poster) if poster is not None else None
+        slide = self.prs.slides[slide_index]
+        return slide.shapes.add_movie(
+            str(path),
+            Inches(left),
+            Inches(top),
+            Inches(width),
+            Inches(height),
+            poster_frame_image=poster_arg,
+            mime_type=mime,
+        )
+
+    def add_audio(
+        self,
+        slide_index: int,
+        media_path: str | Path,
+        left: float = 1.0,
+        top: float = 1.0,
+    ) -> Any:
+        """Insert an audio clip (rendered as a small speaker-shaped media shape).
+
+        python-pptx has no dedicated audio API, so this routes through
+        ``add_movie`` with an audio MIME type, which PowerPoint renders as a
+        clickable audio object.
+        """
+        ext = Path(media_path).suffix.lower()
+        if ext not in ('.mp3', '.wav', '.m4a'):
+            raise ValueError(f'Unsupported audio format: {ext!r}. Use one of: .mp3, .wav, .m4a')
+        return self.add_movie(slide_index, media_path, left=left, top=top, width=1.0, height=1.0)
+
     def add_shape(
         self,
         slide_index: int,

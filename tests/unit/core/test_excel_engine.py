@@ -648,3 +648,70 @@ class TestExcelExtract:
         e.create()
         struct = e.extract_structure()
         assert struct['sheets'] == ['Sheet']
+
+
+class TestExcelGrouping:
+    """0.9.0 P1: row/column grouping (outline levels)."""
+
+    @pytest.fixture
+    def engine(self) -> ExcelEngine:
+        e = ExcelEngine()
+        e.create()
+        return e
+
+    def test_group_rows_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.wb.active['A2'] = 'r2'
+        e.group_rows('2:5', outline_level=2, hidden=True)
+        assert e.wb.active.row_dimensions[2].outline_level == 2
+        assert e.wb.active.row_dimensions[5].outline_level == 2
+        assert e.wb.active.row_dimensions[3].hidden is True
+        out = tmp_path / 'g.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert reopened.wb.active.row_dimensions[4].outline_level == 2
+
+    def test_group_columns_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.group_columns('B:D', outline_level=1, hidden=False)
+        ws = e.wb.active
+        assert ws.column_dimensions['B'].outline_level == 1
+        assert ws.column_dimensions['D'].outline_level == 1
+        out = tmp_path / 'gc.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert reopened.wb.active.column_dimensions['C'].outline_level == 1
+
+    def test_ungroup_rows_and_columns(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.group_rows('2:3', outline_level=1, hidden=True)
+        e.group_columns('B:C', outline_level=2, hidden=True)
+        e.ungroup('2:3', axis='rows')
+        e.ungroup('B:C', axis='columns')
+        ws = e.wb.active
+        assert ws.row_dimensions[2].outline_level == 0
+        assert ws.row_dimensions[3].hidden is False
+        assert ws.column_dimensions['C'].outline_level == 0
+        out = tmp_path / 'u.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert reopened.wb.active.row_dimensions[3].outline_level == 0
+
+    @pytest.mark.parametrize('bad', ['5:2', '0:3', 'abc', '2', '2:3:4'])
+    def test_group_rows_invalid_range_raises(self, engine: ExcelEngine, bad: str) -> None:
+        with pytest.raises(ValueError, match='Invalid row range'):
+            engine.group_rows(bad)
+
+    def test_group_rows_bad_level_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='outline_level'):
+            engine.group_rows('2:3', outline_level=8)
+
+    def test_ungroup_bad_axis_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='axis'):
+            engine.ungroup('2:3', axis='diagonal')

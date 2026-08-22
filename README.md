@@ -143,8 +143,8 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `--heading` | Add heading (Word) | `--heading "level:1 text:Intro"` |
 | `--regex` | Regex mode | Use with `--replace` `--delete` |
 | `--merge` | Merge files | `--merge "a.docx,b.docx"` |
-| `--split` | Split document | `--split by-page` |
-| `--comment` | Add comment / notes | `--comment "Note text"` |
+| `--split` | Split document (Excel only: `--split by-sheet`) | `--split by-sheet` |
+| `--comment` | Add comment (Word) / speaker notes (PPT) | `--comment "2 Note text"` |
 | `--add-table` | Add table (Word) | `--add-table "H1,H2\|a1,a2"` |
 | `--chart-add` | Add chart (Excel) | `--chart-add "type=bar data=B1:C10"` |
 | `--batch` | Batch mode | `--batch` |

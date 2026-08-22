@@ -141,8 +141,8 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--heading` | 添加标题（Word） | `--heading "level:1 text:引言"` |
 | `--regex` | 正则模式 | 配合 `--replace` `--delete` 使用 |
 | `--merge` | 合并文件 | `--merge "a.docx,b.docx"` |
-| `--split` | 拆分文档 | `--split by-page` |
-| `--comment` | 添加批注/备注 | `--comment "批注文字"` |
+| `--split` | 拆分文档（仅 Excel：`--split by-sheet`） | `--split by-sheet` |
+| `--comment` | 添加批注（Word）/演讲者备注（PPT） | `--comment "2 批注文字"` |
 | `--add-table` | 添加表格（Word） | `--add-table "H1,H2\|a1,a2"` |
 | `--chart-add` | 创建图表（Excel） | `--chart-add "type=bar data=B1:C10"` |
 | `--batch` | 批量模式 | `--batch` |

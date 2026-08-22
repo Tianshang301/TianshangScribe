@@ -28,7 +28,7 @@
 | **模板填充** | 用 JSON/CSV/YAML 数据源填充占位符 `{{key}}`，保留原样式，支持 `{{#each}}` 循环、`{{#if}}` 条件 | P0 ✅ |
 | **格式转换** | Word ↔ PDF/Markdown/HTML；Excel ↔ CSV/JSON/HTML；PPT → PDF/图片序列<br>PDF: office2pdf（主，~2MB）+ LibreOffice（回退） | P0 ✅ |
 | **MCP Server** | stdio + SSE + Streamable HTTP 三传输，官方 mcp SDK 2.x，7 tools（create/edit/fill/convert/extract/validate/compare），认证/限流/指标，Tool Search（SEP-1821，`tools/list` 支持 `query` 参数），Dify/Coze 可接入 | P1 ✅ |
-| **合并与拆分** | 多个文档合并为一个；按页/工作表/幻灯片拆分为多个文件 | P1 ✅ |
+| **合并与拆分** | 多个文档合并为一个（Word/Excel/PPT 均支持）；拆分：当前仅 Excel 支持 `--split by-sheet` 按工作表拆分，Word 按页 / PPT 按幻灯片拆分待实现 | P1 ✅（合并 ✅；拆分仅 Excel） |
 | **保护与元数据** | 设置/解除密码保护；读写作者、标题等文档属性 | P1 ✅ |
 | **高级结构操作** | Excel 工作表增删重命名；PPT 幻灯片增删移动；Word 目录生成、分节 | P1 ✅ |
 | **批量与管道** | 支持 stdin/stdout、退出码规范 | P1 ✅ |

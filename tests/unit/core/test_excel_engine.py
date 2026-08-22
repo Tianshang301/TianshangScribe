@@ -181,9 +181,151 @@ class TestExcelEngine:
         engine.add_chart('bar', f"'{sheet_name}'!A1:B2")
         assert len(ws._charts) >= 1
 
+    # ---- Step 1 (E1): freeze panes ----
+    def test_freeze_panes_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.add_text('hdr', column=1)
+        engine.freeze_panes('A2')
+        assert engine.wb.active.freeze_panes == 'A2'
+        out = tmp_path / 'frozen.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert reopened.wb.active.freeze_panes == 'A2'
+
+    # ---- Step 2 (E2): number format ----
+    def test_set_number_format_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        ws = engine.wb.active
+        ws['A1'] = 0.1234
+        ws['A2'] = 0.5678
+        engine.set_number_format('A1:A2', '0.00%')
+        assert ws['A1'].number_format == '0.00%'
+        assert ws['A2'].number_format == '0.00%'
+        engine.set_number_format('B1', 'yyyy-mm-dd')
+        assert ws['B1'].number_format == 'yyyy-mm-dd'
+        out = tmp_path / 'fmt.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert reopened.wb.active['A1'].number_format == '0.00%'
+
+    def test_set_number_format_invalid_range_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Invalid cell range'):
+            engine.set_number_format('not-a-range', '0.00')
+
+    # ---- Step 3 (E4): conditional formatting ----
+    def test_add_conditional_format_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        ws = engine.wb.active
+        for i in range(1, 6):
+            ws.cell(row=i, column=1, value=i * 10)
+        engine.add_conditional_format('A1:A5', 'color_scale')
+        engine.add_conditional_format('B1:B5', 'data_bar')
+        engine.add_conditional_format('C1:C5', 'cell_is', operator='greaterThan', formula='20')
+        out = tmp_path / 'cf.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        rules = list(reopened.wb.active.conditional_formatting)
+        assert len(rules) >= 3
+
+    def test_add_conditional_format_unsupported_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Unsupported conditional format type'):
+            engine.add_conditional_format('A1:A5', 'bogus')
+
+    # ---- Step 4 (E5): data validation ----
+    def test_add_data_validation_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.add_data_validation('A1:A10', 'list', 'yes,no')
+        engine.add_data_validation('B1:B10', 'whole', '1', '100')
+        out = tmp_path / 'dv.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        dvs = reopened.wb.active.data_validations.dataValidation
+        types = {dv.type for dv in dvs}
+        assert 'list' in types
+        assert 'whole' in types
+
+    def test_add_data_validation_list_quotes(self, engine: ExcelEngine) -> None:
+        engine.add_data_validation('A1:A5', 'list', 'x,y,z')
+        dv = engine.wb.active.data_validations.dataValidation[0]
+        assert dv.formula1 == '"x,y,z"'
+
+    # ---- Step 5 (E3): range style (border/fill) ----
+    def test_set_range_style_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.set_range_style('B2:C3', 'border=medium,fill=FFFF00')
+        out = tmp_path / 'style.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        cell = reopened.wb.active['B2']
+        assert cell.border.left is not None
+        assert 'FFFF00' in cell.fill.fgColor.rgb
+
+    def test_set_range_style_invalid_range_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Invalid cell range'):
+            engine.set_range_style('bad', 'border=thin')
+
+    def test_set_range_style_font_alignment_number_format(
+        self, engine: ExcelEngine, tmp_path: Path
+    ) -> None:
+        engine.set_range_style(
+            'B2:C3', 'font=Times,size=14,bold,italic,color=FF0000,align=center,numfmt=0.00%'
+        )
+        engine.wb.active['B2'] = 0.5
+        out = tmp_path / 'style2.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        cell = reopened.wb.active['B2']
+        assert cell.font.bold is True
+        assert cell.font.italic is True
+        assert cell.font.size == 14
+        assert cell.font.name == 'Times'
+        assert 'FF0000' in str(cell.font.color.rgb)
+        assert cell.alignment.horizontal == 'center'
+        assert cell.number_format == '0.00%'
+
+    # ---- Step 7 (E7/E8/E9): hyperlink, named range, auto_fit ----
+    def test_add_hyperlink_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.add_hyperlink('A1', 'https://example.com')
+        assert engine.wb.active['A1'].hyperlink.target == 'https://example.com'
+        out = tmp_path / 'link.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert reopened.wb.active['A1'].hyperlink.target == 'https://example.com'
+
+    def test_set_named_range_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.set_named_range('MyRange', 'A1:B2')
+        assert 'MyRange' in engine.wb.defined_names
+        out = tmp_path / 'named.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert 'MyRange' in reopened.wb.defined_names
+
+    def test_auto_fit_baseline(self, engine: ExcelEngine) -> None:
+        engine.add_text('a very long label here', column=1)
+        engine.auto_fit(1)
+        width = engine.wb.active.column_dimensions['A'].width
+        assert width is not None and width > 8
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
-            engine.add_chart('scatter', 'A1:B2')
+            engine.add_chart('bogus', 'Sheet!A1:B2')
+
+    # ---- Step 6 (E6): chart type extension ----
+    @pytest.mark.parametrize('chart_type', ['area', 'doughnut', 'scatter'])
+    def test_add_chart_extended_types_baseline(self, engine: ExcelEngine, chart_type: str) -> None:
+        ws = engine.wb.active
+        sheet = ws.title
+        ws['A1'] = 'Cat'
+        ws['A2'] = 'X'
+        ws['A3'] = 'Y'
+        ws['B1'] = 'Val'
+        ws['B2'] = 10
+        ws['B3'] = 20
+        engine.add_chart(chart_type, f'{sheet}!A1:B3')
+        assert len(ws._charts) >= 1
 
     def test_merge_workbooks(self, engine: ExcelEngine) -> None:
         engine.add_sheet('Data')
@@ -386,6 +528,42 @@ class TestExcelEdge:
         assert ws['A1'].value is None
         assert ws['A2'].value == 'b'
         assert ws['A3'].value == 'a'
+
+    def test_sort_preserves_row_integrity(self, engine: ExcelEngine) -> None:
+        ws = engine.wb.active
+        ws['A1'], ws['B1'] = 2, 'two'
+        ws['A2'], ws['B2'] = 1, 'one'
+        ws['A3'], ws['B3'] = 3, 'three'
+        engine.sort('A1:B3', 'asc')
+        assert (ws['A1'].value, ws['B1'].value) == (1, 'one')
+        assert (ws['A2'].value, ws['B2'].value) == (2, 'two')
+        assert (ws['A3'].value, ws['B3'].value) == (3, 'three')
+
+    def test_sort_multi_column_mixed_types(self, engine: ExcelEngine) -> None:
+        ws = engine.wb.active
+        # mixed types must not raise and rows stay intact
+        ws['A1'], ws['B1'] = 'x', 10
+        ws['A2'], ws['B2'] = 'x', 2
+        ws['A3'], ws['B3'] = 5, 99
+        engine.sort('A1:B3', 'asc', key_columns=[0, 1], orders=['asc', 'desc'])
+        # numbers sort before strings; within 'x', larger B comes first on desc
+        assert ws['A1'].value == 5
+        assert (ws['A2'].value, ws['B2'].value) == ('x', 10)
+        assert (ws['A3'].value, ws['B3'].value) == ('x', 2)
+
+    def test_sort_key_columns_out_of_range(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='out of range'):
+            engine.sort('A1:B3', 'asc', key_columns=[5])
+
+    def test_select_sheet_targets_operations(self, engine: ExcelEngine) -> None:
+        engine.add_sheet('Data')
+        engine.select_sheet('Data')
+        engine.add_text('hello')
+        # written to the selected sheet, not the default active sheet
+        assert engine.wb['Data']['A1'].value == 'hello'
+        assert engine.wb.active['A1'].value is None
+        with pytest.raises(ValueError, match='not found'):
+            engine.select_sheet('nonexistent')
 
     def test_clear_formats(self, engine: ExcelEngine) -> None:
         engine.add_text('styled', bold=True)

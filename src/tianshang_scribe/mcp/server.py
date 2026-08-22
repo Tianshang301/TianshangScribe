@@ -1,7 +1,8 @@
 """TianshangScribe MCP Server — stdio / SSE / Streamable HTTP.
 
 Built on the official MCP Python SDK (:class:`mcp.server.mcpserver.MCPServer`).
-Each of the seven document tools is registered from its function signature
+Each of the twelve document tools (seven unified + five dedicated
+Excel/PPT-specific) is registered from its function signature
 (the SDK derives the ``inputSchema`` from the ``Annotated`` parameters), and
 the transports are wired in :mod:`tianshang_scribe.mcp.transport`.
 
@@ -29,7 +30,7 @@ from tianshang_scribe.utils.config import Settings
 from tianshang_scribe.utils.logging import configure_logging
 
 SERVER_NAME = 'tianshang-scribe'
-SERVER_VERSION = '0.7.1'
+SERVER_VERSION = '0.8.0'
 
 INSTRUCTIONS = (
     'TianshangScribe MCP Server — create, edit, fill, convert and extract '

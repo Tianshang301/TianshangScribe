@@ -73,6 +73,71 @@ class ContentBlock(BaseModel):
         default=None,
         description='Image file path. Only for type=image.',
     )
+    # --- Excel / PPT specific (optional, backward compatible) ---
+    sheet_name: str | None = Field(
+        default=None,
+        description='Target worksheet name (Excel). Routes write/formula/style to this sheet.',
+    )
+    cell: str | None = Field(
+        default=None,
+        description='Target cell reference, e.g. "A1" (Excel). Used by formula/hyperlink/write_cell.',
+    )
+    formula: str | None = Field(
+        default=None,
+        description='Excel formula string, e.g. "=SUM(B1:B10)". Requires cell.',
+    )
+    chart_type: str | None = Field(
+        default=None,
+        description='Chart type: bar, line, pie, area, doughnut, scatter (Excel/PPT).',
+    )
+    chart_data_range: str | None = Field(
+        default=None,
+        description='Excel chart data range, e.g. "Sheet1!A1:B10".',
+    )
+    chart_data: list[list[Any]] | None = Field(
+        default=None,
+        description='PPT chart data: first row series names, then [category, *values] rows.',
+    )
+    number_format: str | None = Field(
+        default=None,
+        description='Excel number format spec, e.g. "A1:A10=0.00%".',
+    )
+    conditional_format: str | None = Field(
+        default=None,
+        description='Excel conditional format spec, e.g. "B2:B100=color_scale" or "C1:C5=cell_is:greaterThan:20".',
+    )
+    data_validation: str | None = Field(
+        default=None,
+        description='Excel data validation spec, e.g. "C2:C50=list:yes,no" or "B1:B10=whole:1:100".',
+    )
+    freeze: str | None = Field(
+        default=None,
+        description='Excel freeze panes cell, e.g. "A2".',
+    )
+    hyperlink: str | None = Field(
+        default=None,
+        description='URL to hyperlink the cell given by `cell` to (Excel).',
+    )
+    named_range: str | None = Field(
+        default=None,
+        description='Excel named range spec, e.g. "MyRange=A1:B2".',
+    )
+    slide_index: int | None = Field(
+        default=None,
+        description='Target slide index (0-based) for PPT content (tables/charts/text). None = current/last slide.',
+    )
+    slide_layout: str | None = Field(
+        default=None,
+        description='PPT slide layout name or index (applied on slide creation).',
+    )
+    notes: str | None = Field(
+        default=None,
+        description='PPT speaker notes text for the target slide.',
+    )
+    transition: str | None = Field(
+        default=None,
+        description='PPT slide transition name, e.g. "fade".',
+    )
 
 
 class EditOperation(BaseModel):
@@ -80,21 +145,66 @@ class EditOperation(BaseModel):
 
     model_config = ConfigDict(extra='allow')
 
-    action: Literal['replace', 'delete', 'modify', 'style', 'add', 'clear'] = Field(
+    action: Literal[
+        'replace',
+        'delete',
+        'modify',
+        'style',
+        'add',
+        'clear',
+        'write_cell',
+        'set_formula',
+        'freeze_panes',
+        'add_chart',
+        'conditional_format',
+        'data_validation',
+        'add_table',
+        'add_picture',
+        'add_shape',
+        'apply_layout',
+        'set_transition',
+        'add_notes',
+        'add_slide',
+        'sort',
+        'add_sheet',
+        'set_range_style',
+        'number_format',
+    ] = Field(
         description=(
-            'Operation type:\n'
-            '- "replace": find old_text, replace with new_text (regex optional)\n'
-            '- "delete": remove text matching target\n'
-            '- "modify": find old_text, replace with new_text\n'
-            '- "style": apply a style string to the whole document\n'
-            '- "add": append text at a column (Excel)\n'
-            '- "clear": clear document content'
+            'Operation type. Only the listed fields are meaningful per action:\n'
+            '- "replace": old_text, new_text, regex (all doc types)\n'
+            '- "delete": target, regex (all doc types)\n'
+            '- "modify": old_text, new_text (all doc types)\n'
+            '- "style": style, apply_all (all doc types)\n'
+            '- "add": text, column (Excel append; Word/PPT append paragraph)\n'
+            '- "clear": (no fields)\n'
+            '- "write_cell": cell, text (value, formula if starts with "="), sheet_name, style (Excel)\n'
+            '- "set_formula": cell, formula, sheet_name (Excel)\n'
+            '- "freeze_panes": range (Excel)\n'
+            '- "add_chart": chart_type + chart_data_range (Excel) OR chart_type + chart_data (PPT), sheet_name (Excel)\n'
+            '- "conditional_format": conditional_format OR range + cell_is opts (Excel)\n'
+            '- "data_validation": data_validation OR range (Excel)\n'
+            '- "add_table": rows (first row = header), slide_index (PPT)\n'
+            '- "add_picture": path, slide_index (PPT)\n'
+            '- "add_shape": slide_index, fill, line, shape_type (PPT)\n'
+            '- "apply_layout": slide_index, layout (PPT)\n'
+            '- "set_transition": slide_index, transition (PPT)\n'
+            '- "add_notes": slide_index, notes (PPT)\n'
+            '- "add_slide": layout (PPT, optional)\n'
+            '- "sort": range, key_columns, orders, order (Excel)\n'
+            '- "add_sheet": sheet_name (Excel)\n'
+            '- "set_range_style": range, style (Excel)\n'
+            '- "number_format": number_format ("RANGE=FORMAT", e.g. "A1:A10=0.00%")\n'
+            'Unused fields for an action are ignored.'
         ),
     )
     old_text: str | None = Field(default=None, description='Text to find (replace/modify).')
     new_text: str | None = Field(default=None, description='Replacement text (replace/modify).')
     target: str | None = Field(default=None, description='Text to delete (delete).')
-    text: str | None = Field(default=None, description='Text to add (add).')
+    text: str | int | float | bool | None = Field(
+        default=None,
+        description='Text to add (add) or scalar value to write (write_cell; formulas start with "=").',
+    )
     style: str | None = Field(default=None, description='Style string (style).')
     regex: bool | None = Field(default=None, description='Treat old_text/target as a regex.')
     apply_all: bool | None = Field(
@@ -102,6 +212,59 @@ class EditOperation(BaseModel):
         description='Apply style to every paragraph (style).',
     )
     column: int | None = Field(default=None, description='Target column, 1-based (add).')
+    # --- Excel / PPT specific (optional) ---
+    sheet_name: str | None = Field(default=None, description='Target worksheet (Excel).')
+    cell: str | None = Field(default=None, description='Target cell reference, e.g. "A1" (Excel).')
+    formula: str | None = Field(default=None, description='Excel formula string (set_formula).')
+    range: str | None = Field(
+        default=None,
+        description='Cell range for freeze_panes/conditional_format/data_validation/add_chart (Excel).',
+    )
+    cf_type: str | None = Field(
+        default=None, description='Conditional format type (color_scale/data_bar/cell_is/formula).'
+    )
+    dv_type: str | None = Field(
+        default=None, description='Data validation type (list/whole/decimal/date/text_length).'
+    )
+    formula1: str | None = Field(
+        default=None, description='Data validation formula1 (e.g. "yes,no").'
+    )
+    formula2: str | None = Field(
+        default=None, description='Data validation formula2 (e.g. upper bound).'
+    )
+    chart_type: str | None = Field(default=None, description='Chart type for add_chart.')
+    chart_data_range: str | None = Field(
+        default=None, description='Excel chart data range for add_chart.'
+    )
+    chart_data: list[list[Any]] | None = Field(
+        default=None, description='PPT chart data for add_chart.'
+    )
+    rows: list[list[Any]] | None = Field(
+        default=None,
+        description='Table rows for add_table (PPT). First row is the header.',
+    )
+    slide_index: int | None = Field(
+        default=None, description='Target slide index (PPT add_table/add_chart).'
+    )
+    layout: str | None = Field(default=None, description='Slide layout name/index (apply_layout).')
+    transition: str | None = Field(default=None, description='Transition name (set_transition).')
+    notes: str | None = Field(default=None, description='Speaker notes text (add_notes).')
+    path: str | None = Field(default=None, description='Image path (add_picture).')
+    fill: str | None = Field(default=None, description='Shape fill color hex (add_shape).')
+    line: str | None = Field(default=None, description='Shape line color hex (add_shape).')
+    shape_type: str | None = Field(
+        default=None, description='Autoshape type (add_shape), e.g. rectangle/oval/arrow/line.'
+    )
+    key_columns: list[int] | None = Field(
+        default=None, description='0-based sort key columns (sort).'
+    )
+    orders: list[str] | None = Field(
+        default=None, description='Per-key sort orders asc/desc (sort).'
+    )
+    order: str | None = Field(default=None, description='Single sort order asc/desc (sort).')
+    number_format: str | None = Field(
+        default=None, description='Number format spec "RANGE=FORMAT" (number_format).'
+    )
 
 
 class ToolOptions(BaseModel):

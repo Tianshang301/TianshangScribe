@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import tempfile
 from pathlib import Path
 
@@ -17,6 +18,115 @@ class TestPptEngine:
         e = PptEngine()
         e.create()
         return e
+
+    # ---- Step 8 (P1): precise-positioned text box ----
+    def test_add_textbox_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        box = engine.add_textbox(0, 'Positioned', left=2.0, top=3.0, width=4.0, height=1.0)
+        assert box.left == 2.0 * 914400
+        assert box.top == 3.0 * 914400
+        assert box.width == 4.0 * 914400
+        assert 'Positioned' in box.text_frame.text
+        out = tmp_path / 'tb.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        assert any(
+            'Positioned' in sh.text_frame.text
+            for sh in reopened.prs.slides[0].shapes
+            if sh.has_text_frame
+        )
+
+    def test_add_textbox_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_textbox(5, 'x')
+
+    def test_add_textbox_default_width_fits_slide(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        box = engine.add_textbox(0, 'Auto width')
+        slide_width_in = engine.prs.slide_width / 914400
+        # default width is derived from slide width minus 2*left, never overflows
+        assert box.left / 914400 + box.width / 914400 <= slide_width_in + 1e-6
+
+    # ---- Step 9 (P2): insert table ----
+    def test_add_table_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        gf = engine.add_table(0, [['a1', 'b1'], ['a2', 'b2']], col_names=['H1', 'H2'])
+        table = gf.table
+        assert table.rows.__len__() == 3
+        assert table.columns.__len__() == 2
+        assert table.cell(0, 0).text == 'H1'
+        assert table.cell(1, 0).text == 'a1'
+        out = tmp_path / 'tbl.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        shapes = list(reopened.prs.slides[0].shapes)
+        assert any(sh.has_table for sh in shapes)
+
+    def test_add_table_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_table(9, [['x']])
+
+    # ---- Step 10 (P3): insert chart ----
+    def test_add_chart_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        data = [['', 'Q1'], ['Jan', 10], ['Feb', 20]]
+        gf = engine.add_chart(0, 'bar', data, title='Sales')
+        assert gf.has_chart
+        assert gf.chart.plots[0].series[0].name == 'Q1'
+        out = tmp_path / 'chart.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        shapes = list(reopened.prs.slides[0].shapes)
+        assert any(sh.has_chart for sh in shapes)
+
+    def test_add_chart_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_chart(9, 'bar', [['', 'S'], ['a', 1]])
+
+    # ---- Step 11 (P6): insert picture ----
+    def test_add_picture_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        png = tmp_path / 'px.png'
+        png.write_bytes(
+            base64.b64decode(
+                b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+            )
+        )
+        pic = engine.add_picture(0, png, left=2.0, top=2.0, width=1.0)
+        assert pic.left == 2.0 * 914400
+        out = tmp_path / 'pic.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in reopened.prs.slides[0].shapes)
+
+    # ---- Step 13 (P5): add autoshape ----
+    def test_add_shape_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        sp = engine.add_shape(0, 'oval', left=1.0, top=1.0, width=2.0, height=2.0, fill='FF0000')
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        assert sp.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE
+        out = tmp_path / 'sh.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        assert any(
+            sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in reopened.prs.slides[0].shapes
+        )
+
+    def test_add_shape_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_shape(9, 'rectangle')
 
     def test_create_has_slides(self, engine: PptEngine) -> None:
         assert len(engine.prs.slides) >= 0
@@ -74,7 +184,20 @@ class TestPptEngine:
         engine.set_protection('secret')
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         pres = engine.prs.part._element
-        assert pres.find(f'{{{ns}}}modifyVerifier') is not None
+        verifier = pres.find(f'{{{ns}}}modifyVerifier')
+        assert verifier is not None
+        # compliant: not plaintext, base64 hash of a 64-byte SHA-512 digest
+        assert verifier.get('hashData') != 'secret'
+        import base64
+
+        assert len(base64.b64decode(verifier.get('saltData'))) == 16
+        assert len(base64.b64decode(verifier.get('hashData'))) == 64
+        assert PptEngine.verify_modify_verifier(
+            'secret', verifier.get('saltData'), verifier.get('hashData')
+        )
+        assert not PptEngine.verify_modify_verifier(
+            'wrong', verifier.get('saltData'), verifier.get('hashData')
+        )
 
     def test_unprotect(self, engine: PptEngine) -> None:
         engine.set_protection('secret')
@@ -180,6 +303,31 @@ class TestPptEdge:
         engine.add_text('Hello')
         assert engine.replace_text('zzz', 'x') == 0
 
+    # ---- Step 12 (P4): format-preserving replace across runs ----
+    def test_replace_text_cross_run_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        from pptx.util import Pt
+
+        engine.add_slide()
+        slide = engine.prs.slides[0]
+        tb = slide.shapes.add_textbox(Pt(1), Pt(1), Pt(100), Pt(50))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        r1 = p.add_run()
+        r1.text = 'Hello '
+        r2 = p.add_run()
+        r2.text = 'World'
+        r2.font.bold = True
+        count = engine.replace_text('Hello World', 'Hi there')
+        assert count == 1
+        combined = ''.join(r.text for r in p.runs)
+        assert combined == 'Hi there'
+        # original per-run styling is retained on its run
+        assert p.runs[1].font.bold is True
+        out = tmp_path / 'rt.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+
     def test_metadata_all(self, engine: PptEngine) -> None:
         engine.set_metadata(
             author='a', title='t', subject='s', category='c', keywords='k', comments='m'
@@ -233,6 +381,23 @@ class TestPptEdge:
         engine.clear_content()
         assert engine.extract_text() == ''
 
+    def test_add_latex_content_stacks_non_overlapping(self, engine: PptEngine) -> None:
+        # heading + text + heading + text on the SAME slide => multiple text boxes
+        engine.add_latex_content('\\heading{1}{First} second \\heading{1}{Third} fourth')
+        slide = engine.prs.slides[-1]
+        boxes = [s for s in slide.shapes if s.has_text_frame]
+        tops = [round(float(b.top)) for b in boxes]
+        assert len(tops) >= 3
+        assert len(set(tops)) == len(tops)  # no two text boxes share the same position
+
+    def test_add_text_targets_existing_slide(self, engine: PptEngine) -> None:
+        engine.add_text('title')
+        initial_slides = len(engine.prs.slides)
+        engine.add_text('body', slide_index=0)
+        assert len(engine.prs.slides) == initial_slides
+        body_text = engine.extract_text()
+        assert 'title' in body_text and 'body' in body_text
+
     def test_merge_workbooks(self, engine: PptEngine, tmp_path: Path) -> None:
         other = tmp_path / 'other.pptx'
         e2 = PptEngine()
@@ -242,6 +407,31 @@ class TestPptEdge:
         initial = len(engine.prs.slides)
         engine.merge_workbooks([str(other)])
         assert len(engine.prs.slides) == initial + 1
+        # content must be faithfully copied, not just a blank slide
+        merged_text = engine.extract_text()
+        assert 'merged' in merged_text
+
+    def test_merge_workbooks_keeps_images(self, engine: PptEngine, tmp_path: Path) -> None:
+        from PIL import Image
+        from pptx.util import Inches
+
+        img = tmp_path / 'pic.png'
+        Image.new('RGB', (32, 32), 'red').save(img)
+        other = tmp_path / 'other.pptx'
+        e2 = PptEngine()
+        e2.create()
+        slide = e2.prs.slides.add_slide(e2.prs.slide_layouts[5])
+        slide.shapes.add_picture(str(img), Inches(1), Inches(1), Inches(2), Inches(2))
+        e2.save(other)
+
+        engine.merge_workbooks([str(other)])
+        out = tmp_path / 'merged.pptx'
+        engine.save(out)
+        # reopen and ensure the picture part survived the clone
+        reopened = PptEngine()
+        reopened.open(str(out))
+        last = reopened.prs.slides[-1]
+        assert any(shape.shape_type == 13 for shape in last.shapes)  # 13 == PICTURE
 
     def test_extract_tables(self, tmp_path: Path) -> None:
         from pptx import Presentation
@@ -337,15 +527,27 @@ class TestPptEdge:
         monkeypatch.setattr('shutil.which', lambda p: p if 'soffice' in p else None)
         out = tmp_path / 'imgs'
         engine.add_slide()
+        engine.add_slide()
         engine.save(str(tmp_path / 'deck.pptx'))
         calls = []
 
         def fake_run(cmd, **kw):
             calls.append(cmd)
-            (out / 'Slide1.png').write_bytes(b'png')
+            # LibreOffice convert-to pdf step: drop a pdf into the requested outdir
+            if 'pdf' in cmd:
+                outdir = cmd[cmd.index('--outdir') + 1]
+                (Path(outdir) / 'deck.pdf').write_bytes(b'%PDF')
+            return None
+
+        def fake_pdf_to_png(pdf_path, output_dir):
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            (Path(output_dir) / 'slide1.png').write_bytes(b'png')
+            (Path(output_dir) / 'slide2.png').write_bytes(b'png')
 
         monkeypatch.setattr(subprocess, 'run', fake_run)
+        monkeypatch.setattr(PptEngine, '_pdf_to_png', staticmethod(fake_pdf_to_png))
         result = engine.to_images(str(out))
+        assert len(result) == 2
         assert result == sorted(out.glob('*.png'))
 
     def test_compress_media_png(self, tmp_path: Path) -> None:

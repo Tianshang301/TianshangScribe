@@ -237,6 +237,13 @@ def main(
         str | None,
         typer.Option('--formula', help='Set formula (format: "A1 =SUM(B1:B10)")'),
     ] = None,
+    sheet: Annotated[
+        str | None,
+        typer.Option(
+            '--sheet',
+            help='Target worksheet by name for Excel operations (default: active sheet)',
+        ),
+    ] = None,
     from_csv: Annotated[
         str | None,
         typer.Option('--from-csv', help='Import data from CSV file'),
@@ -250,6 +257,34 @@ def main(
         typer.Option(
             '--chart-add',
             help='Add chart (format: "type=bar data=B1:C10 pos=E2")',
+        ),
+    ] = None,
+    freeze_panes: Annotated[
+        str | None,
+        typer.Option(
+            '--freeze',
+            help='Freeze panes at a cell (Excel). Format: "A2"',
+        ),
+    ] = None,
+    number_format: Annotated[
+        str | None,
+        typer.Option(
+            '--number-format',
+            help='Set number format (Excel). Format: "A1:A10=0.00%%"',
+        ),
+    ] = None,
+    conditional_format: Annotated[
+        str | None,
+        typer.Option(
+            '--conditional-format',
+            help='Conditional format (Excel). Format: "B2:B100=color_scale" or "C1:C5=cell_is:greaterThan:20"',
+        ),
+    ] = None,
+    data_validation: Annotated[
+        str | None,
+        typer.Option(
+            '--data-validation',
+            help='Data validation (Excel). Format: "C2:C50=list:yes,no" or "B1:B10=whole:1:100"',
         ),
     ] = None,
     protect: Annotated[
@@ -307,6 +342,20 @@ def main(
         typer.Option(
             '--compress-media',
             help='Compress PPT images (optional "max_dimension,quality", default "1920,80")',
+        ),
+    ] = None,
+    ppt_table: Annotated[
+        str | None,
+        typer.Option(
+            '--ppt-table',
+            help='Insert a table on the last slide (PPT). Format: "H1,H2|a1,a2"',
+        ),
+    ] = None,
+    ppt_chart: Annotated[
+        str | None,
+        typer.Option(
+            '--ppt-chart',
+            help='Insert a chart on the last slide (PPT). Format: "bar|S1,S2|Cat1,v1,v2|Cat2,v3,v4"',
         ),
     ] = None,
     toc: Annotated[
@@ -488,6 +537,13 @@ def main(
                 console.print('[red]Error:[/red] Either --create or an input file is required.')
                 raise typer.Exit(code=2)
 
+            if sheet and hasattr(engine, 'select_sheet'):
+                try:
+                    engine.select_sheet(sheet)
+                except ValueError as exc:
+                    console.print(f'[red]Error:[/red] {exc}')
+                    raise typer.Exit(code=2) from None
+
             if style:
                 engine.set_style(style)
                 if current_input:
@@ -593,6 +649,21 @@ def main(
                 engine.sort(parts[0], parts[1] if len(parts) == 2 else 'asc')
             if chart_add and hasattr(engine, 'add_chart'):
                 engine.add_chart(**_parse_chart_opts(chart_add))
+            if freeze_panes and hasattr(engine, 'freeze_panes'):
+                engine.freeze_panes(freeze_panes)
+                console.print(f'[green]Panes frozen at:[/green] {freeze_panes}')
+            if number_format and hasattr(engine, 'set_number_format'):
+                cell_range, fmt = _parse_number_format(number_format)
+                engine.set_number_format(cell_range, fmt)
+                console.print(f'[green]Number format set:[/green] {cell_range}={fmt}')
+            if conditional_format and hasattr(engine, 'add_conditional_format'):
+                cell_range, cf_type, opts = _parse_conditional_format(conditional_format)
+                engine.add_conditional_format(cell_range, cf_type, **opts)
+                console.print(f'[green]Conditional format added:[/green] {cf_type} on {cell_range}')
+            if data_validation and hasattr(engine, 'add_data_validation'):
+                cell_range, dv_type, f1, f2 = _parse_data_validation(data_validation)
+                engine.add_data_validation(cell_range, dv_type, f1, f2)
+                console.print(f'[green]Data validation added:[/green] {dv_type} on {cell_range}')
             if protect and hasattr(engine, 'set_protection'):
                 engine.set_protection(protect)
             if unprotect and hasattr(engine, 'unprotect'):
@@ -656,6 +727,31 @@ def main(
                 quality = int(dims[1].strip()) if len(dims) > 1 and dims[1].strip() else 80
                 saved = engine.compress_media(max_dimension=max_dimension, quality=quality)
                 console.print(f'[green]Media compressed:[/green] saved {saved} byte(s).')
+
+            if ppt_table and hasattr(engine, 'add_table'):
+                if (
+                    hasattr(engine, 'add_slide')
+                    and hasattr(engine, 'prs')
+                    and len(engine.prs.slides) == 0
+                ):
+                    engine.add_slide()
+                headers, rows = _parse_ppt_table(ppt_table)
+                slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
+                engine.add_table(slide_index, rows, col_names=headers or None)
+                console.print(f'[green]Table inserted on slide[/green] {slide_index}')
+            if ppt_chart and hasattr(engine, 'add_chart'):
+                if (
+                    hasattr(engine, 'add_slide')
+                    and hasattr(engine, 'prs')
+                    and len(engine.prs.slides) == 0
+                ):
+                    engine.add_slide()
+                chart_type, data = _parse_ppt_chart(ppt_chart)
+                slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
+                engine.add_chart(slide_index, chart_type, data)
+                console.print(
+                    f'[green]Chart ({chart_type}) inserted on slide[/green] {slide_index}'
+                )
 
             if toc and hasattr(engine, 'add_toc'):
                 engine.add_toc()
@@ -878,6 +974,64 @@ def _parse_chart_opts(opts_str: str) -> dict[str, str]:
             k, v = pair.split('=', 1)
             result[k] = v
     return result
+
+
+def _parse_number_format(spec: str) -> tuple[str, str]:
+    cell_range, _, fmt = spec.partition('=')
+    if not cell_range or not fmt:
+        raise ValueError(f'Invalid --number-format spec: {spec!r} (expected RANGE=FORMAT)')
+    return cell_range.strip(), fmt.strip()
+
+
+def _parse_conditional_format(spec: str) -> tuple[str, str, dict[str, str]]:
+    cell_range, _, rest = spec.partition('=')
+    if not cell_range or not rest:
+        raise ValueError(f'Invalid --conditional-format spec: {spec!r}')
+    parts = rest.split(':')
+    cf_type = parts[0].strip()
+    opts: dict[str, str] = {}
+    if len(parts) > 1:
+        opts['operator'] = parts[1].strip()
+    if len(parts) > 2:
+        opts['formula'] = parts[2].strip()
+    return cell_range.strip(), cf_type, opts
+
+
+def _parse_data_validation(spec: str) -> tuple[str, str, str | None, str | None]:
+    cell_range, _, rest = spec.partition('=')
+    if not cell_range or not rest:
+        raise ValueError(f'Invalid --data-validation spec: {spec!r}')
+    parts = rest.split(':')
+    dv_type = parts[0].strip()
+    formula1 = parts[1].strip() if len(parts) > 1 else None
+    formula2 = parts[2].strip() if len(parts) > 2 else None
+    return cell_range.strip(), dv_type, formula1, formula2
+
+
+def _parse_ppt_table(spec: str) -> tuple[list[str], list[list[str]]]:
+    from tianshang_scribe.cli.global_opts import parse_table_input
+
+    rows = parse_table_input(spec)
+    if not rows:
+        return [], []
+    headers = rows[0]
+    body = rows[1:]
+    return headers, body
+
+
+def _parse_ppt_chart(spec: str) -> tuple[str, list[list[Any]]]:
+    segments = [s for s in spec.split('|') if s != '']
+    if len(segments) < 3:
+        raise ValueError(
+            f'Invalid --ppt-chart spec: {spec!r} (expected "type|S1,S2|Cat1,v1,v2|...")'
+        )
+    chart_type = segments[0].strip()
+    series = [s.strip() for s in segments[1].split(',')]
+    data: list[list[Any]] = [[None, *series]]
+    for seg in segments[2:]:
+        cells: list[Any] = [c.strip() for c in seg.split(',')]
+        data.append(cells)
+    return chart_type, data
 
 
 def _handle_extract(

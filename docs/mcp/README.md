@@ -1,4 +1,4 @@
-# TianshangScribe MCP Server
+﻿# TianshangScribe MCP Server
 
 > [中文版](./README.zh-CN.md)
 
@@ -189,6 +189,76 @@ Extract and diff the text content of two documents (any of Word/Excel/PPT in any
 }
 ```
 
+### 8. `create_excel_workbook`
+
+Create a new .xlsx from typed sheet specs (headers, rows, formulas, freeze, formats, column widths).
+
+```json
+{
+  "output_path": "report.xlsx",
+  "sheets": [
+    {
+      "name": "Data",
+      "headers": ["name", "score"],
+      "rows": [["alice", 10], ["bob", 20]],
+      "formulas": {"C1": "=SUM(B2:B3)"},
+      "number_format": "B2:B3=0.00"
+    }
+  ]
+}
+```
+
+### 9. `edit_excel_workbook`
+
+Typed Excel operations: `write_cell`, `set_formula`, `freeze_panes`, `add_chart`, `conditional_format`, `data_validation`, `add_table`, `sort`, `add_sheet`, `set_range_style`, `number_format`. Overwrites the input in place unless `output_path` is set.
+
+```json
+{
+  "input_path": "report.xlsx",
+  "operations": [
+    {"action": "write_cell", "cell": "B3", "value": 30, "sheet_name": "Data"},
+    {"action": "add_sheet", "sheet_name": "Summary"}
+  ]
+}
+```
+
+### 10. `create_presentation`
+
+Create a new .pptx from typed slide specs (layout, title, bullets, text boxes, tables, charts, pictures, notes, transitions).
+
+```json
+{
+  "output_path": "deck.pptx",
+  "slides": [
+    {"title": "Q3 Review", "bullets": ["Revenue +12%", "Churn -2%"], "layout": "Title and Content"}
+  ]
+}
+```
+
+### 11. `edit_presentation`
+
+Typed PPT operations: `add_slide`, `add_text`, `replace_text`, `add_table`, `add_chart`, `add_picture`, `add_shape`, `apply_layout`, `set_transition`, `add_notes`. Overwrites the input in place unless `output_path` is set.
+
+```json
+{
+  "input_path": "deck.pptx",
+  "operations": [
+    {"action": "add_slide", "layout": "Title and Content"},
+    {"action": "add_notes", "slide_index": 1, "notes": "Pause here for questions"}
+  ]
+}
+```
+
+### 12. `analyze_excel_data`
+
+Read-only workbook profiling: per-sheet row/column counts, headers, inferred column types (numeric min/max/mean, categorical values), null counts, sample rows, and duplicate-row detection.
+
+```json
+{
+  "input_path": "report.xlsx"
+}
+```
+
 ## LaTeX Markup Reference
 
 All tools accept LaTeX-style markup in `text` fields:
@@ -312,7 +382,7 @@ How AI agents discover and call TianshangScribe tools in practice.
 
 **Protocol flow:**
 1. Agent sends `initialize` → server responds with server info & protocol version
-2. Agent sends `tools/list` → server responds with 7 tools and their schemas
+2. Agent sends `tools/list` → server responds with 12 tools and their schemas
 3. User makes a request → Agent selects tool + fills parameters
 4. Agent sends `tools/call` → server executes and returns result
 5. Agent presents result to user in natural language
@@ -343,7 +413,7 @@ How AI agents discover and call TianshangScribe tools in practice.
 
 > "What tools do you have available?"
 
-Claude should list 7 tools including `create_office_document`.
+Claude should list 12 tools including `create_office_document`.
 
 **Try it**:
 
@@ -365,7 +435,7 @@ Claude should list 7 tools including `create_office_document`.
 }
 ```
 
-**Verify**: `Ctrl+Shift+P` → "MCP: List Tools" → should show 7 tools.
+**Verify**: `Ctrl+Shift+P` → "MCP: List Tools" → should show 12 tools.
 
 #### VS Code (with MCP extension)
 
@@ -401,7 +471,7 @@ curl -N "http://localhost:8080/sse"
 curl -X POST "http://localhost:8080/message?session_id=abc123..." \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-# Expected: JSON response with 7 tools
+# Expected: JSON response with 12 tools
 ```
 
 #### Dify
@@ -409,7 +479,7 @@ curl -X POST "http://localhost:8080/message?session_id=abc123..." \
 1. Go to **Tools → MCP Tools → Add**
 2. Select **SSE** transport
 3. Enter URL: `http://your-server:8080/sse`
-4. Click **Test Connection** → should discover 7 tools
+4. Click **Test Connection** → should discover 12 tools
 5. Use in Workflow: drag `create_office_document` into a node
 
 #### Coze / FastGPT
@@ -418,7 +488,7 @@ In the plugin/tool marketplace, add an **MCP Server** with:
 - **URL**: `http://your-server:8080/sse`
 - **Transport**: SSE
 
-The platform will auto-discover the 7 tools via SSE handshake.
+The platform will auto-discover the 12 tools via SSE handshake.
 
 ### Verification
 
@@ -461,7 +531,7 @@ sequenceDiagram
     MCP-->>Agent: protocolVersion, serverInfo, capabilities
 
     Agent->>MCP: tools/list
-    MCP-->>Agent: 7 tools with schemas
+    MCP-->>Agent: 12 tools with schemas
 
     Note over Agent: User asks "Convert CSV to PDF"
 

@@ -21,6 +21,7 @@ class ExcelEngine(DocumentABC):
         super().__init__(path)
         self._wb: Workbook | None = None
         self._base_style: TextStyle = TextStyle.default_excel()
+        self._selected_sheet: str | None = None
 
     @property
     def wb(self) -> Workbook:
@@ -34,6 +35,7 @@ class ExcelEngine(DocumentABC):
         self._wb = Workbook()
         self._path = None
         self._base_style = TextStyle.default_excel()
+        self._selected_sheet = None
 
     def open(self, path: str | Path) -> None:
         """Open an existing workbook from the given path."""
@@ -42,6 +44,19 @@ class ExcelEngine(DocumentABC):
             raise FileNotFoundError(f'File not found: {self._path}')
         self._wb = load_workbook(str(self._path))
         self._base_style = TextStyle.default_excel()
+        self._selected_sheet = None
+
+    def select_sheet(self, name: str) -> None:
+        """Target subsequent operations at the worksheet named ``name``."""
+        if name not in self.wb.sheetnames:
+            raise ValueError(f'Sheet not found: {name}')
+        self._selected_sheet = name
+
+    def _ws(self) -> Any:
+        """Return the targeted worksheet, or the active sheet when none selected."""
+        if self._selected_sheet is not None and self._selected_sheet in self.wb.sheetnames:
+            return self.wb[self._selected_sheet]
+        return self.wb.active
 
     def save(self, path: str | Path | None = None) -> None:
         """Save the workbook to the given path or the current one."""
@@ -83,7 +98,7 @@ class ExcelEngine(DocumentABC):
             final = final.merge(text_style)
         final = final.merge(inline)
 
-        ws = self.wb.active
+        ws = self._ws()
         if ws.max_row is None or (ws.max_row == 1 and ws['A1'].value is None):
             row = 1
         else:
@@ -219,24 +234,24 @@ class ExcelEngine(DocumentABC):
 
     def set_column_width(self, col_index: int, width: float) -> None:
         """Set the width of the column at the 1-based index in the active sheet."""
-        ws = self.wb.active
+        ws = self._ws()
         ws.column_dimensions[get_column_letter(col_index)].width = width
 
     def set_row_height(self, row_index: int, height: float) -> None:
         """Set the height of the row at the given index in the active sheet."""
-        ws = self.wb.active
+        ws = self._ws()
         ws.row_dimensions[row_index].height = height
 
     def set_formula(self, cell_ref: str, formula: str) -> None:
         """Set a formula on the given cell reference in the active sheet."""
-        ws = self.wb.active
+        ws = self._ws()
         ws[cell_ref] = formula
 
     def import_csv(self, csv_path: str | Path) -> None:
         """Import data from a CSV file into the active sheet."""
         import csv
 
-        ws = self.wb.active
+        ws = self._ws()
         with open(csv_path, newline='', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row_idx, row_data in enumerate(reader, start=1):
@@ -253,7 +268,7 @@ class ExcelEngine(DocumentABC):
         if not isinstance(data, list) or not data:
             raise ValueError('import_json expects a non-empty JSON array')
 
-        ws = self.wb.active
+        ws = self._ws()
         if all(isinstance(item, dict) for item in data):
             headers = list(dict.fromkeys(k for item in data for k in item))
             for col_idx, header in enumerate(headers, start=1):
@@ -272,7 +287,7 @@ class ExcelEngine(DocumentABC):
         """Export the active sheet to a CSV file at the given path."""
         import csv
 
-        ws = self.wb.active
+        ws = self._ws()
         with open(output_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             for row in ws.iter_rows(values_only=True):
@@ -311,7 +326,7 @@ class ExcelEngine(DocumentABC):
         """Attach a comment to the given cell in the active sheet."""
         from openpyxl.comments import Comment
 
-        ws = self.wb.active
+        ws = self._ws()
         ws[cell_ref].comment = Comment(text, 'TianshangScribe')
 
     def set_protection(self, password: str) -> None:
@@ -326,7 +341,7 @@ class ExcelEngine(DocumentABC):
         """Export the active sheet to a JSON array of objects."""
         import json
 
-        ws = self.wb.active
+        ws = self._ws()
         rows = list(ws.iter_rows(values_only=True))
         if not rows:
             with open(output_path, 'w', encoding='utf-8') as f:
@@ -341,7 +356,7 @@ class ExcelEngine(DocumentABC):
 
     def export_html(self, output_path: str | Path) -> None:
         """Export the active sheet to an HTML table file."""
-        ws = self.wb.active
+        ws = self._ws()
         rows = list(ws.iter_rows(values_only=True))
         html_parts = [
             '<!DOCTYPE html><html><head><meta charset="utf-8"><title>',
@@ -362,38 +377,311 @@ class ExcelEngine(DocumentABC):
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(''.join(html_parts))
 
-    def sort(self, cell_range: str, order: str = 'asc') -> None:
-        """Sort a single-column range in the active sheet asc or desc."""
+    def sort(
+        self,
+        cell_range: str,
+        order: str = 'asc',
+        key_columns: list[int] | None = None,
+        orders: list[str] | None = None,
+    ) -> None:
+        """Sort a range of rows in the active sheet.
+
+        The whole row is moved together (column integrity preserved), unlike the
+        previous single-column implementation which only reordered one column.
+        ``key_columns`` are 0-based column offsets within the range; ``orders``
+        is the per-key ``'asc'``/``'desc'`` list. Mixed value types are sorted
+        deterministically (numbers < strings < other < None) without raising.
+        """
         import re
 
-        ws = self.wb.active
+        from openpyxl.utils import column_index_from_string
+
+        ws = self._ws()
         match = re.match(r'([A-Z]+)(\d+):([A-Z]+)(\d+)', cell_range)
         if not match:
             raise ValueError(f'Invalid cell range: {cell_range}')
-        c1, r1_s, _, r2_s = match.groups()
+        c1, r1_s, c2, r2_s = match.groups()
         r1 = int(r1_s)
         r2 = int(r2_s)
-        data = []
-        for row in range(r1, r2 + 1):
-            val = ws[f'{c1}{row}'].value
-            data.append((val, row))
-        data.sort(reverse=(order == 'desc'), key=lambda x: (x[0] is None, x[0] or ''))
-        for i, (val, _orig_row) in enumerate(data, start=r1):
-            ws[f'{c1}{i}'].value = val
+        col1 = column_index_from_string(c1)
+        col2 = column_index_from_string(c2)
+        width = col2 - col1 + 1
+
+        keys = key_columns if key_columns is not None else [0]
+        key_dirs = orders if orders is not None else [order] * len(keys)
+        if len(key_dirs) != len(keys):
+            raise ValueError('orders must have the same length as key_columns')
+
+        rows: list[list[Any]] = []
+        for r in range(r1, r2 + 1):
+            rows.append([ws.cell(row=r, column=c).value for c in range(col1, col2 + 1)])
+
+        def _norm(value: Any) -> tuple[Any, ...]:
+            if value is None:
+                return (3, 0, '')
+            if isinstance(value, bool):
+                return (2, int(value), '')
+            if isinstance(value, (int, float)):
+                return (0, value, '')
+            if isinstance(value, str):
+                return (1, 0, value.lower())
+            return (2, 0, str(value))
+
+        def _make_key(col_index: int) -> Any:
+            return lambda r: _norm(r[col_index])
+
+        for k, direction in reversed(list(zip(keys, key_dirs, strict=False))):
+            if not (0 <= k < width):
+                raise ValueError(f'key_columns index {k} out of range for width {width}')
+            rows.sort(key=_make_key(k), reverse=(direction == 'desc'))
+
+        for offset, row in enumerate(rows):
+            target = r1 + offset
+            for col_offset, value in enumerate(row):
+                ws.cell(row=target, column=col1 + col_offset).value = value
 
     def add_chart(self, chart_type: str, data_range: str, position: str = 'E2') -> None:
-        """Add a bar, line or pie chart over the given data range."""
-        from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+        """Add a bar, line, pie, area, doughnut or scatter chart over the data range."""
+        from openpyxl.chart import (
+            AreaChart,
+            BarChart,
+            DoughnutChart,
+            LineChart,
+            PieChart,
+            Reference,
+            ScatterChart,
+        )
 
-        ws = self.wb.active
-        chart_classes = {'bar': BarChart, 'line': LineChart, 'pie': PieChart}
+        ws = self._ws()
+        chart_classes = {
+            'bar': BarChart,
+            'line': LineChart,
+            'pie': PieChart,
+            'area': AreaChart,
+            'doughnut': DoughnutChart,
+            'scatter': ScatterChart,
+        }
         chart_cls = chart_classes.get(chart_type)
         if chart_cls is None:
-            raise ValueError(f'Unsupported chart type: {chart_type}. Use bar, line, or pie.')
+            raise ValueError(
+                f'Unsupported chart type: {chart_type}. Use bar, line, pie, area, doughnut, or scatter.'
+            )
         chart = chart_cls()
         data = Reference(ws, range_string=data_range)
         chart.add_data(data, titles_from_data=True)
         ws.add_chart(chart, position)
+
+    def freeze_panes(self, cell: str = 'A2') -> None:
+        """Freeze rows above / columns left of ``cell`` (e.g. 'A2', 'B1', 'C4')."""
+        self._ws().freeze_panes = cell
+
+    def set_number_format(self, cell_range: str, fmt: str) -> None:
+        """Apply an Excel number format to a range (e.g. '0.00%', 'yyyy-mm-dd').
+
+        ``cell_range`` accepts a single cell ('A1') or an A1:B10 range.
+        """
+        import re
+
+        from openpyxl.utils import column_index_from_string
+
+        ws = self._ws()
+        m = re.match(r'\s*([A-Z]+)(\d+)\s*:\s*([A-Z]+)(\d+)\s*$', cell_range)
+        if m:
+            c1 = column_index_from_string(m.group(1))
+            r1 = int(m.group(2))
+            c2 = column_index_from_string(m.group(3))
+            r2 = int(m.group(4))
+        else:
+            m = re.match(r'\s*([A-Z]+)(\d+)\s*$', cell_range)
+            if not m:
+                raise ValueError(f'Invalid cell range: {cell_range!r}')
+            c1 = column_index_from_string(m.group(1))
+            r1 = int(m.group(2))
+            c2, r2 = c1, r1
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                ws.cell(row=r, column=c).number_format = fmt
+
+    def add_conditional_format(
+        self, cell_range: str, cf_type: str = 'color_scale', **opts: object
+    ) -> None:
+        """Add a conditional formatting rule to ``cell_range``.
+
+        ``cf_type`` is one of: 'color_scale', 'data_bar', 'cell_is', 'formula'.
+        """
+        from openpyxl.formatting.rule import (
+            CellIsRule,
+            ColorScaleRule,
+            DataBarRule,
+            FormulaRule,
+        )
+
+        ws = self._ws()
+        if cf_type == 'color_scale':
+            rule = ColorScaleRule(
+                start_type='min',
+                start_color=opts.get('min_color', 'FFFFFF'),
+                mid_type='percentile',
+                mid_value=50,
+                mid_color=opts.get('mid_color', 'FFEB84'),
+                end_type='max',
+                end_color=opts.get('max_color', '63BE7B'),
+            )
+        elif cf_type == 'data_bar':
+            rule = DataBarRule(
+                start_type='min',
+                end_type='max',
+                color=opts.get('color', '638EC6'),
+            )
+        elif cf_type == 'cell_is':
+            rule = CellIsRule(
+                operator=opts.get('operator', 'greaterThan'),
+                formula=[opts.get('formula', '0')],
+            )
+        elif cf_type == 'formula':
+            rule = FormulaRule(
+                formula=[opts.get('formula', 'TRUE')],
+                fill=opts.get('fill'),
+            )
+        else:
+            raise ValueError(f'Unsupported conditional format type: {cf_type!r}')
+        ws.conditional_formatting.add(cell_range, rule)
+
+    def add_data_validation(
+        self,
+        cell_range: str,
+        dv_type: str = 'list',
+        formula1: object = None,
+        formula2: object = None,
+        allow_blank: bool = True,
+    ) -> None:
+        """Add a data-validation rule to ``cell_range``.
+
+        ``dv_type`` is an openpyxl DV type: 'list', 'whole', 'decimal',
+        'date', 'textLength', etc. For 'list', ``formula1`` is a comma-
+        separated string (or an explicit list) of allowed values.
+        """
+        from openpyxl.worksheet.datavalidation import DataValidation
+
+        ws = self._ws()
+        if dv_type == 'list' and isinstance(formula1, str):
+            formula1 = '"' + formula1 + '"'
+        dv = DataValidation(
+            type=dv_type,
+            formula1=formula1,
+            formula2=formula2,
+            allow_blank=allow_blank,
+        )
+        ws.add_data_validation(dv)
+        dv.add(cell_range)
+
+    def set_range_style(self, cell_range: str, style: str) -> None:
+        """Apply styling to a range.
+
+        ``style`` is a comma-separated list of key=value pairs (or bare flags):
+          border=<thin|medium|thick|double>  (all-side solid border)
+          fill=<RRGGBB or color name>        (solid background fill)
+          font=<name>                        (font name)
+          size=<pt>                          (font size)
+          bold / italic                      (font flags)
+          color=<RRGGBB or color name>       (font color)
+          align=<left|center|right|justify>  (horizontal alignment)
+          numfmt=<format>                    (number format, e.g. 0.00% or yyyy-mm-dd)
+        """
+        import re
+
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        from openpyxl.utils import column_index_from_string
+
+        opts: dict[str, str | None] = {}
+        for part in style.split(','):
+            part = part.strip()
+            if not part:
+                continue
+            if '=' in part:
+                k, v = part.split('=', 1)
+                opts[k.strip()] = v.strip() or None
+            else:
+                opts[part] = None
+
+        ws = self._ws()
+        m = re.match(r'\s*([A-Z]+)(\d+)\s*:\s*([A-Z]+)(\d+)\s*$', cell_range)
+        if not m:
+            raise ValueError(f'Invalid cell range: {cell_range!r}')
+        c1 = column_index_from_string(m.group(1))
+        r1 = int(m.group(2))
+        c2 = column_index_from_string(m.group(3))
+        r2 = int(m.group(4))
+
+        side: Side | None = None
+        if 'border' in opts:
+            side = Side(style=opts['border'], color='FF000000')
+        border = Border(left=side, right=side, top=side, bottom=side) if side else None
+        fill: PatternFill | None = None
+        if opts.get('fill'):
+            fill = PatternFill(fill_type='solid', fgColor=opts['fill'])
+        font: Font | None = None
+        if any(k in opts for k in ('font', 'size', 'bold', 'italic', 'color')):
+            size_val = opts.get('size')
+            font = Font(
+                name=opts.get('font'),
+                size=int(size_val) if size_val else None,
+                bold='bold' in opts,
+                italic='italic' in opts,
+                color=opts.get('color'),
+            )
+        align_map = {
+            'left': Alignment(horizontal='left'),
+            'center': Alignment(horizontal='center'),
+            'right': Alignment(horizontal='right'),
+            'justify': Alignment(horizontal='justify'),
+        }
+        align_val = opts.get('align')
+        alignment = align_map.get(align_val) if align_val else None
+        numfmt = opts.get('numfmt')
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                cell = ws.cell(row=r, column=c)
+                if border is not None:
+                    cell.border = border
+                if fill is not None:
+                    cell.fill = fill
+                if font is not None:
+                    cell.font = font
+                if alignment is not None:
+                    cell.alignment = alignment
+                if numfmt:
+                    cell.number_format = numfmt
+
+    def add_hyperlink(self, cell: str, url: str) -> None:
+        """Add a hyperlink to ``cell`` and give it a conventional link style."""
+        ws = self._ws()
+        target = ws[cell]
+        target.hyperlink = url
+        target.font = Font(color='0563C1', underline='single')
+
+    def set_named_range(self, name: str, cell_range: str) -> None:
+        """Register a workbook-level named range."""
+        from openpyxl.workbook.defined_name import DefinedName
+
+        ws = self._ws()
+        ref = f'{ws.title}!{cell_range}'
+        dn = DefinedName(name, attr_text=ref)
+        self.wb.defined_names.add(dn)
+
+    def auto_fit(self, column: int | str) -> None:
+        """Set the width of ``column`` (index or letter) to fit its content."""
+        from openpyxl.utils import column_index_from_string, get_column_letter
+
+        col_idx = column_index_from_string(column) if isinstance(column, str) else column
+        ws = self._ws()
+        max_len = 0
+        for row in ws.iter_rows(min_col=col_idx, max_col=col_idx):
+            for cell in row:
+                if cell.value is not None:
+                    max_len = max(max_len, len(str(cell.value)))
+        width = min(max(max_len + 2, 8), 60)
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
 
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""

@@ -4,6 +4,98 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-08-22
+
+### Fixed
+- PowerPoint `merge_workbooks`: slides are now deep-cloned with their content
+  (text, pictures, media, charts) via relationship-aware copying instead of
+  creating blank slides from the layout (`src/tianshang_scribe/core/ppt_engine.py`).
+- PowerPoint `add_text` / `add_styled_content`: multiple text blocks, headings and
+  formulas are placed on distinct, vertically stacked text boxes (previously they
+  all overlapped at the same fixed position); `add_text` gains a `slide_index`
+  argument to append onto an existing slide's body placeholder.
+- PowerPoint password protection: `set_protection` now writes a compliant
+  ECMA-376 agile `modifyVerifier` (SHA-512 + random salt + 100k iterations,
+  base64-encoded) instead of storing the plaintext password.
+- PowerPoint `to_images`: exports **every** slide by rendering the deck to PDF
+  first and rasterizing each page (PyMuPDF, else poppler `pdftoppm`), fixing the
+  LibreOffice `--convert-to png` path that only produced the first slide.
+- Excel `sort`: supports multi-column keys (`key_columns` / `orders`) and sorts
+  whole rows intact; mixed value types are ordered deterministically
+  (numbers < strings < other < None) instead of raising `TypeError`.
+
+### Added
+- Excel `--sheet` option to target a specific worksheet for the subsequent
+  operations (write, formula, sort, chart, import/export, comment); the engine
+  exposes `select_sheet` / `_ws()` (`src/tianshang_scribe/cli/main.py`,
+  `src/tianshang_scribe/core/excel_engine.py`).
+- Excel engine capabilities: `freeze_panes` (CLI `--freeze`), `set_number_format`
+  (CLI `--number-format`), `add_conditional_format` (CLI `--conditional-format`,
+  supporting `color_scale` / `data_bar` / `cell_is` / `formula`), `add_data_validation`
+  (CLI `--data-validation`, `list`/`whole`/`decimal`/`date`/`text_length`),
+  `set_range_style` (border/fill), chart-type extension (`area`/`scatter`/`doughnut`
+  alongside `bar`/`line`/`pie`), `add_hyperlink`, `set_named_range`, `auto_fit`.
+- PowerPoint engine capabilities: `add_textbox` (precise inch positioning),
+  `add_table` (CLI `--ppt-table`), `add_chart` (CLI `--ppt-chart`,
+  `bar`/`column`/`line`/`pie`/`area`/`doughnut`), `add_picture`, `add_shape`
+  (autoshapes), and `replace_text` now preserves run-level styles across runs
+  that span a match.
+- MCP Server: the existing 7 tools now expose the Excel/PPT engine capabilities
+  above. `create_office_document`'s `ContentBlock` and `edit_office_document`'s
+  `EditOperation` gained optional fields (`slide_index`, `slide_layout`, `notes`,
+  `transition`, `sheet_name`, `cell`, `formula`, `chart_type`, `chart_data_range`,
+  `chart_data`, `rows`, `number_format`, `conditional_format`, `data_validation`,
+  `freeze`, `hyperlink`, `named_range`) so agents can build formula cells, frozen
+  panes, number formats, conditional formats, data validation, Excel/PPT charts,
+   PPT tables/pictures/shapes/layouts/transitions/notes. Fixed a crash where
+   `create_office_document` raised on a PPT `table` block (signature mismatch with
+   `PptEngine.add_table`); PPT content blocks now stack onto a single slide.
+   Parsing helpers live in `src/tianshang_scribe/mcp/tools/_parse.py`.
+- MCP Server hardening (post-review P0/P1):
+  - Fixed `_edit_write_cell` writing to the active sheet instead of the
+    explicitly selected sheet (now resolves the target worksheet per-op without
+    mutating engine selection); a `write_cell` value starting with `=` is stored
+    as a formula.
+  - PPT blocks in `create_office_document` now default to the current stacked
+    slide (`current_slide_index`) unless an explicit `slide_index` is given
+    (table and capability fields included); `parse_ppt_chart` no longer returns a
+    dead chart-type hint.
+  - `compare_documents` / snapshot now return a clearer `UNSUPPORTED_FORMAT`
+    message stating Excel/PPT comparison is not yet available.
+  - `EditOperation` schema documents the per-action field mapping; the registry
+    tool descriptions for `create_office_document` / `edit_office_document` /
+    `compare_documents` now mention the new Excel/PPT capabilities and limits.
+  - `write_cell` honors an optional `style` (font/fill/alignment) applied to the
+    target cell.
+- Excel `set_range_style` now supports font name/size/bold/italic/color,
+  horizontal alignment and number format (previously border/fill only),
+  matching the cell-level style system.
+- PowerPoint `add_textbox` / internal `_place_textbox` derive the default width
+  from the slide width so 4:3 decks no longer overflow.
+- MCP Server: five dedicated, document-type-specific tools (12 tools total,
+  the 7 unified tools remain as legacy):
+  - `create_excel_workbook` builds a new .xlsx from typed `ExcelSheetSpec`
+    sheets (headers/rows/formulas/freeze/number_format/conditional_format/
+    data_validation/column_widths) instead of the generic `ContentBlock`.
+  - `edit_excel_workbook` applies typed `ExcelEditOp` operations
+    (`write_cell`/`set_formula`/`freeze_panes`/`add_chart`/`conditional_format`/
+    `data_validation`/`add_table`/`sort`/`add_sheet`/`set_range_style`/
+    `number_format`) by reusing the unified edit dispatch.
+  - `create_presentation` builds a new .pptx from typed `PptSlideSpec` slides
+    (layout/title/bullets/text_blocks/table/chart/picture/notes/transition).
+  - `edit_presentation` applies typed `PptEditOp` operations (`add_slide`,
+    `add_text`, `replace_text`, `add_table`, `add_chart`, `add_picture`,
+    `add_shape`, `apply_layout`, `set_transition`, `add_notes`).
+  - `analyze_excel_data` profiles a workbook read-only: per-sheet row/column
+    counts, headers, inferred column types (numeric min/max/mean, categorical),
+    null counts, sample rows, and duplicate-row detection.
+  - Permission classes (STANDARD×2 / DESTRUCTIVE×2 / READ_ONLY×1), RBAC and
+    idempotency tables, description gates (≤90 words, side-effect disclosure,
+    read-only affirmation, sibling pointers) and stdio/SSE smoke assertions all
+    extended to the 12-tool registry; `SERVER_VERSION` stays `0.8.0`.
+- Bumped `SERVER_VERSION` to `0.8.0` so the MCP health endpoint reports the
+  current release.
+
 ## [0.7.1] - 2026-08-19
 
 ### Fixed

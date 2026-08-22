@@ -744,3 +744,313 @@ class TestErrorsHelpers:
     def test_send_progress_no_writer(self) -> None:
         _set_notify_writer(None)
         send_progress(1, 10)  # must be a no-op
+
+
+class TestSchemasMcpP0:
+    def test_content_block_new_fields_roundtrip(self) -> None:
+        b = ContentBlock(
+            type='table',
+            rows=[['A', 'B'], ['1', '2']],
+            slide_index=0,
+            chart_type='bar',
+            number_format='A1:A10=0.00%',
+        )
+        d = b.model_dump()
+        assert d['slide_index'] == 0
+        assert d['chart_type'] == 'bar'
+        assert d['number_format'] == 'A1:A10=0.00%'
+
+    def test_edit_operation_new_actions_accepted(self) -> None:
+        op = EditOperation(action='set_formula', cell='A1', formula='=SUM(B1:B10)')
+        d = op.model_dump()
+        assert d['action'] == 'set_formula'
+        assert d['cell'] == 'A1'
+        assert d['formula'] == '=SUM(B1:B10)'
+
+
+class TestCreateMcpP0:
+    def test_ppt_table_no_longer_crashes(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document(
+            'pptx',
+            [ContentBlock(type='table', rows=[['H1', 'H2'], ['a', 'b']])],
+            output_path=str(out),
+        )
+        assert result['success'] is True, result
+        assert Path(out).exists()
+
+    def test_ppt_single_slide_stacks_text_table_chart(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document(
+            'pptx',
+            [
+                ContentBlock(type='paragraph', text='Title'),
+                ContentBlock(type='table', rows=[['H1', 'H2'], ['a', 'b']]),
+                ContentBlock(type='paragraph', text='Body'),
+                ContentBlock(
+                    type='paragraph',
+                    chart_type='bar',
+                    chart_data=[['', 'S1'], ['Cat1', 10], ['Cat2', 20]],
+                ),
+            ],
+            output_path=str(out),
+        )
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+
+        eng = open_document(str(out))
+        shapes = list(eng.prs.slides[0].shapes)
+        assert any(sh.has_table for sh in shapes)
+        assert any(sh.has_chart for sh in shapes)
+        assert 'Title' in eng.extract_text()
+
+    def test_excel_capabilities_via_content_block(self, tmp_path: Path) -> None:
+        out = tmp_path / 'book.xlsx'
+        result = create_office_document(
+            'xlsx',
+            [
+                ContentBlock(
+                    type='paragraph',
+                    text='hi',
+                    cell='A1',
+                    formula='=1+1',
+                    freeze='A2',
+                    number_format='A1:A1=0.00%',
+                    conditional_format='B1:B5=color_scale',
+                    data_validation='C1:C5=list:yes,no',
+                    chart_type='bar',
+                    chart_data_range='Sheet!A1:B2',
+                ),
+            ],
+            output_path=str(out),
+        )
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+
+        eng = open_document(str(out))
+        ws = eng.wb.active
+        assert ws['A1'].value == '=1+1'
+        assert eng.wb.active.freeze_panes == 'A2'
+        assert ws['A1'].number_format == '0.00%'
+        assert len(list(eng.wb.active.conditional_formatting)) >= 1
+        assert 'list' in {dv.type for dv in eng.wb.active.data_validations.dataValidation}
+        assert len(ws._charts) >= 1
+
+
+class TestEditMcpP0:
+    def test_excel_edit_actions(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import open_document
+
+        book = tmp_path / 'b.xlsx'
+        create_office_document(
+            'xlsx', [ContentBlock(type='paragraph', text='seed')], output_path=str(book)
+        )
+        res = edit_office_document(
+            str(book),
+            [
+                {'action': 'write_cell', 'cell': 'A1', 'text': 'hello'},
+                {'action': 'set_formula', 'cell': 'A2', 'formula': '=1+1'},
+                {'action': 'freeze_panes', 'range': 'A2'},
+                {'action': 'conditional_format', 'conditional_format': 'B1:B5=color_scale'},
+                {'action': 'data_validation', 'data_validation': 'C1:C5=list:yes,no'},
+                {'action': 'add_chart', 'chart_type': 'bar', 'chart_data_range': 'Sheet!A1:B2'},
+            ],
+        )
+        assert res['success'] is True, res
+        e2 = open_document(str(book))
+        ws = e2.wb.active
+        assert ws['A1'].value == 'hello'
+        assert ws['A2'].value == '=1+1'
+        assert ws.freeze_panes == 'A2'
+        assert len(list(ws.conditional_formatting)) >= 1
+        assert 'list' in {dv.type for dv in ws.data_validations.dataValidation}
+        assert len(ws._charts) >= 1
+
+    def test_ppt_edit_actions(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import open_document
+
+        d = tmp_path / 'deck.pptx'
+        create_office_document(
+            'pptx', [ContentBlock(type='paragraph', text='seed')], output_path=str(d)
+        )
+        res = edit_office_document(
+            str(d),
+            [
+                {'action': 'add_table', 'rows': [['H', 'K'], ['1', '2']], 'slide_index': 0},
+                {'action': 'add_notes', 'notes': 'nt', 'slide_index': 0},
+                {'action': 'apply_layout', 'layout': 'Title and Content', 'slide_index': 0},
+                {'action': 'set_transition', 'transition': 'fade', 'slide_index': 0},
+                {
+                    'action': 'add_chart',
+                    'chart_type': 'bar',
+                    'chart_data': [['', 'S'], ['c', 3]],
+                    'slide_index': 0,
+                },
+            ],
+        )
+        assert res['success'] is True, res
+        e2 = open_document(str(d))
+        shapes = list(e2.prs.slides[0].shapes)
+        assert any(s.has_table for s in shapes)
+        assert any(s.has_chart for s in shapes)
+        assert e2.prs.slides[0].notes_slide.notes_text_frame.text == 'nt'
+        assert e2.prs.slides[0].slide_layout.name == 'Title and Content'
+
+    def test_write_cell_respects_sheet_name(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import DocumentType, create_document, open_document
+
+        book = tmp_path / 'b.xlsx'
+        e = create_document(DocumentType.EXCEL)
+        e.add_sheet('Sheet2')
+        e.save(str(book))
+        res = edit_office_document(
+            str(book),
+            [
+                {'action': 'write_cell', 'cell': 'A1', 'text': 'two', 'sheet_name': 'Sheet2'},
+                {'action': 'write_cell', 'cell': 'A1', 'text': 'one'},
+            ],
+        )
+        assert res['success'] is True, res
+        e2 = open_document(str(book))
+        assert e2.wb['Sheet2']['A1'].value == 'two'
+        assert e2.wb.active['A1'].value == 'one'
+        # formula path still works on the explicitly named sheet
+        res2 = edit_office_document(
+            str(book),
+            [
+                {'action': 'write_cell', 'cell': 'B1', 'text': '=1+1', 'sheet_name': 'Sheet2'},
+            ],
+        )
+        assert res2['success'] is True, res2
+        e3 = open_document(str(book))
+        assert e3.wb['Sheet2']['B1'].value == '=1+1'
+
+    def test_ppt_blocks_stack_single_slide_without_index(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document(
+            'pptx',
+            [
+                ContentBlock(type='paragraph', text='A'),
+                ContentBlock(type='table', rows=[['H1', 'H2'], ['x', 'y']]),
+                ContentBlock(type='paragraph', text='B'),
+                ContentBlock(
+                    type='paragraph',
+                    chart_type='bar',
+                    chart_data=[['', 'S'], ['Cat1', 1], ['Cat2', 2]],
+                ),
+            ],
+            output_path=str(out),
+        )
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+
+        eng = open_document(str(out))
+        assert len(eng.prs.slides) == 1
+        shapes = list(eng.prs.slides[0].shapes)
+        assert any(s.has_table for s in shapes)
+        assert any(s.has_chart for s in shapes)
+        assert 'A' in eng.extract_text() and 'B' in eng.extract_text()
+
+    def test_ppt_explicit_slide_index_overrides_stack(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document(
+            'pptx',
+            [
+                ContentBlock(type='paragraph', text='s0'),
+                ContentBlock(type='page_break'),
+                ContentBlock(type='paragraph', text='s1'),
+                ContentBlock(type='table', rows=[['H', 'K'], ['1', '2']], slide_index=1),
+            ],
+            output_path=str(out),
+        )
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+
+        eng = open_document(str(out))
+        assert len(eng.prs.slides) == 2
+        shapes0 = list(eng.prs.slides[0].shapes)
+        shapes1 = list(eng.prs.slides[1].shapes)
+        assert not any(s.has_table for s in shapes0)
+        assert any(s.has_table for s in shapes1)
+
+
+class TestCompareMcpP0:
+    def test_compare_excel_reports_unsupported(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import DocumentType, create_document
+
+        a = tmp_path / 'a.xlsx'
+        b = tmp_path / 'b.xlsx'
+        for p in (a, b):
+            e = create_document(DocumentType.EXCEL)
+            e.save(str(p))
+        res = compare_documents(str(a), str(b))
+        assert res['success'] is False
+        assert res['error_code'] == 1003
+        assert 'Excel' in res['error_message'] and 'PowerPoint' in res['error_message']
+
+
+class TestEditSchemaMcpP1:
+    def test_edit_operation_per_action_builds(self) -> None:
+        from tianshang_scribe.mcp.schemas import EditOperation
+
+        samples = [
+            {'action': 'replace', 'old_text': 'a', 'new_text': 'b'},
+            {'action': 'delete', 'target': 'x'},
+            {'action': 'modify', 'old_text': 'a', 'new_text': 'b'},
+            {'action': 'style', 'style': 'bold'},
+            {'action': 'add', 'text': 'hi'},
+            {'action': 'clear'},
+            {'action': 'write_cell', 'cell': 'A1', 'text': 'v', 'style': 'bold'},
+            {'action': 'set_formula', 'cell': 'A1', 'formula': '=1'},
+            {'action': 'freeze_panes', 'range': 'A2'},
+            {'action': 'add_chart', 'chart_type': 'bar', 'chart_data_range': 'S!A1:B2'},
+            {'action': 'conditional_format', 'conditional_format': 'B1:B5=color_scale'},
+            {'action': 'data_validation', 'data_validation': 'C1:C5=list:yes,no'},
+            {'action': 'add_table', 'rows': [['H', 'K'], ['1', '2']]},
+            {'action': 'add_picture', 'path': 'p.png'},
+            {'action': 'add_shape', 'fill': 'FF0000'},
+            {'action': 'apply_layout', 'layout': 'Title'},
+            {'action': 'set_transition', 'transition': 'fade'},
+            {'action': 'add_notes', 'notes': 'n'},
+        ]
+        for s in samples:
+            op = EditOperation.model_validate(s)
+            assert op.action == s['action']
+
+
+class TestRegistryMcpP1:
+    def test_tool_descriptions_mention_new_capabilities(self) -> None:
+        from tianshang_scribe.mcp.tools._registry import get_tools
+
+        tools = {t['name']: t['description'] for t in get_tools()}
+        assert 'freeze_panes' in tools['edit_office_document']
+        assert 'conditional_format' in tools['edit_office_document']
+        assert 'data_validation' in tools['edit_office_document']
+        assert 'sheet_name' in tools['create_office_document']
+        assert 'slide_index' in tools['create_office_document']
+        assert 'Excel' in tools['compare_documents'] and 'PowerPoint' in tools['compare_documents']
+
+    def test_write_cell_with_style(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import DocumentType, create_document, open_document
+
+        book = tmp_path / 'b.xlsx'
+        e = create_document(DocumentType.EXCEL)
+        e.save(str(book))
+        res = edit_office_document(
+            str(book),
+            [
+                {
+                    'action': 'write_cell',
+                    'cell': 'A1',
+                    'text': 'x',
+                    'style': 'bold,fill=FF0000,align=center',
+                },
+            ],
+        )
+        assert res['success'] is True, res
+        e2 = open_document(str(book))
+        cell = e2.wb.active['A1']
+        assert cell.value == 'x'
+        assert cell.font.bold is True
+        assert 'FF0000' in str(cell.fill.fgColor.rgb)
+        assert cell.alignment.horizontal == 'center'

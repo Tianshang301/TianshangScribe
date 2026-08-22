@@ -50,7 +50,7 @@ docker compose up -d
 **.deb 包**（Debian / Ubuntu）：
 ```bash
 # 从 GitHub Releases 下载
-sudo dpkg -i tianshang-scribe_0.7.1_all.deb
+sudo dpkg -i tianshang-scribe_0.8.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -185,6 +185,10 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--from-csv` | 导入 CSV | `--from-csv data.csv` |
 | `--sort` | 排序 | `--sort "A1:A10 asc"` |
 | `--chart-add` | 添加图表 | `--chart-add "type=bar data=B1:C10"` |
+| `--freeze` | 冻结窗格 | `--freeze "A2"` |
+| `--number-format` | 设置数字格式 | `--number-format "A1:A10=0.00%"` |
+| `--conditional-format` | 条件格式 | `--conditional-format "B2:B100=color_scale"` |
+| `--data-validation` | 数据验证 | `--data-validation "C2:C50=list:yes,no"` |
 | `--protect` | 设置密码 | `--protect "p@ss"` |
 | `--unprotect` | 解除密码 | `--unprotect` |
 | `--to-csv` | 导出 CSV | |
@@ -354,6 +358,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 切换效果 | fade、push、wipe 等 17 种（`--transition`） |
 | 导出 | 图片序列（`--toimg`）、PDF（`--topdf`） |
 | 媒体压缩 | 压缩图片（`--compress-media "1920,80"`） |
+| 表格与图表 | 末张幻灯片插入表格/图表（`--ppt-table "H1,H2\|a1,a2"`、`--ppt-chart "bar\|S1,S2\|Cat1,1,2"`） |
 | 保护 | 设置/解除密码（`--protect`、`--unprotect`） |
 
 ## 退出码
@@ -388,7 +393,7 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 }}}
 ```
 
-### 工具列表（7 个）
+### 工具列表（12 个）
 
 | 工具 | 说明 |
 |------|------|
@@ -399,6 +404,11 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 | `extract_document_data` | 提取元数据、全文或文档结构 |
 | `validate_template` | 填充前预检查模板占位符与数据是否匹配 |
 | `compare_documents` | 两个 .docx 文件的段落级差异对比 |
+| `create_excel_workbook` | 按类型化工作表规格创建 .xlsx（表头/数据/公式/格式） |
+| `edit_excel_workbook` | 类型化 Excel 操作：write_cell、set_formula、sort、add_sheet 等 |
+| `create_presentation` | 按类型化幻灯片规格创建 .pptx（标题/要点/表格/图表） |
+| `edit_presentation` | 类型化 PPT 操作：add_slide、add_text、add_table、add_chart 等 |
+| `analyze_excel_data` | 只读工作簿画像：类型推断、空值、重复行、抽样 |
 
 ### 能力矩阵
 
@@ -419,7 +429,7 @@ TIANSHANG_SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --tra
 
 # 健康检查
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.7.1","active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.8.0","active_sessions":3,"tools_available":12}
 
 # CORS 白名单
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
@@ -464,10 +474,13 @@ src/
     │   ├── metrics.py          # Prometheus 风格指标
     │   ├── security.py         # 工具只读/破坏性分类
     │   ├── prompts.py          # 5 个提示词工作流
-    │   ├── tools/              # 7 个 Agent 工具
+    │   ├── tools/              # 12 个 Agent 工具（7 统一 + 5 专用）
     │   │   ├── _registry.py    # 工具注册表（schema 自动派生）
+    │   │   ├── _dedicated_schemas.py  # 专用工具类型化参数模型
     │   │   ├── create.py / edit.py / template.py / convert.py
     │   │   ├── validate.py / compare.py
+    │   │   ├── excel_create.py / excel_edit.py / analyze_excel.py
+    │   │   └── ppt_create.py / ppt_edit.py
     │   └── errors.py           # 结构化错误码 + 修复建议
     └── utils/             # 工具函数
         └── file_utils.py

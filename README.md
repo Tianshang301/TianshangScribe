@@ -15,7 +15,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 [![TianshangScribe MCP server](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe/badges/score.svg)](https://glama.ai/mcp/servers/Tianshang301/TianshangScribe)
 
-Cross-platform Office document processing for developers, CLI automation, and AI agents. Create, edit, template-fill, and convert Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents, with LaTeX-style markup, native OMML math formulas, and a template engine ({{placeholders}}, {{#each}} loops, {{#if}} conditions). Ships an MCP Server with 7 tools (create, edit, fill template, convert, extract, validate, compare) over stdio, SSE, and Streamable HTTP transports, with bearer-token auth and rate limiting.
+Cross-platform Office document processing for developers, CLI automation, and AI agents. Create, edit, template-fill, and convert Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) documents, with LaTeX-style markup, native OMML math formulas, and a template engine ({{placeholders}}, {{#each}} loops, {{#if}} conditions). Ships an MCP Server with 12 tools (7 unified + 5 dedicated Excel/PPT tools) over stdio, SSE, and Streamable HTTP transports, with bearer-token auth and rate limiting.
 
 > **Warning: Unstable API \u2014 breaking changes expected**
 >
@@ -52,7 +52,7 @@ docker compose up -d
 **.deb package** (Debian / Ubuntu):
 ```bash
 # Download from GitHub Releases
-sudo dpkg -i tianshang-scribe_0.7.1_all.deb
+sudo dpkg -i tianshang-scribe_0.8.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -187,6 +187,10 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `--from-csv` | Import CSV data | `--from-csv data.csv` |
 | `--sort` | Sort range | `--sort "A1:A10 asc"` |
 | `--chart-add` | Add chart | `--chart-add "type=bar data=B1:C10"` |
+| `--freeze` | Freeze panes | `--freeze "A2"` |
+| `--number-format` | Set number format | `--number-format "A1:A10=0.00%"` |
+| `--conditional-format` | Conditional format | `--conditional-format "B2:B100=color_scale"` |
+| `--data-validation` | Data validation | `--data-validation "C2:C50=list:yes,no"` |
 | `--protect` | Set password | `--protect "p@ss"` |
 | `--unprotect` | Remove password | `--unprotect` |
 | `--to-csv` | Export as CSV | |
@@ -355,6 +359,7 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Transitions | Set slide transitions —fade, push, wipe, etc. (`--transition`) |
 | Export | Save slides as images (`--toimg`), convert to PDF (`--topdf`) |
 | Media compression | Compress images (`--compress-media "1920,80"`) |
+| Tables & charts | Insert table/chart on the last slide (`--ppt-table "H1,H2\|a1,a2"`, `--ppt-chart "bar\|S1,S2\|Cat1,1,2"`) |
 | Protection | Set/remove password (`--protect`, `--unprotect`) |
 
 ## Exit Codes
@@ -389,7 +394,7 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 }}}
 ```
 
-### Tools (7)
+### Tools (12)
 
 | Tool | Description |
 |------|-------------|
@@ -400,6 +405,11 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 | `extract_document_data` | Extract metadata, full text, or document structure |
 | `validate_template` | Pre-check template placeholders against data before filling |
 | `compare_documents` | Paragraph-level diff between two .docx files |
+| `create_excel_workbook` | Create .xlsx from typed sheet specs (headers/rows/formulas/formats) |
+| `edit_excel_workbook` | Typed Excel ops: write_cell, set_formula, sort, add_sheet, … |
+| `create_presentation` | Create .pptx from typed slide specs (title/bullets/table/chart) |
+| `edit_presentation` | Typed PPT ops: add_slide, add_text, add_table, add_chart, … |
+| `analyze_excel_data` | Read-only workbook profiling: types, nulls, duplicates, samples |
 
 ### Capabilities
 
@@ -421,7 +431,7 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 
 # Health check
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.7.1","uptime_seconds":3600,"active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.8.0","uptime_seconds":3600,"active_sessions":3,"tools_available":12}
 
 # CORS whitelist
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
@@ -466,10 +476,13 @@ src/
     │  ├── metrics.py          # Prometheus-style metrics
     │  ├── security.py         # read-only / destructive classification
     │  ├── prompts.py          # 5 prompt workflows
-    │  ├── tools/              # 7 Agent tools
+    │  ├── tools/              # 12 Agent tools (7 unified + 5 dedicated)
     │  │  ├── _registry.py    # tool registry (schemas auto-derived)
+    │  │  ├── _dedicated_schemas.py  # typed param models for dedicated tools
     │  │  ├── create.py / edit.py / template.py / convert.py
     │  │  ├── validate.py / compare.py
+    │  │  ├── excel_create.py / excel_edit.py / analyze_excel.py
+    │  │  └── ppt_create.py / ppt_edit.py
     │  └── errors.py           # structured error codes + fixes
     └── utils/             # Utility functions
         └── file_utils.py

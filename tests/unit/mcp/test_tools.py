@@ -944,3 +944,15 @@ class TestEditSchemaMcpP1:
         for s in samples:
             op = EditOperation.model_validate(s)
             assert op.action == s['action']
+
+
+class TestRegistryMcpP1:
+    def test_tool_descriptions_mention_new_capabilities(self) -> None:
+        from tianshang_scribe.mcp.tools._registry import get_tools
+        tools = {t['name']: t['description'] for t in get_tools()}
+        assert 'freeze_panes' in tools['edit_office_document']
+        assert 'conditional_format' in tools['edit_office_document']
+        assert 'data_validation' in tools['edit_office_document']
+        assert 'sheet_name' in tools['create_office_document']
+        assert 'slide_index' in tools['create_office_document']
+        assert 'Excel' in tools['compare_documents'] and 'PowerPoint' in tools['compare_documents']

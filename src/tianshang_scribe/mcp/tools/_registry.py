@@ -29,7 +29,14 @@ TOOLS: list[ToolEntry] = [
             'formula, table, image), with LaTeX-style markup (\\bfseries{bold}) and '
             'math formulas (\\frac{a}{b}). Writes the file to output_path (default: '
             'a temp file in the system temp directory) and it persists on disk. '
-            'To edit an existing file, use edit_office_document instead.'
+            'To edit an existing file, use edit_office_document instead.\n'
+            'Excel content blocks may also carry capability fields: sheet_name, '
+            'cell+formula, freeze (freeze_panes), chart_type+chart_data_range, '
+            'number_format, conditional_format, data_validation, hyperlink, '
+            'named_range. PowerPoint blocks may carry slide_index, slide_layout, '
+            'notes, transition, chart_type+chart_data, rows (table), path (picture), '
+            'fill/line (shape). Multiple PowerPoint text/table/chart blocks stack '
+            'onto one slide unless slide_index is given.'
         ),
     },
     {
@@ -37,11 +44,17 @@ TOOLS: list[ToolEntry] = [
         'fn': edit_office_document,
         'description': (
             'Modify an existing Office document by applying an ordered list of '
-            'operations (replace, delete, modify, style, add, clear). Writes the '
-            'result to output_path; when output_path is omitted the INPUT FILE IS '
-            'OVERWRITTEN IN PLACE — set output_path or pass options {"backup": true} '
-            'to keep a .bak copy. To generate a new document, use '
-            'create_office_document.'
+            'operations. Word/Excel/PPT share: replace, delete, modify, style, add, '
+            'clear. Excel-only actions: write_cell (cell/text/sheet_name/style), '
+            'set_formula (cell/formula/sheet_name), freeze_panes (range), add_chart '
+            '(chart_type/chart_data_range/sheet_name), conditional_format, '
+            'data_validation. PowerPoint-only actions: add_table (rows/slide_index), '
+            'add_picture (path/slide_index), add_shape (fill/line/slide_index), '
+            'apply_layout (layout/slide_index), set_transition (transition/slide_index), '
+            'add_notes (notes/slide_index). Writes the result to output_path; when '
+            'output_path is omitted the INPUT FILE IS OVERWRITTEN IN PLACE — set '
+            'output_path or pass options {"backup": true} to keep a .bak copy. To '
+            'generate a new document, use create_office_document.'
         ),
     },
     {
@@ -93,9 +106,12 @@ TOOLS: list[ToolEntry] = [
         'description': (
             'Compare two Word (.docx) documents and report paragraph-level '
             'differences: additions, removals, and changes with paragraph indices. '
-            'Also manages document snapshots via options.action: "snapshot" records '
-            'path_a state, "list_snapshots" lists recorded snapshots, and "restore" '
-            'writes a snapshot back to path_b (snapshot store default: '
+            'Note: comparison and snapshots are ONLY supported for Word (.docx); '
+            'Excel (.xlsx) and PowerPoint (.pptx) comparison is not yet available '
+            '(you will receive an UNSUPPORTED_FORMAT error). Also manages document '
+            'snapshots via options.action: "snapshot" records path_a state, '
+            '"list_snapshots" lists recorded snapshots, and "restore" writes a '
+            'snapshot back to path_b (snapshot store default: '
             '~/.tianshang-scribe/snapshots/). The compare mode never modifies its '
             'inputs; snapshot/restore write to the snapshot store. To read a single '
             'document, use extract_document_data.'

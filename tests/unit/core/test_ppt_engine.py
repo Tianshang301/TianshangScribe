@@ -60,6 +60,25 @@ class TestPptEngine:
         with pytest.raises(IndexError, match='slide_index out of range'):
             engine.add_table(9, [['x']])
 
+    # ---- Step 10 (P3): insert chart ----
+    def test_add_chart_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        data = [['', 'Q1'], ['Jan', 10], ['Feb', 20]]
+        gf = engine.add_chart(0, 'bar', data, title='Sales')
+        assert gf.has_chart
+        assert gf.chart.plots[0].series[0].name == 'Q1'
+        out = tmp_path / 'chart.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        shapes = list(reopened.prs.slides[0].shapes)
+        assert any(sh.has_chart for sh in shapes)
+
+    def test_add_chart_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_chart(9, 'bar', [['', 'S'], ['a', 1]])
+
     def test_create_has_slides(self, engine: PptEngine) -> None:
         assert len(engine.prs.slides) >= 0
 

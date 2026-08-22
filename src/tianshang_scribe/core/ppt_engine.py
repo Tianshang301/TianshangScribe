@@ -214,6 +214,51 @@ class PptEngine(DocumentABC):
             r += 1
         return gf
 
+    def add_chart(
+        self,
+        slide_index: int,
+        chart_type: str,
+        data: list[list[Any]],
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float = 6.0,
+        height: float = 4.0,
+        title: str | None = None,
+    ) -> Any:
+        """Insert a chart on ``slide_index``.
+
+        ``data`` is a table where ``data[0]`` holds series names (``data[0][0]``
+        is ignored) and each subsequent row is ``[category, *series_values]``.
+        """
+        from pptx.chart.data import CategoryChartData
+        from pptx.enum.chart import XL_CHART_TYPE
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        slide = self.prs.slides[slide_index]
+        chart_data = CategoryChartData()
+        chart_data.categories = [row[0] for row in data[1:]]
+        for j in range(1, len(data[0])):
+            name = data[0][j]
+            values = [row[j] for row in data[1:]]
+            chart_data.add_series(name, values)
+        type_map = {
+            'bar': XL_CHART_TYPE.COLUMN_CLUSTERED,
+            'column': XL_CHART_TYPE.COLUMN_CLUSTERED,
+            'line': XL_CHART_TYPE.LINE,
+            'pie': XL_CHART_TYPE.PIE,
+            'area': XL_CHART_TYPE.AREA,
+            'doughnut': XL_CHART_TYPE.DOUGHNUT,
+        }
+        ct = type_map.get(chart_type, XL_CHART_TYPE.COLUMN_CLUSTERED)
+        gf = slide.shapes.add_chart(
+            ct, Inches(left), Inches(top), Inches(width), Inches(height), chart_data
+        )
+        if title:
+            gf.chart.chart_title.text_frame.text = title
+        return gf
+
     def _add_text_with_math(self, tf: Any, text: str, style: TextStyle) -> None:
         """Fill ``tf`` with ``text``, converting inline/display math to OMML."""
         import re

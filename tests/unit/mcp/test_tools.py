@@ -925,6 +925,44 @@ class TestEditMcpP0:
         e3 = open_document(str(book))
         assert e3.wb['Sheet2']['B1'].value == '=1+1'
 
+    def test_write_cell_is_formula_three_states(self, tmp_path: Path) -> None:
+        """P1-013: is_formula disambiguates '='-prefixed strings."""
+        from tianshang_scribe.core.document import DocumentType, create_document, open_document
+
+        book = tmp_path / 'f.xlsx'
+        create_document(DocumentType.EXCEL).save(str(book))
+        res = edit_office_document(
+            str(book),
+            [
+                {'action': 'write_cell', 'cell': 'A1', 'text': '=1+1'},
+                {
+                    'action': 'write_cell',
+                    'cell': 'A2',
+                    'text': '=NOT A FORMULA',
+                    'is_formula': False,
+                },
+                {'action': 'write_cell', 'cell': 'A3', 'text': '=2+2', 'is_formula': True},
+            ],
+        )
+        assert res['success'] is True, res
+        wb = open_document(str(book)).wb
+        assert wb.active['A1'].data_type == 'f'  # omitted -> automatic
+        assert wb.active['A2'].data_type == 's'  # forced literal
+        assert wb.active['A2'].value == '=NOT A FORMULA'
+        assert wb.active['A3'].data_type == 'f'  # explicit formula
+
+    def test_write_cell_is_formula_true_requires_equals(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import DocumentType, create_document
+
+        book = tmp_path / 'g.xlsx'
+        create_document(DocumentType.EXCEL).save(str(book))
+        res = edit_office_document(
+            str(book),
+            [{'action': 'write_cell', 'cell': 'A1', 'text': 'SUM(A1:A2)', 'is_formula': True}],
+        )
+        assert res['success'] is False, res
+        assert 'requires a string starting' in res['error_message']
+
     def test_ppt_blocks_stack_single_slide_without_index(self, tmp_path: Path) -> None:
         out = tmp_path / 'deck.pptx'
         result = create_office_document(

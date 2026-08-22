@@ -56,7 +56,7 @@ class ExcelEditOp(BaseModel):
     """One Excel edit operation.
 
     Only the listed fields are meaningful per action:
-    - "write_cell": cell, value (formula if starts with "="), sheet_name, style
+    - "write_cell": cell, value, sheet_name, style, is_formula
     - "set_formula": cell, formula, sheet_name
     - "freeze_panes": range (freeze anchor), sheet_name
     - "add_chart": chart_type, chart_data_range, sheet_name
@@ -87,6 +87,14 @@ class ExcelEditOp(BaseModel):
     sheet_name: str | None = Field(default=None, description='Target worksheet.')
     cell: str | None = Field(default=None, description='Target cell, e.g. "A1".')
     value: Any | None = Field(default=None, description='Value to write (write_cell).')
+    is_formula: bool | None = Field(
+        default=None,
+        description=(
+            'write_cell only: true stores text as a formula (must start with "="), '
+            'false forces a literal string even when it starts with "=", '
+            'omitted keeps the automatic behaviour.'
+        ),
+    )
     formula: str | None = Field(default=None, description='Excel formula (set_formula).')
     range: str | None = Field(default=None, description='Cell range for freeze/chart/style/sort.')
     chart_type: str | None = Field(default=None, description='Chart type (bar/line/pie/...).')

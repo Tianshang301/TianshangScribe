@@ -178,7 +178,7 @@ class EditOperation(BaseModel):
             '- "style": style, apply_all (all doc types)\n'
             '- "add": text, column (Excel append; Word/PPT append paragraph)\n'
             '- "clear": (no fields)\n'
-            '- "write_cell": cell, text (value, formula if starts with "="), sheet_name, style (Excel)\n'
+            '- "write_cell": cell, text (value), sheet_name, style, is_formula (Excel)\n'
             '- "set_formula": cell, formula, sheet_name (Excel)\n'
             '- "freeze_panes": range (Excel)\n'
             '- "add_chart": chart_type + chart_data_range (Excel) OR chart_type + chart_data (PPT), sheet_name (Excel)\n'
@@ -204,6 +204,14 @@ class EditOperation(BaseModel):
     text: str | int | float | bool | None = Field(
         default=None,
         description='Text to add (add) or scalar value to write (write_cell; formulas start with "=").',
+    )
+    is_formula: bool | None = Field(
+        default=None,
+        description=(
+            'write_cell only: true stores text as a formula (must start with "="), '
+            'false forces a literal string even when it starts with "=", '
+            'omitted keeps the automatic behaviour.'
+        ),
     )
     style: str | None = Field(default=None, description='Style string (style).')
     regex: bool | None = Field(default=None, description='Treat old_text/target as a regex.')

@@ -235,6 +235,11 @@ def _edit_write_cell(engine: Any, op: dict[str, Any]) -> None:
     Resolution is per-operation: an explicit ``sheet_name`` targets that sheet
     without mutating the engine's persistent sheet selection, so later ops
     without ``sheet_name`` still default to the engine's active/target sheet.
+
+    ``is_formula`` disambiguates strings that start with ``=``: ``True`` stores
+    the text as a formula (it must start with ``=``), ``False`` forces a
+    literal string cell even when it starts with ``=``, and omitted keeps the
+    automatic openpyxl behaviour.
     """
     cell = op.get('cell')
     val = op.get('text', '')
@@ -246,8 +251,18 @@ def _edit_write_cell(engine: Any, op: dict[str, Any]) -> None:
         ws = engine.wb[sheet]
     elif hasattr(engine, '_ws'):
         ws = engine._ws()
+    is_formula = op.get('is_formula')
     if ws is not None:
-        ws[cell] = val
+        if is_formula is True:
+            if not isinstance(val, str) or not val.startswith('='):
+                raise ValueError(
+                    f'write_cell is_formula=true requires a string starting with "=", got {val!r}'
+                )
+            ws[cell] = val
+        else:
+            ws[cell] = val
+            if is_formula is False and isinstance(val, str) and val.startswith('='):
+                ws[cell].data_type = 's'
     style = op.get('style')
     if style and ws is not None and hasattr(engine, 'set_range_style'):
         prev = getattr(engine, '_selected_sheet', None)

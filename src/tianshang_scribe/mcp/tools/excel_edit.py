@@ -28,6 +28,7 @@ def _to_edit_op(op: dict[str, Any]) -> dict[str, Any]:
             'text': op.get('value'),
             'sheet_name': op.get('sheet_name'),
             'style': op.get('style'),
+            'is_formula': op.get('is_formula'),
         }
     if action == 'set_formula':
         return {

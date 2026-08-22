@@ -101,6 +101,33 @@ def test_edit_excel_workbook_write_cell_and_sheet(tmp_path: Path) -> None:
     assert 'Extra' in wb.sheetnames
 
 
+def test_edit_excel_workbook_is_formula_literal(tmp_path: Path) -> None:
+    """P1-013: is_formula=False stores an '='-prefixed string as literal text."""
+    from openpyxl import load_workbook
+
+    from tianshang_scribe.mcp.tools.excel_create import create_excel_workbook
+    from tianshang_scribe.mcp.tools.excel_edit import edit_excel_workbook
+
+    out = tmp_path / 'lit.xlsx'
+    create_excel_workbook(str(out), sheets=[{'name': 'Data'}])
+    res = edit_excel_workbook(
+        str(out),
+        operations=[
+            {
+                'action': 'write_cell',
+                'cell': 'A1',
+                'value': '=NOT A FORMULA',
+                'is_formula': False,
+                'sheet_name': 'Data',
+            },
+        ],
+    )
+    assert res['success'] is True, res
+    ws = load_workbook(str(out))['Data']
+    assert ws['A1'].value == '=NOT A FORMULA'
+    assert ws['A1'].data_type == 's'
+
+
 def test_create_presentation_baseline(tmp_path: Path) -> None:
     from pptx import Presentation
 

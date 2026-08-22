@@ -19,11 +19,15 @@ def parse_number_format(spec: str) -> tuple[str, str]:
 
 
 def parse_conditional_format(spec: str) -> tuple[str, str, dict[str, str]]:
-    """Parse ``"B2:B100=color_scale"`` or ``"C1:C5=cell_is:greaterThan:20"``."""
+    """Parse ``"B2:B100=color_scale"`` or ``"C1:C5=cell_is:greaterThan:20"``.
+
+    The remainder is split at most twice so a ``formula`` containing colons
+    (e.g. a time literal like ``10:00``) survives intact.
+    """
     cell_range, _, rest = spec.partition('=')
     if not cell_range or not rest:
         raise ValueError(f'Invalid conditional_format spec: {spec!r}')
-    parts = rest.split(':')
+    parts = rest.split(':', 2)
     cf_type = parts[0].strip()
     opts: dict[str, str] = {}
     if len(parts) > 1:
@@ -34,11 +38,15 @@ def parse_conditional_format(spec: str) -> tuple[str, str, dict[str, str]]:
 
 
 def parse_data_validation(spec: str) -> tuple[str, str, str | None, str | None]:
-    """Parse ``"C2:C50=list:yes,no"`` or ``"B1:B10=whole:1:100"``."""
+    """Parse ``"C2:C50=list:yes,no"`` or ``"B1:B10=whole:1:100"``.
+
+    The remainder is split at most twice (``dv_type``, ``formula1``,
+    ``formula2``) so formulas containing colons stay in one piece.
+    """
     cell_range, _, rest = spec.partition('=')
     if not cell_range or not rest:
         raise ValueError(f'Invalid data_validation spec: {spec!r}')
-    parts = rest.split(':')
+    parts = rest.split(':', 2)
     dv_type = parts[0].strip()
     formula1 = parts[1].strip() if len(parts) > 1 else None
     formula2 = parts[2].strip() if len(parts) > 2 else None

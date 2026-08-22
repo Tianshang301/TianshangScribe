@@ -458,6 +458,33 @@ class ExcelEngine(DocumentABC):
         """Freeze rows above / columns left of ``cell`` (e.g. 'A2', 'B1', 'C4')."""
         self._ws().freeze_panes = cell
 
+    def set_number_format(self, cell_range: str, fmt: str) -> None:
+        """Apply an Excel number format to a range (e.g. '0.00%', 'yyyy-mm-dd').
+
+        ``cell_range`` accepts a single cell ('A1') or an A1:B10 range.
+        """
+        import re
+
+        from openpyxl.utils import column_index_from_string
+
+        ws = self._ws()
+        m = re.match(r'\s*([A-Z]+)(\d+)\s*:\s*([A-Z]+)(\d+)\s*$', cell_range)
+        if m:
+            c1 = column_index_from_string(m.group(1))
+            r1 = int(m.group(2))
+            c2 = column_index_from_string(m.group(3))
+            r2 = int(m.group(4))
+        else:
+            m = re.match(r'\s*([A-Z]+)(\d+)\s*$', cell_range)
+            if not m:
+                raise ValueError(f'Invalid cell range: {cell_range!r}')
+            c1 = column_index_from_string(m.group(1))
+            r1 = int(m.group(2))
+            c2, r2 = c1, r1
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                ws.cell(row=r, column=c).number_format = fmt
+
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""
         for p in paths:

@@ -192,6 +192,26 @@ class TestExcelEngine:
         reopened.open(str(out))
         assert reopened.wb.active.freeze_panes == 'A2'
 
+    # ---- Step 2 (E2): number format ----
+    def test_set_number_format_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        ws = engine.wb.active
+        ws['A1'] = 0.1234
+        ws['A2'] = 0.5678
+        engine.set_number_format('A1:A2', '0.00%')
+        assert ws['A1'].number_format == '0.00%'
+        assert ws['A2'].number_format == '0.00%'
+        engine.set_number_format('B1', 'yyyy-mm-dd')
+        assert ws['B1'].number_format == 'yyyy-mm-dd'
+        out = tmp_path / 'fmt.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert reopened.wb.active['A1'].number_format == '0.00%'
+
+    def test_set_number_format_invalid_range_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Invalid cell range'):
+            engine.set_number_format('not-a-range', '0.00')
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
             engine.add_chart('scatter', 'A1:B2')

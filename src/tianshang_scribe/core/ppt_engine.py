@@ -33,6 +33,13 @@ _MEDIA_MIME: dict[str, str] = {
     '.m4a': 'audio/mp4',
 }
 
+#: Master placeholder type → (standard idx, display name).
+_MASTER_PH_SPECS: dict[str, tuple[str, str]] = {
+    'sldNum': ('12', 'Slide Number Placeholder'),
+    'ftr': ('11', 'Footer Placeholder'),
+    'dt': ('10', 'Date Placeholder'),
+}
+
 
 class PptEngine(DocumentABC):
     """PowerPoint presentation engine: create, edit and style decks."""
@@ -847,6 +854,111 @@ class PptEngine(DocumentABC):
                 slide.element.remove(el)
             trans_el = etree.SubElement(slide.element, f'{{{ns}}}transition')
             etree.SubElement(trans_el, f'{{{ns}}}{ttype}')
+
+    # ---- Master-level footer / slide number / date ------------------------ #
+
+    @staticmethod
+    def _remove_master_placeholders(sp_tree: Any, ph_type: str) -> None:
+        for sp in list(sp_tree.findall(qn('p:sp'))):
+            nv_pr = sp.find(qn('p:nvSpPr'))
+            if nv_pr is None:
+                continue
+            ph = nv_pr.find(qn('p:nvPr'))
+            if ph is None:
+                continue
+            marker = ph.find(qn('p:ph'))
+            if marker is not None and marker.get('type') == ph_type:
+                sp_tree.remove(sp)
+
+    @staticmethod
+    def _next_shape_id(sp_tree: Any) -> int:
+        ids = [1]
+        for cnv in sp_tree.iter(qn('p:cNvPr')):
+            try:
+                ids.append(int(cnv.get('id') or 1))
+            except ValueError:
+                continue
+        return max(ids) + 1
+
+    def _inject_master_placeholder(self, sp_tree: Any, ph_type: str, body_builder: Any) -> None:
+        """Insert (or replace) a master-level placeholder shape on ``sp_tree``."""
+        idx, name = _MASTER_PH_SPECS[ph_type]
+        self._remove_master_placeholders(sp_tree, ph_type)
+        sp = etree.SubElement(sp_tree, qn('p:sp'))
+        nv_sp = etree.SubElement(sp, qn('p:nvSpPr'))
+        cnv = etree.SubElement(nv_sp, qn('p:cNvPr'))
+        cnv.set('id', str(self._next_shape_id(sp_tree)))
+        cnv.set('name', name)
+        cnv_sp = etree.SubElement(nv_sp, qn('p:cNvSpPr'))
+        etree.SubElement(cnv_sp, qn('a:spLocks')).set('noGrp', '1')
+        nv = etree.SubElement(nv_sp, qn('p:nvPr'))
+        ph = etree.SubElement(nv, qn('p:ph'))
+        ph.set('type', ph_type)
+        ph.set('sz', 'quarter')
+        ph.set('idx', idx)
+        etree.SubElement(sp, qn('p:spPr'))
+        tx_body = etree.SubElement(sp, qn('p:txBody'))
+        etree.SubElement(tx_body, qn('a:bodyPr'))
+        etree.SubElement(tx_body, qn('a:lstStyle'))
+        para = etree.SubElement(tx_body, qn('a:p'))
+        body_builder(para)
+
+    @staticmethod
+    def _static_text_run(para: Any, text: str) -> None:
+        run = etree.SubElement(para, qn('a:r'))
+        t = etree.SubElement(run, qn('a:t'))
+        t.text = text
+
+    @staticmethod
+    def _auto_field(para: Any, field_type: str, fallback: str) -> None:
+        import uuid
+
+        fld = etree.SubElement(para, qn('a:fld'))
+        fld.set('id', f'{{{str(uuid.uuid4()).upper()}}}')
+        fld.set('type', field_type)
+        t = etree.SubElement(fld, qn('a:t'))
+        t.text = fallback
+
+    def set_master_options(
+        self,
+        slide_number: bool = False,
+        footer_text: str | None = None,
+        date_visible: bool = False,
+        date_text: str | None = None,
+    ) -> None:
+        """Configure master-level slide numbers, footers and dates deck-wide.
+
+        Placeholder shapes are injected into every slide layout and every
+        slide so PowerPoint renders them without further per-slide work.
+        Calling again replaces the previous placeholders (idempotent).
+        """
+        if not any([slide_number, footer_text, date_visible]):
+            return
+        targets: list[Any] = []
+        for master in self.prs.slide_masters:
+            targets.extend(master.slide_layouts)
+        targets.extend(self.prs.slides)
+        for element in targets:
+            sp_tree = element.element.find(qn('p:cSld')).find(qn('p:spTree'))
+
+            def build_num(para: Any) -> None:
+                self._auto_field(para, 'slidenum', '\u2039#\u203a')
+
+            def build_footer(para: Any) -> None:
+                self._static_text_run(para, footer_text or '')
+
+            def build_date(para: Any) -> None:
+                if date_text:
+                    self._static_text_run(para, date_text)
+                else:
+                    self._auto_field(para, 'datetime1', '')
+
+            if slide_number:
+                self._inject_master_placeholder(sp_tree, 'sldNum', build_num)
+            if footer_text is not None:
+                self._inject_master_placeholder(sp_tree, 'ftr', build_footer)
+            if date_visible:
+                self._inject_master_placeholder(sp_tree, 'dt', build_date)
 
     def set_protection(self, password: str) -> None:
         """Protect the presentation with a modify-verifier password.

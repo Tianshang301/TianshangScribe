@@ -264,6 +264,31 @@ class TestExcelEngine:
         with pytest.raises(ValueError, match='Invalid cell range'):
             engine.set_range_style('bad', 'border=thin')
 
+    # ---- Step 7 (E7/E8/E9): hyperlink, named range, auto_fit ----
+    def test_add_hyperlink_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.add_hyperlink('A1', 'https://example.com')
+        assert engine.wb.active['A1'].hyperlink.target == 'https://example.com'
+        out = tmp_path / 'link.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert reopened.wb.active['A1'].hyperlink.target == 'https://example.com'
+
+    def test_set_named_range_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.set_named_range('MyRange', 'A1:B2')
+        assert 'MyRange' in engine.wb.defined_names
+        out = tmp_path / 'named.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert 'MyRange' in reopened.wb.defined_names
+
+    def test_auto_fit_baseline(self, engine: ExcelEngine) -> None:
+        engine.add_text('a very long label here', column=1)
+        engine.auto_fit(1)
+        width = engine.wb.active.column_dimensions['A'].width
+        assert width is not None and width > 8
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
             engine.add_chart('bogus', "Sheet!A1:B2")

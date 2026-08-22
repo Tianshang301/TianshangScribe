@@ -615,6 +615,36 @@ class ExcelEngine(DocumentABC):
                 if fill is not None:
                     cell.fill = fill
 
+    def add_hyperlink(self, cell: str, url: str) -> None:
+        """Add a hyperlink to ``cell`` and give it a conventional link style."""
+        ws = self._ws()
+        target = ws[cell]
+        target.hyperlink = url
+        target.font = Font(color='0563C1', underline='single')
+
+    def set_named_range(self, name: str, cell_range: str) -> None:
+        """Register a workbook-level named range."""
+        from openpyxl.workbook.defined_name import DefinedName
+
+        ws = self._ws()
+        ref = f"{ws.title}!{cell_range}"
+        dn = DefinedName(name, attr_text=ref)
+        self.wb.defined_names.add(dn)
+
+    def auto_fit(self, column: int | str) -> None:
+        """Set the width of ``column`` (index or letter) to fit its content."""
+        from openpyxl.utils import column_index_from_string, get_column_letter
+
+        col_idx = column_index_from_string(column) if isinstance(column, str) else column
+        ws = self._ws()
+        max_len = 0
+        for row in ws.iter_rows(min_col=col_idx, max_col=col_idx):
+            for cell in row:
+                if cell.value is not None:
+                    max_len = max(max_len, len(str(cell.value)))
+        width = min(max(max_len + 2, 8), 60)
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""
         for p in paths:

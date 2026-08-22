@@ -37,6 +37,29 @@ class TestPptEngine:
         with pytest.raises(IndexError, match='slide_index out of range'):
             engine.add_textbox(5, 'x')
 
+    # ---- Step 9 (P2): insert table ----
+    def test_add_table_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        gf = engine.add_table(
+            0, [['a1', 'b1'], ['a2', 'b2']], col_names=['H1', 'H2']
+        )
+        table = gf.table
+        assert table.rows.__len__() == 3
+        assert table.columns.__len__() == 2
+        assert table.cell(0, 0).text == 'H1'
+        assert table.cell(1, 0).text == 'a1'
+        out = tmp_path / 'tbl.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        shapes = list(reopened.prs.slides[0].shapes)
+        assert any(sh.has_table for sh in shapes)
+
+    def test_add_table_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_table(9, [['x']])
+
     def test_create_has_slides(self, engine: PptEngine) -> None:
         assert len(engine.prs.slides) >= 0
 

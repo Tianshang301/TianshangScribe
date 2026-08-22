@@ -173,6 +173,47 @@ class PptEngine(DocumentABC):
         self._add_text_with_math(box.text_frame, text, style)
         return box
 
+    def add_table(
+        self,
+        slide_index: int,
+        rows: list[list[Any]],
+        col_names: list[Any] | None = None,
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float = 8.0,
+        height: float | None = None,
+    ) -> Any:
+        """Insert a table on ``slide_index``; ``col_names`` (if given) is the bold header row."""
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        if not rows and not col_names:
+            raise ValueError('add_table requires rows and/or col_names')
+        slide = self.prs.slides[slide_index]
+        ncols = len(col_names) if col_names else len(rows[0])
+        nrows = len(rows) + (1 if col_names else 0)
+        if height is None:
+            height = 0.4 * nrows
+        gf = slide.shapes.add_table(
+            nrows, ncols, Inches(left), Inches(top), Inches(width), Inches(height)
+        )
+        table = gf.table
+        r = 0
+        if col_names:
+            for c, name in enumerate(col_names):
+                cell = table.cell(0, c)
+                cell.text = str(name)
+                for paragraph in cell.text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+            r = 1
+        for row in rows:
+            for c, val in enumerate(row):
+                table.cell(r, c).text = str(val)
+            r += 1
+        return gf
+
     def _add_text_with_math(self, tf: Any, text: str, style: TextStyle) -> None:
         """Fill ``tf`` with ``text``, converting inline/display math to OMML."""
         import re

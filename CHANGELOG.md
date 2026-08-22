@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-08-19
+
+### Fixed
+- `--comment` on PowerPoint: the slide index was passed as a string, causing a
+  `TypeError` when adding speaker notes. It is now coerced to an integer
+  (`src/tianshang_scribe/cli/main.py`). Non-numeric first tokens fall back to
+  appending the whole string as text on slide 0.
+
+### Changed
+- Documentation reconciled with the implementation: `--split` documents that
+  only Excel `by-sheet` is supported (Word by-page / PPT by-slide pending);
+  `--merge` documents comma-separated inputs without glob/wildcard support;
+  `--comment` documents that on PPT it appends to the notes area (overlapping
+  with `--notes`); `docs/mcp/ROADMAP.md` `tools_available` corrected from 5 to 7.
+- Bumped `SERVER_VERSION` to `0.7.1` so the MCP health endpoint reports the
+  current release.
+
 ## [0.7.0] - 2026-08-19
 
 ### Added

@@ -1058,12 +1058,19 @@ class TestEditSchemaMcpP1:
 
 class TestRegistryMcpP1:
     def test_tool_descriptions_mention_new_capabilities(self) -> None:
+        """P1-010: capability advertising moved from the legacy editor to the
+        dedicated tools; ``edit_office_document`` guides Agents there instead."""
         from tianshang_scribe.mcp.tools._registry import get_tools
 
         tools = {t['name']: t['description'] for t in get_tools()}
-        assert 'freeze_panes' in tools['edit_office_document']
-        assert 'conditional_format' in tools['edit_office_document']
-        assert 'data_validation' in tools['edit_office_document']
+        # legacy marker + sibling guidance on the generic editor
+        assert 'Legacy' in tools['edit_office_document']
+        assert 'edit_excel_workbook' in tools['edit_office_document']
+        assert 'edit_presentation' in tools['edit_office_document']
+        # the Excel/PPT capabilities are now advertised by the dedicated tools
+        assert 'freeze_panes' in tools['edit_excel_workbook']
+        assert 'conditional_format' in tools['edit_excel_workbook']
+        assert 'data_validation' in tools['edit_excel_workbook']
         assert 'sheet_name' in tools['create_office_document']
         assert 'slide_index' in tools['create_office_document']
         assert 'Excel' in tools['compare_documents'] and 'PowerPoint' in tools['compare_documents']

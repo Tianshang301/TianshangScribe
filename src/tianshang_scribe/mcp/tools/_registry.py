@@ -46,18 +46,14 @@ TOOLS: list[ToolEntry] = [
         'name': 'edit_office_document',
         'fn': edit_office_document,
         'description': (
-            'Modify an existing Office document by applying an ordered list of '
-            'operations. Word/Excel/PPT share: replace, delete, modify, style, add, '
-            'clear. Excel-only actions: write_cell (cell/text/sheet_name/style), '
-            'set_formula (cell/formula/sheet_name), freeze_panes (range), add_chart '
-            '(chart_type/chart_data_range/sheet_name), conditional_format, '
-            'data_validation. PowerPoint-only actions: add_table (rows/slide_index), '
-            'add_picture (path/slide_index), add_shape (fill/line/slide_index), '
-            'apply_layout (layout/slide_index), set_transition (transition/slide_index), '
-            'add_notes (notes/slide_index). Writes the result to output_path; when '
-            'output_path is omitted the INPUT FILE IS OVERWRITTEN IN PLACE — set '
-            'output_path or pass options {"backup": true} to keep a .bak copy. To '
-            'generate a new document, use create_office_document.'
+            'Legacy general-purpose editor kept for backward compatibility; for '
+            'Excel use edit_excel_workbook and for PowerPoint use '
+            'edit_presentation instead of this wide operation model. Still '
+            'supports replace/delete/modify/style/add/clear on any type plus the '
+            'Excel/PPT capability actions. Rewrites the file — when output_path '
+            'is omitted the INPUT FILE IS OVERWRITTEN IN PLACE, so pass '
+            'output_path or options {"backup": true} for a .bak copy. New '
+            'documents belong to create_office_document.'
         ),
     },
     {

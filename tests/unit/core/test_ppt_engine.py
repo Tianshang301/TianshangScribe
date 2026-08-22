@@ -101,6 +101,26 @@ class TestPptEngine:
             sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in reopened.prs.slides[0].shapes
         )
 
+    # ---- Step 13 (P5): add autoshape ----
+    def test_add_shape_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        sp = engine.add_shape(0, 'oval', left=1.0, top=1.0, width=2.0, height=2.0, fill='FF0000')
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        assert sp.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE
+        out = tmp_path / 'sh.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        assert any(
+            sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE for sh in reopened.prs.slides[0].shapes
+        )
+
+    def test_add_shape_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_shape(9, 'rectangle')
+
     def test_create_has_slides(self, engine: PptEngine) -> None:
         assert len(engine.prs.slides) >= 0
 

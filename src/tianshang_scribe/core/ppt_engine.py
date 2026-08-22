@@ -281,6 +281,36 @@ class PptEngine(DocumentABC):
             kwargs['height'] = Inches(height)
         return slide.shapes.add_picture(str(path), Inches(left), Inches(top), **kwargs)
 
+    def add_shape(
+        self,
+        slide_index: int,
+        shape_type: str = 'rectangle',
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float = 2.0,
+        height: float = 1.0,
+        fill: str | None = None,
+        line: str | None = None,
+    ) -> Any:
+        """Add an autoshape (rectangle/oval/etc.) at the given (inch) coordinates."""
+        from pptx.dml.color import RGBColor
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        slide = self.prs.slides[slide_index]
+        shape_enum = getattr(MSO_SHAPE, shape_type.upper(), MSO_SHAPE.RECTANGLE)
+        sp = slide.shapes.add_shape(
+            shape_enum, Inches(left), Inches(top), Inches(width), Inches(height)
+        )
+        if fill:
+            sp.fill.solid()
+            sp.fill.fore_color.rgb = RGBColor.from_string(fill)
+        if line:
+            sp.line.color.rgb = RGBColor.from_string(line)
+        return sp
+
     def _add_text_with_math(self, tf: Any, text: str, style: TextStyle) -> None:
         """Fill ``tf`` with ``text``, converting inline/display math to OMML."""
         import re

@@ -129,9 +129,11 @@ def test_edit_presentation_add_slide(tmp_path: Path) -> None:
     create_presentation(str(out), slides=[{'title': 'First'}])
     res = edit_presentation(
         str(out),
-        operations=[{'action': 'add_slide'}, {'action': 'add_text', 'text': 'hello', 'slide_index': 1}],
+        operations=[
+            {'action': 'add_slide'},
+            {'action': 'add_text', 'text': 'hello', 'slide_index': 1},
+        ],
     )
     assert res['success'] is True, res
     prs = Presentation(str(out))
     assert len(prs.slides) == 2
-

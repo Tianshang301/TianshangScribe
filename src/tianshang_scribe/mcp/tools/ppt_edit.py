@@ -78,7 +78,9 @@ def edit_presentation(
     output_path: Annotated[
         str, Field(description='Output path (defaults to the input file).')
     ] = '',
-    options: Annotated[ToolOptions | None, Field(description='Tool options (dry_run, backup).')] = None,
+    options: Annotated[
+        ToolOptions | None, Field(description='Tool options (dry_run, backup).')
+    ] = None,
 ) -> dict[str, Any]:
     """Edit an existing PowerPoint presentation with typed, PPT-only edit operations.
 

@@ -264,8 +264,12 @@ class TestExcelEngine:
         with pytest.raises(ValueError, match='Invalid cell range'):
             engine.set_range_style('bad', 'border=thin')
 
-    def test_set_range_style_font_alignment_number_format(self, engine: ExcelEngine, tmp_path: Path) -> None:
-        engine.set_range_style('B2:C3', 'font=Times,size=14,bold,italic,color=FF0000,align=center,numfmt=0.00%')
+    def test_set_range_style_font_alignment_number_format(
+        self, engine: ExcelEngine, tmp_path: Path
+    ) -> None:
+        engine.set_range_style(
+            'B2:C3', 'font=Times,size=14,bold,italic,color=FF0000,align=center,numfmt=0.00%'
+        )
         engine.wb.active['B2'] = 0.5
         out = tmp_path / 'style2.xlsx'
         engine.save(out)
@@ -307,7 +311,7 @@ class TestExcelEngine:
 
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
-            engine.add_chart('bogus', "Sheet!A1:B2")
+            engine.add_chart('bogus', 'Sheet!A1:B2')
 
     # ---- Step 6 (E6): chart type extension ----
     @pytest.mark.parametrize('chart_type', ['area', 'doughnut', 'scatter'])
@@ -320,7 +324,7 @@ class TestExcelEngine:
         ws['B1'] = 'Val'
         ws['B2'] = 10
         ws['B3'] = 20
-        engine.add_chart(chart_type, f"{sheet}!A1:B3")
+        engine.add_chart(chart_type, f'{sheet}!A1:B3')
         assert len(ws._charts) >= 1
 
     def test_merge_workbooks(self, engine: ExcelEngine) -> None:
@@ -560,7 +564,6 @@ class TestExcelEdge:
         assert engine.wb.active['A1'].value is None
         with pytest.raises(ValueError, match='not found'):
             engine.select_sheet('nonexistent')
-
 
     def test_clear_formats(self, engine: ExcelEngine) -> None:
         engine.add_text('styled', bold=True)

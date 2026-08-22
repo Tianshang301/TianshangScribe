@@ -14,7 +14,9 @@ from tianshang_scribe.mcp.errors import McpErrorCode, error_response, success_re
 from tianshang_scribe.mcp.schemas import ToolOptions, as_dict
 
 
-def _infer_and_summarize(name: str, idx: int, values: list[Any], include_stats: bool) -> dict[str, Any]:
+def _infer_and_summarize(
+    name: str, idx: int, values: list[Any], include_stats: bool
+) -> dict[str, Any]:
     """Infer a column's type and compute statistics over its values."""
     non_null = [v for v in values if v is not None and v != '']
     null_count = len(values) - len(non_null)
@@ -70,9 +72,7 @@ def _infer_and_summarize(name: str, idx: int, values: list[Any], include_stats: 
         for v in non_null:
             counts[v] = counts.get(v, 0) + 1
         top = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:10]
-        col['categorical'] = {
-            'top_values': [{'value': str(k), 'count': v} for k, v in top]
-        }
+        col['categorical'] = {'top_values': [{'value': str(k), 'count': v} for k, v in top]}
     return col
 
 
@@ -116,7 +116,9 @@ def analyze_excel_data(
 
             sample = [list(r) for r in data[:sample_rows]]
             columns = [
-                _infer_and_summarize(headers[ci], ci, [r[ci] if ci < len(r) else None for r in data], include_stats)
+                _infer_and_summarize(
+                    headers[ci], ci, [r[ci] if ci < len(r) else None for r in data], include_stats
+                )
                 for ci in range(len(headers))
             ]
             sheets_report.append(

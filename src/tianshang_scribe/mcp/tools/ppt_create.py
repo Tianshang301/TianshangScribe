@@ -21,9 +21,7 @@ from tianshang_scribe.utils.file_utils import ensure_parent_dir
 
 def create_presentation(
     output_path: Annotated[str, Field(description='Output .pptx path to create.')],
-    slides: Annotated[
-        list[PptSlideSpec], Field(description='Slides to build (in order).')
-    ],
+    slides: Annotated[list[PptSlideSpec], Field(description='Slides to build (in order).')],
     metadata: Annotated[
         dict[str, Any] | None, Field(description='Optional document properties (title/author/...).')
     ] = None,
@@ -70,7 +68,9 @@ def create_presentation(
             if raw.get('table'):
                 tbl = raw['table']
                 engine.add_table(
-                    idx, [tbl.get('headers', [])] + (tbl.get('rows') or []), col_names=tbl.get('headers')
+                    idx,
+                    [tbl.get('headers', [])] + (tbl.get('rows') or []),
+                    col_names=tbl.get('headers'),
                 )
             if raw.get('chart'):
                 ch = raw['chart']

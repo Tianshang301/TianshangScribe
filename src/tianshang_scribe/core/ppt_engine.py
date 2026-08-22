@@ -157,9 +157,7 @@ class PptEngine(DocumentABC):
         if width is None:
             slide_width_in = (self.prs.slide_width or 914400 * 10) / 914400
             width = max(1.0, slide_width_in - 2 * left)
-        box = slide.shapes.add_textbox(
-            Inches(left), Inches(top), Inches(width), Inches(height)
-        )
+        box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
         style = self._base_style
         if text_style is not None:
             style = style.merge(text_style)
@@ -489,7 +487,9 @@ class PptEngine(DocumentABC):
                     runs = paragraph.runs
                     if not runs:
                         current = paragraph.text
-                        new_text = _re.sub(old, new, current) if regex else current.replace(old, new)
+                        new_text = (
+                            _re.sub(old, new, current) if regex else current.replace(old, new)
+                        )
                         if new_text != current:
                             paragraph.text = new_text
                             count += 1
@@ -686,7 +686,15 @@ class PptEngine(DocumentABC):
         pdf_dir = output_dir / '.pdf_tmp'
         pdf_dir.mkdir(parents=True, exist_ok=True)
         subprocess.run(  # noqa: S603  # fixed trusted binary; full path validated by exists()
-            [lo_bin, '--headless', '--convert-to', 'pdf', '--outdir', str(pdf_dir), str(self._path)],
+            [
+                lo_bin,
+                '--headless',
+                '--convert-to',
+                'pdf',
+                '--outdir',
+                str(pdf_dir),
+                str(self._path),
+            ],
             check=True,
             capture_output=True,
         )
@@ -727,8 +735,7 @@ class PptEngine(DocumentABC):
             return
 
         raise RuntimeError(
-            'PDF rasterization requires PyMuPDF or poppler. '
-            'Install with: pip install pymupdf'
+            'PDF rasterization requires PyMuPDF or poppler. Install with: pip install pymupdf'
         )
 
     def set_transition(self, transition_type: str, slide_index: int | None = None) -> None:
@@ -804,7 +811,9 @@ class PptEngine(DocumentABC):
         )
 
     @staticmethod
-    def verify_modify_verifier(password: str, salt_b64: str, hash_b64: str, spin_count: int = 100000) -> bool:
+    def verify_modify_verifier(
+        password: str, salt_b64: str, hash_b64: str, spin_count: int = 100000
+    ) -> bool:
         """Return True if ``password`` matches the stored verifier values."""
         import base64 as _b64
 
@@ -881,13 +890,17 @@ class PptEngine(DocumentABC):
                 part_cache[key] = new_target
                 return new_target
             tmpl = re.sub(r'(\d+)(?=\.[^/]*$|$)', '%d', str(target.partname))
-            new_target = Part(dst_pkg.next_partname(tmpl), target.content_type, dst_pkg, target.blob)
+            new_target = Part(
+                dst_pkg.next_partname(tmpl), target.content_type, dst_pkg, target.blob
+            )
             part_cache[key] = new_target
             for sub_rel in target.rels:
                 if sub_rel.is_external:
                     new_target.relate_to(sub_rel.target_ref, sub_rel.reln_type, is_external=True)
                 else:
-                    new_target.relate_to(copy_part(sub_rel.target_part, sub_rel.reln_type), sub_rel.reln_type)
+                    new_target.relate_to(
+                        copy_part(sub_rel.target_part, sub_rel.reln_type), sub_rel.reln_type
+                    )
             return new_target
 
         def remap(rel: Any) -> str:
@@ -902,7 +915,9 @@ class PptEngine(DocumentABC):
                 for attr in list(el.attrib):
                     if not (attr.startswith('{') and attr.split('}', 1)[0] == r_ns):
                         continue
-                    if not (attr.endswith('}embed') or attr.endswith('}link') or attr == qn('r:id')):
+                    if not (
+                        attr.endswith('}embed') or attr.endswith('}link') or attr == qn('r:id')
+                    ):
                         continue
                     rel = src_part.rels.get(el.get(attr))
                     if rel is None or rel.reln_type.endswith(self._SHARED_REL_SUFFIXES):

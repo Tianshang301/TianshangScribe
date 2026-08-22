@@ -21,9 +21,7 @@ from tianshang_scribe.utils.file_utils import ensure_parent_dir
 
 def create_excel_workbook(
     output_path: Annotated[str, Field(description='Output .xlsx path to create.')],
-    sheets: Annotated[
-        list[ExcelSheetSpec], Field(description='Worksheets to build (in order).')
-    ],
+    sheets: Annotated[list[ExcelSheetSpec], Field(description='Worksheets to build (in order).')],
     metadata: Annotated[
         dict[str, Any] | None, Field(description='Optional document properties (title/author/...).')
     ] = None,

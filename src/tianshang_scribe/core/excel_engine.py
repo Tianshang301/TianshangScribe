@@ -502,7 +502,9 @@ class ExcelEngine(DocumentABC):
             for c in range(c1, c2 + 1):
                 ws.cell(row=r, column=c).number_format = fmt
 
-    def add_conditional_format(self, cell_range: str, cf_type: str = 'color_scale', **opts: object) -> None:
+    def add_conditional_format(
+        self, cell_range: str, cf_type: str = 'color_scale', **opts: object
+    ) -> None:
         """Add a conditional formatting rule to ``cell_range``.
 
         ``cf_type`` is one of: 'color_scale', 'data_bar', 'cell_is', 'formula'.
@@ -663,7 +665,7 @@ class ExcelEngine(DocumentABC):
         from openpyxl.workbook.defined_name import DefinedName
 
         ws = self._ws()
-        ref = f"{ws.title}!{cell_range}"
+        ref = f'{ws.title}!{cell_range}'
         dn = DefinedName(name, attr_text=ref)
         self.wb.defined_names.add(dn)
 

@@ -220,29 +220,51 @@ class EditOperation(BaseModel):
         default=None,
         description='Cell range for freeze_panes/conditional_format/data_validation/add_chart (Excel).',
     )
-    cf_type: str | None = Field(default=None, description='Conditional format type (color_scale/data_bar/cell_is/formula).')
-    dv_type: str | None = Field(default=None, description='Data validation type (list/whole/decimal/date/text_length).')
-    formula1: str | None = Field(default=None, description='Data validation formula1 (e.g. "yes,no").')
-    formula2: str | None = Field(default=None, description='Data validation formula2 (e.g. upper bound).')
+    cf_type: str | None = Field(
+        default=None, description='Conditional format type (color_scale/data_bar/cell_is/formula).'
+    )
+    dv_type: str | None = Field(
+        default=None, description='Data validation type (list/whole/decimal/date/text_length).'
+    )
+    formula1: str | None = Field(
+        default=None, description='Data validation formula1 (e.g. "yes,no").'
+    )
+    formula2: str | None = Field(
+        default=None, description='Data validation formula2 (e.g. upper bound).'
+    )
     chart_type: str | None = Field(default=None, description='Chart type for add_chart.')
-    chart_data_range: str | None = Field(default=None, description='Excel chart data range for add_chart.')
-    chart_data: list[list[Any]] | None = Field(default=None, description='PPT chart data for add_chart.')
+    chart_data_range: str | None = Field(
+        default=None, description='Excel chart data range for add_chart.'
+    )
+    chart_data: list[list[Any]] | None = Field(
+        default=None, description='PPT chart data for add_chart.'
+    )
     rows: list[list[Any]] | None = Field(
         default=None,
         description='Table rows for add_table (PPT). First row is the header.',
     )
-    slide_index: int | None = Field(default=None, description='Target slide index (PPT add_table/add_chart).')
+    slide_index: int | None = Field(
+        default=None, description='Target slide index (PPT add_table/add_chart).'
+    )
     layout: str | None = Field(default=None, description='Slide layout name/index (apply_layout).')
     transition: str | None = Field(default=None, description='Transition name (set_transition).')
     notes: str | None = Field(default=None, description='Speaker notes text (add_notes).')
     path: str | None = Field(default=None, description='Image path (add_picture).')
     fill: str | None = Field(default=None, description='Shape fill color hex (add_shape).')
     line: str | None = Field(default=None, description='Shape line color hex (add_shape).')
-    shape_type: str | None = Field(default=None, description='Autoshape type (add_shape), e.g. rectangle/oval/arrow/line.')
-    key_columns: list[int] | None = Field(default=None, description='0-based sort key columns (sort).')
-    orders: list[str] | None = Field(default=None, description='Per-key sort orders asc/desc (sort).')
+    shape_type: str | None = Field(
+        default=None, description='Autoshape type (add_shape), e.g. rectangle/oval/arrow/line.'
+    )
+    key_columns: list[int] | None = Field(
+        default=None, description='0-based sort key columns (sort).'
+    )
+    orders: list[str] | None = Field(
+        default=None, description='Per-key sort orders asc/desc (sort).'
+    )
     order: str | None = Field(default=None, description='Single sort order asc/desc (sort).')
-    number_format: str | None = Field(default=None, description='Number format spec "RANGE=FORMAT" (number_format).')
+    number_format: str | None = Field(
+        default=None, description='Number format spec "RANGE=FORMAT" (number_format).'
+    )
 
 
 class ToolOptions(BaseModel):

@@ -201,7 +201,7 @@ def edit_office_document(
             else:
                 return error_response(
                     McpErrorCode.INVALID_PARAMETER,
-                    f"Unknown edit action: {action!r}",
+                    f'Unknown edit action: {action!r}',
                 )
 
         if opts.get('backup') and input_path == output_path:

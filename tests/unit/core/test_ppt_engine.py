@@ -31,7 +31,11 @@ class TestPptEngine:
         engine.save(out)
         reopened = open_document(out)
         assert isinstance(reopened, PptEngine)
-        assert any('Positioned' in sh.text_frame.text for sh in reopened.prs.slides[0].shapes if sh.has_text_frame)
+        assert any(
+            'Positioned' in sh.text_frame.text
+            for sh in reopened.prs.slides[0].shapes
+            if sh.has_text_frame
+        )
 
     def test_add_textbox_out_of_range_raises(self, engine: PptEngine) -> None:
         engine.add_slide()
@@ -44,12 +48,11 @@ class TestPptEngine:
         slide_width_in = engine.prs.slide_width / 914400
         # default width is derived from slide width minus 2*left, never overflows
         assert box.left / 914400 + box.width / 914400 <= slide_width_in + 1e-6
+
     # ---- Step 9 (P2): insert table ----
     def test_add_table_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
         engine.add_slide()
-        gf = engine.add_table(
-            0, [['a1', 'b1'], ['a2', 'b2']], col_names=['H1', 'H2']
-        )
+        gf = engine.add_table(0, [['a1', 'b1'], ['a2', 'b2']], col_names=['H1', 'H2'])
         table = gf.table
         assert table.rows.__len__() == 3
         assert table.columns.__len__() == 2
@@ -103,9 +106,7 @@ class TestPptEngine:
         assert isinstance(reopened, PptEngine)
         from pptx.enum.shapes import MSO_SHAPE_TYPE
 
-        assert any(
-            sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in reopened.prs.slides[0].shapes
-        )
+        assert any(sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in reopened.prs.slides[0].shapes)
 
     # ---- Step 13 (P5): add autoshape ----
     def test_add_shape_baseline(self, engine: PptEngine, tmp_path: Path) -> None:

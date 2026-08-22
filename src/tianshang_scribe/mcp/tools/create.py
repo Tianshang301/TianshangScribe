@@ -97,7 +97,9 @@ def create_office_document(
                 if doc_type == DocumentType.PPT:
                     if current_slide_index is None:
                         engine.add_text(text)
-                        current_slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
+                        current_slide_index = (
+                            len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
+                        )
                     else:
                         engine.add_text(text, slide_index=current_slide_index)
                 elif '\\' in text or '$' in text:
@@ -125,7 +127,9 @@ def create_office_document(
             elif item_type == 'page_break':
                 if doc_type == DocumentType.PPT and hasattr(engine, 'add_slide'):
                     engine.add_slide()
-                    current_slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
+                    current_slide_index = (
+                        len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
+                    )
                 elif hasattr(engine, 'add_page_break'):
                     engine.add_page_break()
                 elif hasattr(engine, 'add_latex_content'):

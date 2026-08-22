@@ -749,7 +749,9 @@ def main(
                 chart_type, data = _parse_ppt_chart(ppt_chart)
                 slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
                 engine.add_chart(slide_index, chart_type, data)
-                console.print(f'[green]Chart ({chart_type}) inserted on slide[/green] {slide_index}')
+                console.print(
+                    f'[green]Chart ({chart_type}) inserted on slide[/green] {slide_index}'
+                )
 
             if toc and hasattr(engine, 'add_toc'):
                 engine.add_toc()

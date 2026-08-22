@@ -25,8 +25,12 @@ class ExcelSheetSpec(BaseModel):
     model_config = _allow
 
     name: str = Field(description='Worksheet name.')
-    headers: list[str] | None = Field(default=None, description='Column headers written as the first row.')
-    rows: list[list[Any]] | None = Field(default=None, description='Data rows (list of cell lists).')
+    headers: list[str] | None = Field(
+        default=None, description='Column headers written as the first row.'
+    )
+    rows: list[list[Any]] | None = Field(
+        default=None, description='Data rows (list of cell lists).'
+    )
     formulas: dict[str, str] | None = Field(
         default=None, description='Cell->formula map, e.g. {"B2": "=SUM(A2:A10)"}.'
     )
@@ -86,7 +90,9 @@ class ExcelEditOp(BaseModel):
     formula: str | None = Field(default=None, description='Excel formula (set_formula).')
     range: str | None = Field(default=None, description='Cell range for freeze/chart/style/sort.')
     chart_type: str | None = Field(default=None, description='Chart type (bar/line/pie/...).')
-    chart_data_range: str | None = Field(default=None, description='Source range for an Excel chart.')
+    chart_data_range: str | None = Field(
+        default=None, description='Source range for an Excel chart.'
+    )
     conditional_format: str | None = Field(default=None, description='Conditional format spec.')
     data_validation: str | None = Field(default=None, description='Data validation spec.')
     headers: list[str] | None = Field(default=None, description='Table headers (add_table).')
@@ -94,8 +100,12 @@ class ExcelEditOp(BaseModel):
     key_columns: list[int] | None = Field(default=None, description='0-based sort key columns.')
     orders: list[str] | None = Field(default=None, description='Per-key orders asc/desc.')
     order: str | None = Field(default=None, description='Single sort order asc/desc.')
-    style: str | None = Field(default=None, description='Style string (write_cell/set_range_style).')
-    number_format: str | None = Field(default=None, description='Number format spec "RANGE=FORMAT".')
+    style: str | None = Field(
+        default=None, description='Style string (write_cell/set_range_style).'
+    )
+    number_format: str | None = Field(
+        default=None, description='Number format spec "RANGE=FORMAT".'
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -109,7 +119,9 @@ class PptTextBlock(BaseModel):
     text: str = Field(description='Text content (LaTeX-style markup supported).')
     left: float = Field(default=1.0, description='Left position in inches.')
     top: float = Field(default=1.0, description='Top position in inches.')
-    width: float | None = Field(default=None, description='Width in inches (defaults to slide width).')
+    width: float | None = Field(
+        default=None, description='Width in inches (defaults to slide width).'
+    )
     height: float = Field(default=1.0, description='Height in inches.')
     style: str | None = Field(default=None, description='Optional style string.')
 
@@ -143,7 +155,9 @@ class PptPictureSpec(BaseModel):
     path: str = Field(description='Image file path.')
     left: float = Field(default=1.0, description='Left position in inches.')
     top: float = Field(default=1.0, description='Top position in inches.')
-    width: float | None = Field(default=None, description='Width in inches (keeps ratio if only one set).')
+    width: float | None = Field(
+        default=None, description='Width in inches (keeps ratio if only one set).'
+    )
     height: float | None = Field(default=None, description='Height in inches.')
 
 
@@ -152,10 +166,16 @@ class PptSlideSpec(BaseModel):
 
     model_config = _allow
 
-    layout: str | None = Field(default=None, description='Slide layout name, e.g. "Title and Content".')
+    layout: str | None = Field(
+        default=None, description='Slide layout name, e.g. "Title and Content".'
+    )
     title: str | None = Field(default=None, description='Slide title text.')
-    bullets: list[str] | None = Field(default=None, description='Bullet points for the body placeholder.')
-    text_blocks: list[PptTextBlock] | None = Field(default=None, description='Precisely positioned text boxes.')
+    bullets: list[str] | None = Field(
+        default=None, description='Bullet points for the body placeholder.'
+    )
+    text_blocks: list[PptTextBlock] | None = Field(
+        default=None, description='Precisely positioned text boxes.'
+    )
     table: PptTableSpec | None = Field(default=None, description='Table to add to the slide.')
     chart: PptChartSpec | None = Field(default=None, description='Chart to add to the slide.')
     picture: PptPictureSpec | None = Field(default=None, description='Picture to add to the slide.')

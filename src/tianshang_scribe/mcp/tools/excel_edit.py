@@ -37,7 +37,11 @@ def _to_edit_op(op: dict[str, Any]) -> dict[str, Any]:
             'sheet_name': op.get('sheet_name'),
         }
     if action == 'freeze_panes':
-        return {'action': 'freeze_panes', 'range': op.get('range'), 'sheet_name': op.get('sheet_name')}
+        return {
+            'action': 'freeze_panes',
+            'range': op.get('range'),
+            'sheet_name': op.get('sheet_name'),
+        }
     if action == 'add_chart':
         return {
             'action': 'add_chart',
@@ -87,7 +91,9 @@ def edit_excel_workbook(
     output_path: Annotated[
         str, Field(description='Output path (defaults to the input file).')
     ] = '',
-    options: Annotated[ToolOptions | None, Field(description='Tool options (dry_run, backup).')] = None,
+    options: Annotated[
+        ToolOptions | None, Field(description='Tool options (dry_run, backup).')
+    ] = None,
 ) -> dict[str, Any]:
     """Edit an existing Excel workbook with typed, Excel-only edit operations.
 

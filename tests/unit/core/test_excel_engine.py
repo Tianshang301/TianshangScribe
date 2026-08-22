@@ -715,3 +715,23 @@ class TestExcelGrouping:
     def test_ungroup_bad_axis_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='axis'):
             engine.ungroup('2:3', axis='diagonal')
+
+
+class TestExcelTabColor:
+    """0.9.0 P1: sheet tab color."""
+
+    def test_set_tab_color_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.set_tab_color('#ff0000')
+        assert str(e.wb.active.sheet_properties.tabColor.rgb).endswith('FF0000')
+        out = tmp_path / 'tab.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert str(reopened.wb.active.sheet_properties.tabColor.rgb).endswith('FF0000')
+
+    @pytest.mark.parametrize('bad', ['red', '#12345', '1234567', ''])
+    def test_set_tab_color_invalid_raises(self, engine: ExcelEngine, bad: str) -> None:
+        with pytest.raises(ValueError, match='Invalid RGB hex'):
+            engine.set_tab_color(bad)

@@ -316,6 +316,15 @@ class ExcelEngine(DocumentABC):
                 dim.outline_level = 0
                 dim.hidden = False
 
+    def set_tab_color(self, hex_color: str) -> None:
+        """Set the active sheet's tab color from an RGB hex string (``FF0000``)."""
+        import re as _re
+
+        clean = hex_color.strip().lstrip('#').upper()
+        if not _re.fullmatch(r'[0-9A-F]{6}', clean):
+            raise ValueError(f'Invalid RGB hex color: {hex_color!r} (expected e.g. "FF0000")')
+        self._ws().sheet_properties.tabColor = clean
+
     def set_formula(self, cell_ref: str, formula: str) -> None:
         """Set a formula on the given cell reference in the active sheet."""
         ws = self._ws()

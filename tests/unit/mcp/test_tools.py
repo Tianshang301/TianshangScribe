@@ -803,3 +803,46 @@ class TestCreateMcpP0:
         assert len(list(eng.wb.active.conditional_formatting)) >= 1
         assert 'list' in {dv.type for dv in eng.wb.active.data_validations.dataValidation}
         assert len(ws._charts) >= 1
+
+
+class TestEditMcpP0:
+    def test_excel_edit_actions(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import open_document
+        book = tmp_path / 'b.xlsx'
+        create_office_document('xlsx', [ContentBlock(type='paragraph', text='seed')], output_path=str(book))
+        res = edit_office_document(str(book), [
+            {'action': 'write_cell', 'cell': 'A1', 'text': 'hello'},
+            {'action': 'set_formula', 'cell': 'A2', 'formula': '=1+1'},
+            {'action': 'freeze_panes', 'range': 'A2'},
+            {'action': 'conditional_format', 'conditional_format': 'B1:B5=color_scale'},
+            {'action': 'data_validation', 'data_validation': 'C1:C5=list:yes,no'},
+            {'action': 'add_chart', 'chart_type': 'bar', 'chart_data_range': 'Sheet!A1:B2'},
+        ])
+        assert res['success'] is True, res
+        e2 = open_document(str(book))
+        ws = e2.wb.active
+        assert ws['A1'].value == 'hello'
+        assert ws['A2'].value == '=1+1'
+        assert ws.freeze_panes == 'A2'
+        assert len(list(ws.conditional_formatting)) >= 1
+        assert 'list' in {dv.type for dv in ws.data_validations.dataValidation}
+        assert len(ws._charts) >= 1
+
+    def test_ppt_edit_actions(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import open_document
+        d = tmp_path / 'deck.pptx'
+        create_office_document('pptx', [ContentBlock(type='paragraph', text='seed')], output_path=str(d))
+        res = edit_office_document(str(d), [
+            {'action': 'add_table', 'rows': [['H', 'K'], ['1', '2']], 'slide_index': 0},
+            {'action': 'add_notes', 'notes': 'nt', 'slide_index': 0},
+            {'action': 'apply_layout', 'layout': 'Title and Content', 'slide_index': 0},
+            {'action': 'set_transition', 'transition': 'fade', 'slide_index': 0},
+            {'action': 'add_chart', 'chart_type': 'bar', 'chart_data': [['', 'S'], ['c', 3]], 'slide_index': 0},
+        ])
+        assert res['success'] is True, res
+        e2 = open_document(str(d))
+        shapes = list(e2.prs.slides[0].shapes)
+        assert any(s.has_table for s in shapes)
+        assert any(s.has_chart for s in shapes)
+        assert e2.prs.slides[0].notes_slide.notes_text_frame.text == 'nt'
+        assert e2.prs.slides[0].slide_layout.name == 'Title and Content'

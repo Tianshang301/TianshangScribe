@@ -210,6 +210,10 @@ class EditOperation(BaseModel):
     chart_type: str | None = Field(default=None, description='Chart type for add_chart.')
     chart_data_range: str | None = Field(default=None, description='Excel chart data range for add_chart.')
     chart_data: list[list[Any]] | None = Field(default=None, description='PPT chart data for add_chart.')
+    rows: list[list[Any]] | None = Field(
+        default=None,
+        description='Table rows for add_table (PPT). First row is the header.',
+    )
     slide_index: int | None = Field(default=None, description='Target slide index (PPT add_table/add_chart).')
     layout: str | None = Field(default=None, description='Slide layout name/index (apply_layout).')
     transition: str | None = Field(default=None, description='Transition name (set_transition).')

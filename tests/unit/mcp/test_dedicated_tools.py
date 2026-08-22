@@ -137,3 +137,37 @@ def test_edit_presentation_add_slide(tmp_path: Path) -> None:
     assert res['success'] is True, res
     prs = Presentation(str(out))
     assert len(prs.slides) == 2
+
+
+def test_create_presentation_text_blocks_auto_stack(tmp_path: Path) -> None:
+    """P1-011: text blocks without an explicit top stack instead of overlap."""
+    from pptx import Presentation
+    from pptx.util import Emu
+
+    from tianshang_scribe.mcp.tools.ppt_create import create_presentation
+
+    out = tmp_path / 'stacked.pptx'
+    res = create_presentation(
+        str(out),
+        slides=[
+            {
+                'title': 'Stack',
+                'text_blocks': [
+                    {'text': 'block one'},
+                    {'text': 'block two'},
+                    {'text': 'pinned', 'top': 6.0},
+                ],
+            }
+        ],
+    )
+    assert res['success'] is True, res
+    prs = Presentation(str(out))
+    boxes = [
+        sh
+        for sh in prs.slides[0].shapes
+        if sh.has_text_frame and sh.text_frame.text in {'block one', 'block two', 'pinned'}
+    ]
+    tops = {sh.text_frame.text: Emu(sh.top).inches for sh in boxes}
+    assert tops['block one'] == 1.0
+    assert tops['block two'] == 2.1
+    assert tops['pinned'] == 6.0

@@ -49,6 +49,32 @@ class TestPptEngine:
         # default width is derived from slide width minus 2*left, never overflows
         assert box.left / 914400 + box.width / 914400 <= slide_width_in + 1e-6
 
+    def test_add_textbox_omitted_top_stacks(self, engine: PptEngine) -> None:
+        """P1-011: consecutive boxes without an explicit top never overlap."""
+        engine.add_slide()
+        first = engine.add_textbox(0, 'One', height=1.0)
+        second = engine.add_textbox(0, 'Two', height=1.0)
+        third = engine.add_textbox(0, 'Three', height=2.0)
+        assert first.top == pytest.approx(1.0 * 914400)
+        assert second.top == pytest.approx((1.0 + 1.0 + 0.1) * 914400)
+        assert third.top == pytest.approx((1.0 + 1.0 + 0.1 + 1.0 + 0.1) * 914400)
+        assert len({first.top, second.top, third.top}) == 3
+
+    def test_add_textbox_explicit_top_does_not_move_cursor(self, engine: PptEngine) -> None:
+        """An explicit top pins that box; the next stacked box starts at 1.0."""
+        engine.add_slide()
+        pinned = engine.add_textbox(0, 'Pinned', top=5.5)
+        stacked = engine.add_textbox(0, 'Stacked')
+        assert pinned.top == pytest.approx(5.5 * 914400)
+        assert stacked.top == pytest.approx(1.0 * 914400)
+
+    def test_add_textbox_stack_is_per_slide(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        engine.add_slide()
+        a = engine.add_textbox(0, 'A')
+        b = engine.add_textbox(1, 'B')
+        assert a.top == b.top  # independent cursors per slide
+
     # ---- Step 9 (P2): insert table ----
     def test_add_table_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
         engine.add_slide()

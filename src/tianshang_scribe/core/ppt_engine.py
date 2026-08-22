@@ -133,7 +133,7 @@ class PptEngine(DocumentABC):
         slide_index: int,
         text: str,
         left: float = 1.0,
-        top: float = 1.0,
+        top: float | None = None,
         width: float | None = None,
         height: float = 1.0,
         bold: bool = False,
@@ -147,17 +147,22 @@ class PptEngine(DocumentABC):
         """Add a text box at precise (inch) coordinates on the given slide.
 
         Unlike :meth:`add_text`, this places content at an explicit position
-        rather than into the title/body placeholder.
+        rather than into the title/body placeholder. When ``top`` is omitted
+        the box auto-stacks below previously placed boxes on the same slide
+        (via the internal text cursor), so consecutive calls never overlap.
         """
         from pptx.util import Inches
 
         if not (0 <= slide_index < len(self.prs.slides)):
             raise IndexError(f'slide_index out of range: {slide_index}')
         slide = self.prs.slides[slide_index]
-        if width is None:
-            slide_width_in = (self.prs.slide_width or 914400 * 10) / 914400
-            width = max(1.0, slide_width_in - 2 * left)
-        box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+        if top is None:
+            box = self._place_textbox(slide, left=left, width=width, height=height)
+        else:
+            if width is None:
+                slide_width_in = (self.prs.slide_width or 914400 * 10) / 914400
+                width = max(1.0, slide_width_in - 2 * left)
+            box = slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
         style = self._base_style
         if text_style is not None:
             style = style.merge(text_style)

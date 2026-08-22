@@ -118,7 +118,13 @@ class PptTextBlock(BaseModel):
 
     text: str = Field(description='Text content (LaTeX-style markup supported).')
     left: float = Field(default=1.0, description='Left position in inches.')
-    top: float = Field(default=1.0, description='Top position in inches.')
+    top: float | None = Field(
+        default=None,
+        description=(
+            'Top position in inches; when omitted the box auto-stacks below '
+            'the previous block on the same slide instead of overlapping it.'
+        ),
+    )
     width: float | None = Field(
         default=None, description='Width in inches (defaults to slide width).'
     )

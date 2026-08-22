@@ -27,7 +27,7 @@
 | **数学公式** | LaTeX → OMML 原生渲染，110+ 符号，\frac \sqrt \sum \int，AMS/Springer 字体规范，`--math-font` 可配置渲染字体（默认 Cambria Math，支持 Times New Roman 等 MathType 风格衬线），`--math-mtef` 以 MathType OLE 对象（MTEF）嵌入 | P0 ✅ |
 | **模板填充** | 用 JSON/CSV/YAML 数据源填充占位符 `{{key}}`，保留原样式，支持 `{{#each}}` 循环、`{{#if}}` 条件 | P0 ✅ |
 | **格式转换** | Word ↔ PDF/Markdown/HTML；Excel ↔ CSV/JSON/HTML；PPT → PDF/图片序列<br>PDF: office2pdf（主，~2MB）+ LibreOffice（回退） | P0 ✅ |
-| **MCP Server** | stdio + SSE + Streamable HTTP 三传输，官方 mcp SDK 2.x，7 tools（create/edit/fill/convert/extract/validate/compare），认证/限流/指标，Tool Search（SEP-1821，`tools/list` 支持 `query` 参数），Dify/Coze 可接入 | P1 ✅ |
+| **MCP Server** | stdio + SSE + Streamable HTTP 三传输，官方 mcp SDK 2.x，12 tools（7 统一：create/edit/fill/convert/extract/validate/compare + 5 专用：create_excel_workbook/edit_excel_workbook/create_presentation/edit_presentation/analyze_excel_data），认证/限流/指标，Tool Search（SEP-1821，`tools/list` 支持 `query` 参数），Dify/Coze 可接入 | P1 ✅ |
 | **合并与拆分** | 多个文档合并为一个（Word/Excel/PPT 均支持）；拆分：当前仅 Excel 支持 `--split by-sheet` 按工作表拆分，Word 按页 / PPT 按幻灯片拆分待实现 | P1 ✅（合并 ✅；拆分仅 Excel） |
 | **保护与元数据** | 设置/解除密码保护；读写作者、标题等文档属性 | P1 ✅ |
 | **高级结构操作** | Excel 工作表增删重命名；PPT 幻灯片增删移动；Word 目录生成、分节 | P1 ✅ |
@@ -248,14 +248,20 @@ src/                          # 构建隔离目录
     │   ├── security.py    # 工具只读/破坏性分类 + RBAC 角色矩阵
     │   ├── tool_search.py # Tool Search（SEP-1821）：tools/list 支持 query 参数评分搜索
     │   ├── prompts.py     # 5 个提示词工作流（prompts/list）
-    │   ├── tools/          # 7 个 Agent 工具实现
+    │   ├── tools/          # 12 个 Agent 工具实现（7 统一 + 5 专用）
     │   │   ├── _registry.py# 工具注册表（schema 自动派生）
+    │   │   ├── _dedicated_schemas.py# 专用工具类型化参数模型
     │   │   ├── create.py  # create_office_document
-    │   │   ├── edit.py    # edit_office_document
+    │   │   ├── edit.py    # edit_office_document（统一分发，含 Excel/PPT 全部 action）
     │   │   ├── template.py# fill_template
     │   │   ├── convert.py # convert_document + extract_document_data
     │   │   ├── validate.py# validate_template
-    │   │   └── compare.py # compare_documents（快照 snapshot/list/restore）
+    │   │   ├── compare.py # compare_documents（快照 snapshot/list/restore）
+    │   │   ├── excel_create.py # create_excel_workbook（类型化工作表规格）
+    │   │   ├── excel_edit.py   # edit_excel_workbook（复用统一 edit 分发）
+    │   │   ├── analyze_excel.py# analyze_excel_data（只读画像）
+    │   │   ├── ppt_create.py   # create_presentation（类型化幻灯片规格）
+    │   │   └── ppt_edit.py     # edit_presentation（复用统一 edit 分发）
     │   └── errors.py      # 结构化错误码 + 修复建议
     └── utils/             # 公共工具
         ├── config.py      # pydantic-settings 集中配置（TIANSHANG_SCRIBE_* env + .env）
@@ -335,3 +341,4 @@ src/                          # 构建隔离目录
 | v0.7.1 | 2026-08 | 修复 `--comment` 在 PPT 上的索引解析崩溃（原将 slide_index 传为字符串导致 `TypeError`）；文档与实现对齐（`--split` 仅 Excel 支持、`--merge` 逗号分隔不支持通配符、`--comment` PPT 写备注区、ROADMAP `tools_available` 7） |
 | v0.8.0 | 2026-08 | **Excel/PPT 引擎缺陷修复与能力补全（MINOR）**：PPT `merge_workbooks` 改为关系感知的真实幻灯片深拷贝（含图片/媒体/图表，修复此前仅生成空白幻灯片）；PPT `add_text`/`add_styled_content` 修复多段文本/公式重叠定位并支持 `slide_index` 追加到已有幻灯片；PPT 修改保护改用合规 SHA-512+盐+10万次迭代的 ECMA-376 敏捷加密（原明文密码无效）；PPT `to_images` 改为「先转 PDF 全页再逐页栅格化」（PyMuPDF/pdftoppm），修复 LibreOffice 仅导出首屏；Excel `sort` 支持多列键与混合类型安全排序（整行保真，不再 `TypeError`）；Excel 新增 `--sheet` 选项选择目标工作表；Excel 新增冻结窗格 `--freeze`、数字格式 `--number-format`、条件格式 `--conditional-format`、数据验证 `--data-validation`、边框/填充 `set_range_style`、图表类型扩展（area/scatter/doughnut）、超链接/命名范围/自动列宽；PPT 新增精确文本框 `add_textbox`、表格 `add_table`、图表 `add_chart`、图片 `add_picture`、形状 `add_shape`、`replace_text` 跨 run 保留格式，以及 CLI `--ppt-table`/`--ppt-chart`；`SERVER_VERSION` 同步至 0.8.0 |
 | v0.8.0 | 2026-08 | **MCP Server 能力对齐（P0+P1）**：7 个工具不变，但 `create_office_document`/`edit_office_document` 现已暴露上述 Excel/PPT 引擎能力——`ContentBlock`/`EditOperation` 新增可选字段（`slide_index`/`slide_layout`/`notes`/`transition`/`sheet_name`/`cell`/`formula`/`chart_type`/`chart_data_range`/`chart_data`/`rows`/`number_format`/`conditional_format`/`data_validation`/`freeze`/`hyperlink`/`named_range`）；修复 `create_office_document` 在 PPT 表格上因 `add_table` 签名不匹配导致的崩溃并统一 PPT 多段内容堆叠到当前幻灯片；修复 `_edit_write_cell` 误写 active sheet（现按 `sheet_name` 精确寻址且 `write_cell` 支持 `style`）；`compare_documents` 对 Excel/PPT 返回更明确的 `UNSUPPORTED_FORMAT` 提示；`EditOperation` 标注 action→字段映射、registry 工具描述同步更新；Excel `set_range_style` 扩展 font/align/number_format；PPT `add_textbox` 默认宽随 slide 宽度自适应 |
+| v0.8.0 | 2026-08 | **MCP 专用工具拆分 + AI-native 分析（12 tools）**：新增 5 个专用工具——`create_excel_workbook`（类型化 `ExcelSheetSpec`：headers/rows/formulas/freeze/number_format/conditional_format/data_validation/column_widths）、`edit_excel_workbook`（类型化 `ExcelEditOp` 11 action，复用统一 edit 分发）、`create_presentation`（类型化 `PptSlideSpec`：layout/title/bullets/text_blocks/table/chart/picture/notes/transition）、`edit_presentation`（类型化 `PptEditOp` 10 action）、`analyze_excel_data`（只读画像：行/列数、表头、列类型推断 numeric/categorical、空值、抽样、重复行检测）；7 个统一工具保留为 legacy；权限分类（STANDARD×2 / DESTRUCTIVE×2 / READ_ONLY×1）与 RBAC/幂等表同步；`EditOperation` 新增 `add_slide`/`sort`/`add_sheet`/`set_range_style`/`number_format` action 及 `shape_type`/`key_columns`/`orders`/`order` 字段，`text` 放宽为标量联合类型支持 write_cell 数值；描述门禁测试集扩展至 12 工具（≤90 词、副作用披露、只读声明、兄弟工具指引），stdio/SSE 冒烟断言同步 12 |

@@ -1,6 +1,6 @@
-# TianshangScribe MCP Server · 完善路线图
+﻿# TianshangScribe MCP Server · 完善路线图
 
-> 基于当前实现（官方 `mcp` SDK 2.x、7 tools、stdio/SSE/Streamable HTTP 三传输）的系统性改进方案。
+> 基于当前实现（官方 `mcp` SDK 2.x、12 tools、stdio/SSE/Streamable HTTP 三传输）的系统性改进方案。
 
 ---
 
@@ -119,7 +119,7 @@ MAX_MEMORY_MB = 512
   "version": "0.2.0",
   "uptime_seconds": 86400,
   "active_sessions": 3,
-  "tools_available": 5,
+  "tools_available": 12,
   "pdf_engine": "office2pdf"
 }
 ```

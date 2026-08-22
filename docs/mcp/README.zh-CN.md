@@ -1,4 +1,4 @@
-# TianshangScribe MCP Server
+﻿# TianshangScribe MCP Server
 
 > [English](./README.md)
 
@@ -183,6 +183,76 @@ Agent：  create_office_document(format="docx", content=[...])
 }
 ```
 
+### 8. `create_excel_workbook`
+
+按类型化工作表规格创建新 .xlsx（表头、数据、公式、冻结、格式、列宽）。
+
+```json
+{
+  "output_path": "report.xlsx",
+  "sheets": [
+    {
+      "name": "Data",
+      "headers": ["name", "score"],
+      "rows": [["alice", 10], ["bob", 20]],
+      "formulas": {"C1": "=SUM(B2:B3)"},
+      "number_format": "B2:B3=0.00"
+    }
+  ]
+}
+```
+
+### 9. `edit_excel_workbook`
+
+类型化 Excel 操作：`write_cell`、`set_formula`、`freeze_panes`、`add_chart`、`conditional_format`、`data_validation`、`add_table`、`sort`、`add_sheet`、`set_range_style`、`number_format`。未指定 `output_path` 时原地覆盖输入文件。
+
+```json
+{
+  "input_path": "report.xlsx",
+  "operations": [
+    {"action": "write_cell", "cell": "B3", "value": 30, "sheet_name": "Data"},
+    {"action": "add_sheet", "sheet_name": "Summary"}
+  ]
+}
+```
+
+### 10. `create_presentation`
+
+按类型化幻灯片规格创建新 .pptx（版式、标题、要点、文本框、表格、图表、图片、备注、切换）。
+
+```json
+{
+  "output_path": "deck.pptx",
+  "slides": [
+    {"title": "Q3 复盘", "bullets": ["营收 +12%", "流失率 -2%"], "layout": "Title and Content"}
+  ]
+}
+```
+
+### 11. `edit_presentation`
+
+类型化 PPT 操作：`add_slide`、`add_text`、`replace_text`、`add_table`、`add_chart`、`add_picture`、`add_shape`、`apply_layout`、`set_transition`、`add_notes`。未指定 `output_path` 时原地覆盖输入文件。
+
+```json
+{
+  "input_path": "deck.pptx",
+  "operations": [
+    {"action": "add_slide", "layout": "Title and Content"},
+    {"action": "add_notes", "slide_index": 1, "notes": "此处停顿回答提问"}
+  ]
+}
+```
+
+### 12. `analyze_excel_data`
+
+只读工作簿画像：逐工作表的行/列数、表头、列类型推断（数值 min/max/均值、分类值）、空值计数、抽样行与重复行检测。
+
+```json
+{
+  "input_path": "report.xlsx"
+}
+```
+
 ## LaTeX 标记参考
 
 所有 `text` 字段支持 LaTeX 风格标记：
@@ -306,7 +376,7 @@ AI Agent 如何在实际使用中发现和调用 TianshangScribe 工具。
 
 **协议交互过程：**
 1. Agent 发送 `initialize` → 服务端返回协议版本和服务信息
-2. Agent 发送 `tools/list` → 服务端返回 7 个工具及其参数 schema
+2. Agent 发送 `tools/list` → 服务端返回 12 个工具及其参数 schema
 3. 用户提出请求 → Agent 选择合适的工具 + 填写参数
 4. Agent 发送 `tools/call` → 服务端执行并返回结果
 5. Agent 将结果以自然语言呈现给用户
@@ -337,7 +407,7 @@ AI Agent 如何在实际使用中发现和调用 TianshangScribe 工具。
 
 > "你现在有哪些工具可用？"
 
-Claude 应列出 7 个工具，包括 `create_office_document`。
+Claude 应列出 12 个工具，包括 `create_office_document`。
 
 **试用**：
 
@@ -359,7 +429,7 @@ Claude 应列出 7 个工具，包括 `create_office_document`。
 }
 ```
 
-**验证**：`Ctrl+Shift+P` → "MCP: List Tools" → 应显示 7 个工具。
+**验证**：`Ctrl+Shift+P` → "MCP: List Tools" → 应显示 12 个工具。
 
 #### VS Code（安装 MCP 扩展后）
 
@@ -395,7 +465,7 @@ curl -N "http://localhost:8080/sse"
 curl -X POST "http://localhost:8080/message?session_id=abc123..." \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-# 预期：返回 7 个工具的 JSON
+# 预期：返回 12 个工具的 JSON
 ```
 
 #### Dify 接入
@@ -403,7 +473,7 @@ curl -X POST "http://localhost:8080/message?session_id=abc123..." \
 1. 进入 **工具 → MCP 工具 → 添加**
 2. 选择 **SSE** 传输方式
 3. 输入 URL：`http://your-server:8080/sse`
-4. 点击 **测试连接** → 应发现 7 个工具
+4. 点击 **测试连接** → 应发现 12 个工具
 5. 在 Workflow 中将 `create_office_document` 拖入节点即可使用
 
 #### Coze / FastGPT
@@ -412,7 +482,7 @@ curl -X POST "http://localhost:8080/message?session_id=abc123..." \
 - **URL**：`http://your-server:8080/sse`
 - **Transport**：SSE
 
-平台会通过 SSE 握手自动发现 7 个工具。
+平台会通过 SSE 握手自动发现 12 个工具。
 
 ### 验证方法
 
@@ -455,7 +525,7 @@ sequenceDiagram
     MCP-->>Agent: 协议版本、服务信息、能力声明
 
     Agent->>MCP: tools/list
-    MCP-->>Agent: 7 个工具及参数 schema
+    MCP-->>Agent: 12 个工具及参数 schema
 
     Note over Agent: 用户说"把 CSV 转成 PDF"
 

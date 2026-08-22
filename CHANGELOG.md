@@ -72,6 +72,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   matching the cell-level style system.
 - PowerPoint `add_textbox` / internal `_place_textbox` derive the default width
   from the slide width so 4:3 decks no longer overflow.
+- MCP Server: five dedicated, document-type-specific tools (12 tools total,
+  the 7 unified tools remain as legacy):
+  - `create_excel_workbook` builds a new .xlsx from typed `ExcelSheetSpec`
+    sheets (headers/rows/formulas/freeze/number_format/conditional_format/
+    data_validation/column_widths) instead of the generic `ContentBlock`.
+  - `edit_excel_workbook` applies typed `ExcelEditOp` operations
+    (`write_cell`/`set_formula`/`freeze_panes`/`add_chart`/`conditional_format`/
+    `data_validation`/`add_table`/`sort`/`add_sheet`/`set_range_style`/
+    `number_format`) by reusing the unified edit dispatch.
+  - `create_presentation` builds a new .pptx from typed `PptSlideSpec` slides
+    (layout/title/bullets/text_blocks/table/chart/picture/notes/transition).
+  - `edit_presentation` applies typed `PptEditOp` operations (`add_slide`,
+    `add_text`, `replace_text`, `add_table`, `add_chart`, `add_picture`,
+    `add_shape`, `apply_layout`, `set_transition`, `add_notes`).
+  - `analyze_excel_data` profiles a workbook read-only: per-sheet row/column
+    counts, headers, inferred column types (numeric min/max/mean, categorical),
+    null counts, sample rows, and duplicate-row detection.
+  - Permission classes (STANDARD×2 / DESTRUCTIVE×2 / READ_ONLY×1), RBAC and
+    idempotency tables, description gates (≤90 words, side-effect disclosure,
+    read-only affirmation, sibling pointers) and stdio/SSE smoke assertions all
+    extended to the 12-tool registry; `SERVER_VERSION` stays `0.8.0`.
 - Bumped `SERVER_VERSION` to `0.8.0` so the MCP health endpoint reports the
   current release.
 

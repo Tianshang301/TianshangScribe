@@ -393,7 +393,7 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 }}}
 ```
 
-### 工具列表（7 个）
+### 工具列表（12 个）
 
 | 工具 | 说明 |
 |------|------|
@@ -404,6 +404,11 @@ python -m tianshang_scribe.mcp.server --transport sse --host 0.0.0.0 --port 8080
 | `extract_document_data` | 提取元数据、全文或文档结构 |
 | `validate_template` | 填充前预检查模板占位符与数据是否匹配 |
 | `compare_documents` | 两个 .docx 文件的段落级差异对比 |
+| `create_excel_workbook` | 按类型化工作表规格创建 .xlsx（表头/数据/公式/格式） |
+| `edit_excel_workbook` | 类型化 Excel 操作：write_cell、set_formula、sort、add_sheet 等 |
+| `create_presentation` | 按类型化幻灯片规格创建 .pptx（标题/要点/表格/图表） |
+| `edit_presentation` | 类型化 PPT 操作：add_slide、add_text、add_table、add_chart 等 |
+| `analyze_excel_data` | 只读工作簿画像：类型推断、空值、重复行、抽样 |
 
 ### 能力矩阵
 
@@ -424,7 +429,7 @@ TIANSHANG_SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --tra
 
 # 健康检查
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.8.0","active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.8.0","active_sessions":3,"tools_available":12}
 
 # CORS 白名单
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"
@@ -469,10 +474,13 @@ src/
     │   ├── metrics.py          # Prometheus 风格指标
     │   ├── security.py         # 工具只读/破坏性分类
     │   ├── prompts.py          # 5 个提示词工作流
-    │   ├── tools/              # 7 个 Agent 工具
+    │   ├── tools/              # 12 个 Agent 工具（7 统一 + 5 专用）
     │   │   ├── _registry.py    # 工具注册表（schema 自动派生）
+    │   │   ├── _dedicated_schemas.py  # 专用工具类型化参数模型
     │   │   ├── create.py / edit.py / template.py / convert.py
     │   │   ├── validate.py / compare.py
+    │   │   ├── excel_create.py / excel_edit.py / analyze_excel.py
+    │   │   └── ppt_create.py / ppt_edit.py
     │   └── errors.py           # 结构化错误码 + 修复建议
     └── utils/             # 工具函数
         └── file_utils.py

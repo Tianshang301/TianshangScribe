@@ -441,14 +441,31 @@ class ExcelEngine(DocumentABC):
                 ws.cell(row=target, column=col1 + col_offset).value = value
 
     def add_chart(self, chart_type: str, data_range: str, position: str = 'E2') -> None:
-        """Add a bar, line or pie chart over the given data range."""
-        from openpyxl.chart import BarChart, LineChart, PieChart, Reference
+        """Add a bar, line, pie, area, doughnut or scatter chart over the data range."""
+        from openpyxl.chart import (
+            AreaChart,
+            BarChart,
+            DoughnutChart,
+            LineChart,
+            PieChart,
+            Reference,
+            ScatterChart,
+        )
 
         ws = self._ws()
-        chart_classes = {'bar': BarChart, 'line': LineChart, 'pie': PieChart}
+        chart_classes = {
+            'bar': BarChart,
+            'line': LineChart,
+            'pie': PieChart,
+            'area': AreaChart,
+            'doughnut': DoughnutChart,
+            'scatter': ScatterChart,
+        }
         chart_cls = chart_classes.get(chart_type)
         if chart_cls is None:
-            raise ValueError(f'Unsupported chart type: {chart_type}. Use bar, line, or pie.')
+            raise ValueError(
+                f'Unsupported chart type: {chart_type}. Use bar, line, pie, area, doughnut, or scatter.'
+            )
         chart = chart_cls()
         data = Reference(ws, range_string=data_range)
         chart.add_data(data, titles_from_data=True)

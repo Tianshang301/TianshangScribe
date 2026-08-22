@@ -266,7 +266,21 @@ class TestExcelEngine:
 
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
-            engine.add_chart('scatter', 'A1:B2')
+            engine.add_chart('bogus', "Sheet!A1:B2")
+
+    # ---- Step 6 (E6): chart type extension ----
+    @pytest.mark.parametrize('chart_type', ['area', 'doughnut', 'scatter'])
+    def test_add_chart_extended_types_baseline(self, engine: ExcelEngine, chart_type: str) -> None:
+        ws = engine.wb.active
+        sheet = ws.title
+        ws['A1'] = 'Cat'
+        ws['A2'] = 'X'
+        ws['A3'] = 'Y'
+        ws['B1'] = 'Val'
+        ws['B2'] = 10
+        ws['B3'] = 20
+        engine.add_chart(chart_type, f"{sheet}!A1:B3")
+        assert len(ws._charts) >= 1
 
     def test_merge_workbooks(self, engine: ExcelEngine) -> None:
         engine.add_sheet('Data')

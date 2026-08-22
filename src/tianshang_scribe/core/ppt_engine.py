@@ -22,6 +22,17 @@ from pptx.util import Pt
 from tianshang_scribe.core.document import DocumentABC
 from tianshang_scribe.rendering.styles import TextStyle
 
+#: Extension → MIME type for media inserted via ``add_movie`` / ``add_audio``.
+_MEDIA_MIME: dict[str, str] = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.mkv': 'video/x-matroska',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/x-wav',
+    '.m4a': 'audio/mp4',
+}
+
 
 class PptEngine(DocumentABC):
     """PowerPoint presentation engine: create, edit and style decks."""
@@ -288,15 +299,6 @@ class PptEngine(DocumentABC):
         return slide.shapes.add_picture(str(path), Inches(left), Inches(top), **kwargs)
 
     # ---- Media (video / audio) ------------------------------------------- #
-    _MEDIA_MIME: dict[str, str] = {
-        '.mp4': 'video/mp4',
-        '.mov': 'video/quicktime',
-        '.avi': 'video/x-msvideo',
-        '.mkv': 'video/x-matroska',
-        '.mp3': 'audio/mpeg',
-        '.wav': 'audio/x-wav',
-        '.m4a': 'audio/mp4',
-    }
 
     def add_movie(
         self,
@@ -321,7 +323,7 @@ class PptEngine(DocumentABC):
         path = Path(media_path)
         if not path.exists():
             raise FileNotFoundError(f'media file not found: {path}')
-        mime = self._MEDIA_MIME.get(path.suffix.lower(), 'video/unknown')
+        mime = _MEDIA_MIME.get(path.suffix.lower(), 'video/unknown')
         poster_arg = str(poster) if poster is not None else None
         slide = self.prs.slides[slide_index]
         return slide.shapes.add_movie(

@@ -25,7 +25,7 @@ def main() -> None:
     r = client.call('tools/list')
     tools = r['result']['tools']
     print(f'   {len(tools)} tools: {[t["name"] for t in tools]}')
-    assert len(tools) == 12
+    assert len(tools) == 14
 
     print('3. Create Word document...')
     with tempfile.TemporaryDirectory() as tmp:

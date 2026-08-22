@@ -12,11 +12,13 @@ from typing import Any, cast
 
 from tianshang_scribe.mcp.tools.analyze_excel import analyze_excel_data
 from tianshang_scribe.mcp.tools.compare import compare_documents
+from tianshang_scribe.mcp.tools.compare_excel import compare_excel_workbooks
 from tianshang_scribe.mcp.tools.convert import convert_document, extract_document_data
 from tianshang_scribe.mcp.tools.create import create_office_document
 from tianshang_scribe.mcp.tools.edit import edit_office_document
 from tianshang_scribe.mcp.tools.excel_create import create_excel_workbook
 from tianshang_scribe.mcp.tools.excel_edit import edit_excel_workbook
+from tianshang_scribe.mcp.tools.extract_ppt import extract_presentation_data
 from tianshang_scribe.mcp.tools.ppt_create import create_presentation
 from tianshang_scribe.mcp.tools.ppt_edit import edit_presentation
 from tianshang_scribe.mcp.tools.template import fill_template
@@ -175,6 +177,29 @@ TOOLS: list[ToolEntry] = [
             'detection. Read-only — never modifies the input file. After analysis '
             'use edit_excel_workbook to apply fixes, or extract_document_data for '
             'raw text and metadata.'
+        ),
+    },
+    {
+        'name': 'compare_excel_workbooks',
+        'fn': compare_excel_workbooks,
+        'description': (
+            'Compare two Excel workbooks without touching them: sheet-level '
+            'additions/removals/renames (with an optional name mapping) plus, in '
+            'data mode, cell-level value diffs with numeric tolerance. Read-only — '
+            'never modifies either input file; formula and full modes arrive in a '
+            'later 0.9.0 phase. For PowerPoint inspection use '
+            'extract_presentation_data.'
+        ),
+    },
+    {
+        'name': 'extract_presentation_data',
+        'fn': extract_presentation_data,
+        'description': (
+            "Inspect a PowerPoint deck's semantics without modifying it: outline "
+            '(per-slide layout/title/bullets/notes/transition) or structure (shape-'
+            'type census per slide and overall). Read-only — never modifies the '
+            'input file; notes and master_info modes arrive later. For workbooks '
+            'use analyze_excel_data; to change slides use edit_presentation.'
         ),
     },
 ]

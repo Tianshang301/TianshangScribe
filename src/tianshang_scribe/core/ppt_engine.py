@@ -259,6 +259,28 @@ class PptEngine(DocumentABC):
             gf.chart.chart_title.text_frame.text = title
         return gf
 
+    def add_picture(
+        self,
+        slide_index: int,
+        path: str | Path,
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float | None = None,
+        height: float | None = None,
+    ) -> Any:
+        """Insert a picture on ``slide_index`` at the given (inch) coordinates."""
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        slide = self.prs.slides[slide_index]
+        kwargs: dict[str, Any] = {}
+        if width is not None:
+            kwargs['width'] = Inches(width)
+        if height is not None:
+            kwargs['height'] = Inches(height)
+        return slide.shapes.add_picture(str(path), Inches(left), Inches(top), **kwargs)
+
     def _add_text_with_math(self, tf: Any, text: str, style: TextStyle) -> None:
         """Fill ``tf`` with ``text``, converting inline/display math to OMML."""
         import re

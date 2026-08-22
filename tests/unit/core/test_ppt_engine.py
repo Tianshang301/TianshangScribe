@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import tempfile
 from pathlib import Path
 
@@ -78,6 +79,27 @@ class TestPptEngine:
         engine.add_slide()
         with pytest.raises(IndexError, match='slide_index out of range'):
             engine.add_chart(9, 'bar', [['', 'S'], ['a', 1]])
+
+    # ---- Step 11 (P6): insert picture ----
+    def test_add_picture_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        png = tmp_path / 'px.png'
+        png.write_bytes(
+            base64.b64decode(
+                b'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+            )
+        )
+        pic = engine.add_picture(0, png, left=2.0, top=2.0, width=1.0)
+        assert pic.left == 2.0 * 914400
+        out = tmp_path / 'pic.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        assert any(
+            sh.shape_type == MSO_SHAPE_TYPE.PICTURE for sh in reopened.prs.slides[0].shapes
+        )
 
     def test_create_has_slides(self, engine: PptEngine) -> None:
         assert len(engine.prs.slides) >= 0

@@ -321,6 +321,14 @@ src/                          # 构建隔离目录
 3. **测试要求**：每个操作需覆盖正常、异常、边界用例；CI 覆盖 Windows、macOS、Linux（9-matrix: 3 OS × 3 Python）。
 4. **文档同步**：AGENTS.md 作为本项目的 AI 代理指导文档，必须与代码同步更新，描述最新的 CLI 语法和功能。
 5. **许可协议**：Apache 2.0，需注明依赖库许可证合规。
+6. **提交前本地质量门（必须全绿）**：CI 的 Lint 步骤除 `ruff check` 外还会执行 **`ruff format --check`**，本地仅跑 `ruff check` 会在 PR 阶段失败。每次提交前依次运行：
+   ```bash
+   python -m ruff check src tests
+   python -m ruff format --check src tests   # 若报 unformatted，先 python -m ruff format src tests 再重跑门禁
+   python -m mypy src/tianshang_scribe
+   python -m pytest tests/unit
+   ```
+   > 经验教训（v0.8.0 合并 main 时发现）：release/0.8.0 分支 36 个 commit 因本地门禁遗漏 `ruff format --check` 导致 PR 首轮 CI 9/9 失败；格式化不影响语义但必须与 `ruff check` 同等对待。
 
 ---
 

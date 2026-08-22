@@ -61,7 +61,7 @@ def create_presentation(
                     idx,
                     tb.get('text', ''),
                     left=tb.get('left', 1.0),
-                    top=tb.get('top', 1.0),
+                    top=tb.get('top'),
                     width=tb.get('width'),
                     height=tb.get('height', 1.0),
                 )

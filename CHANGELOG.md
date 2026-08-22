@@ -4,6 +4,36 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.1] - 2026-08-22
+
+### Fixed
+- `parse_conditional_format` / `parse_data_validation`
+  (`src/tianshang_scribe/mcp/tools/_parse.py`): the spec remainder is now split
+  at most twice, so conditional-format formulas containing colons (e.g. time
+  literals like `10:00`) survive intact and extra `:`-segments of a
+  data-validation spec stay inside `formula2` instead of being dropped.
+
+### Changed
+- PowerPoint `add_textbox`: the `top` parameter is now optional (`None`);
+  when omitted the box auto-stacks below previously placed boxes on the same
+  slide via the internal text cursor, so consecutive text blocks never
+  overlap. Explicit tops pin the box as before
+  (`src/tianshang_scribe/core/ppt_engine.py`). The dedicated MCP tool's
+  `PptTextBlock.top` defaults to `None` accordingly, and
+  `create_presentation` no longer hardcodes `top=1.0`.
+- MCP `write_cell` gains an optional `is_formula` flag (both on the unified
+  `EditOperation` and the dedicated `ExcelEditOp`): `true` stores the string
+  as a formula (must start with `=`), `false` forces a literal string cell
+  even when it starts with `=`, omitted keeps the automatic behaviour —
+  removing the ambiguity of writing `=`-prefixed plain text
+  (`src/tianshang_scribe/mcp/tools/edit.py`,
+  `src/tianshang_scribe/mcp/tools/excel_edit.py`).
+- Registry description of `edit_office_document` now marks it as the legacy
+  general-purpose editor and guides Agents to the dedicated
+  `edit_excel_workbook` / `edit_presentation` tools (P1-010 plan A); the
+  Excel/PPT capability advertising moved into those tools' descriptions.
+- Bumped `SERVER_VERSION` and package version to `0.8.1`.
+
 ## [0.8.0] - 2026-08-22
 
 ### Fixed

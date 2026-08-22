@@ -925,6 +925,44 @@ class TestEditMcpP0:
         e3 = open_document(str(book))
         assert e3.wb['Sheet2']['B1'].value == '=1+1'
 
+    def test_write_cell_is_formula_three_states(self, tmp_path: Path) -> None:
+        """P1-013: is_formula disambiguates '='-prefixed strings."""
+        from tianshang_scribe.core.document import DocumentType, create_document, open_document
+
+        book = tmp_path / 'f.xlsx'
+        create_document(DocumentType.EXCEL).save(str(book))
+        res = edit_office_document(
+            str(book),
+            [
+                {'action': 'write_cell', 'cell': 'A1', 'text': '=1+1'},
+                {
+                    'action': 'write_cell',
+                    'cell': 'A2',
+                    'text': '=NOT A FORMULA',
+                    'is_formula': False,
+                },
+                {'action': 'write_cell', 'cell': 'A3', 'text': '=2+2', 'is_formula': True},
+            ],
+        )
+        assert res['success'] is True, res
+        wb = open_document(str(book)).wb
+        assert wb.active['A1'].data_type == 'f'  # omitted -> automatic
+        assert wb.active['A2'].data_type == 's'  # forced literal
+        assert wb.active['A2'].value == '=NOT A FORMULA'
+        assert wb.active['A3'].data_type == 'f'  # explicit formula
+
+    def test_write_cell_is_formula_true_requires_equals(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import DocumentType, create_document
+
+        book = tmp_path / 'g.xlsx'
+        create_document(DocumentType.EXCEL).save(str(book))
+        res = edit_office_document(
+            str(book),
+            [{'action': 'write_cell', 'cell': 'A1', 'text': 'SUM(A1:A2)', 'is_formula': True}],
+        )
+        assert res['success'] is False, res
+        assert 'requires a string starting' in res['error_message']
+
     def test_ppt_blocks_stack_single_slide_without_index(self, tmp_path: Path) -> None:
         out = tmp_path / 'deck.pptx'
         result = create_office_document(
@@ -1020,12 +1058,19 @@ class TestEditSchemaMcpP1:
 
 class TestRegistryMcpP1:
     def test_tool_descriptions_mention_new_capabilities(self) -> None:
+        """P1-010: capability advertising moved from the legacy editor to the
+        dedicated tools; ``edit_office_document`` guides Agents there instead."""
         from tianshang_scribe.mcp.tools._registry import get_tools
 
         tools = {t['name']: t['description'] for t in get_tools()}
-        assert 'freeze_panes' in tools['edit_office_document']
-        assert 'conditional_format' in tools['edit_office_document']
-        assert 'data_validation' in tools['edit_office_document']
+        # legacy marker + sibling guidance on the generic editor
+        assert 'Legacy' in tools['edit_office_document']
+        assert 'edit_excel_workbook' in tools['edit_office_document']
+        assert 'edit_presentation' in tools['edit_office_document']
+        # the Excel/PPT capabilities are now advertised by the dedicated tools
+        assert 'freeze_panes' in tools['edit_excel_workbook']
+        assert 'conditional_format' in tools['edit_excel_workbook']
+        assert 'data_validation' in tools['edit_excel_workbook']
         assert 'sheet_name' in tools['create_office_document']
         assert 'slide_index' in tools['create_office_document']
         assert 'Excel' in tools['compare_documents'] and 'PowerPoint' in tools['compare_documents']

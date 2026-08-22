@@ -25,9 +25,25 @@ def test_parse_conditional_format() -> None:
     )
 
 
+def test_parse_conditional_format_formula_with_colons() -> None:
+    # A time literal inside the formula must survive the split (P1-012).
+    assert parse_conditional_format('D1:D9=cell_is:between:10:00:18:00') == (
+        'D1:D9',
+        'cell_is',
+        {'operator': 'between', 'formula': '10:00:18:00'},
+    )
+
+
 def test_parse_data_validation() -> None:
     assert parse_data_validation('C2:C50=list:yes,no') == ('C2:C50', 'list', 'yes,no', None)
     assert parse_data_validation('B1:B10=whole:1:100') == ('B1:B10', 'whole', '1', '100')
+
+
+def test_parse_data_validation_formula_with_colons() -> None:
+    # Only dv_type/formula1/formula2 are split out; extra colons stay inside
+    # formula2 instead of being silently dropped (P1-012).
+    assert parse_data_validation('E1:E10=date:10:00:12:00') == ('E1:E10', 'date', '10', '00:12:00')
+    assert parse_data_validation('E1:E10=date:10:00') == ('E1:E10', 'date', '10', '00')
 
 
 def test_parse_ppt_chart() -> None:

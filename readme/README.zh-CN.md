@@ -429,7 +429,7 @@ TIANSHANG_SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --tra
 
 # 健康检查
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.8.0","active_sessions":3,"tools_available":12}
+# {"status":"ok","version":"0.8.1","active_sessions":3,"tools_available":12}
 
 # CORS 白名单
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"

@@ -128,6 +128,51 @@ class PptEngine(DocumentABC):
         self._add_text_with_math(tf, text, final)
         return slide
 
+    def add_textbox(
+        self,
+        slide_index: int,
+        text: str,
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float = 8.0,
+        height: float = 1.0,
+        bold: bool = False,
+        italic: bool = False,
+        font_name: str | None = None,
+        font_size: int | None = None,
+        color: str | None = None,
+        alignment: str | None = None,
+        text_style: TextStyle | None = None,
+    ) -> Any:
+        """Add a text box at precise (inch) coordinates on the given slide.
+
+        Unlike :meth:`add_text`, this places content at an explicit position
+        rather than into the title/body placeholder.
+        """
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        slide = self.prs.slides[slide_index]
+        box = slide.shapes.add_textbox(
+            Inches(left), Inches(top), Inches(width), Inches(height)
+        )
+        style = self._base_style
+        if text_style is not None:
+            style = style.merge(text_style)
+        style = style.merge(
+            TextStyle(
+                bold=bold or None,
+                italic=italic or None,
+                font_name=font_name,
+                font_size=font_size,
+                color=color,
+                alignment=alignment,
+            )
+        )
+        self._add_text_with_math(box.text_frame, text, style)
+        return box
+
     def _add_text_with_math(self, tf: Any, text: str, style: TextStyle) -> None:
         """Fill ``tf`` with ``text``, converting inline/display math to OMML."""
         import re

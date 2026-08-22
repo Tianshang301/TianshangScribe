@@ -18,6 +18,25 @@ class TestPptEngine:
         e.create()
         return e
 
+    # ---- Step 8 (P1): precise-positioned text box ----
+    def test_add_textbox_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        engine.add_slide()
+        box = engine.add_textbox(0, 'Positioned', left=2.0, top=3.0, width=4.0, height=1.0)
+        assert box.left == 2.0 * 914400
+        assert box.top == 3.0 * 914400
+        assert box.width == 4.0 * 914400
+        assert 'Positioned' in box.text_frame.text
+        out = tmp_path / 'tb.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        assert any('Positioned' in sh.text_frame.text for sh in reopened.prs.slides[0].shapes if sh.has_text_frame)
+
+    def test_add_textbox_out_of_range_raises(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        with pytest.raises(IndexError, match='slide_index out of range'):
+            engine.add_textbox(5, 'x')
+
     def test_create_has_slides(self, engine: PptEngine) -> None:
         assert len(engine.prs.slides) >= 0
 

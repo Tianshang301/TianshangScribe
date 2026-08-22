@@ -846,3 +846,27 @@ class TestEditMcpP0:
         assert any(s.has_chart for s in shapes)
         assert e2.prs.slides[0].notes_slide.notes_text_frame.text == 'nt'
         assert e2.prs.slides[0].slide_layout.name == 'Title and Content'
+
+
+    def test_write_cell_respects_sheet_name(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import create_document, DocumentType
+        from tianshang_scribe.core.document import open_document
+        book = tmp_path / 'b.xlsx'
+        e = create_document(DocumentType.EXCEL)
+        e.add_sheet('Sheet2')
+        e.save(str(book))
+        res = edit_office_document(str(book), [
+            {'action': 'write_cell', 'cell': 'A1', 'text': 'two', 'sheet_name': 'Sheet2'},
+            {'action': 'write_cell', 'cell': 'A1', 'text': 'one'},
+        ])
+        assert res['success'] is True, res
+        e2 = open_document(str(book))
+        assert e2.wb['Sheet2']['A1'].value == 'two'
+        assert e2.wb.active['A1'].value == 'one'
+        # formula path still works on the explicitly named sheet
+        res2 = edit_office_document(str(book), [
+            {'action': 'write_cell', 'cell': 'B1', 'text': '=1+1', 'sheet_name': 'Sheet2'},
+        ])
+        assert res2['success'] is True, res2
+        e3 = open_document(str(book))
+        assert e3.wb['Sheet2']['B1'].value == '=1+1'

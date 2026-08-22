@@ -189,14 +189,21 @@ def _try_select_sheet(engine: Any, sheet: str) -> None:
 
 
 def _edit_write_cell(engine: Any, op: dict[str, Any]) -> None:
-    """Write a value into an Excel cell (formula-aware)."""
+    """Write a value into an Excel cell (formula-aware).
+
+    Resolution is per-operation: an explicit ``sheet_name`` targets that sheet
+    without mutating the engine's persistent sheet selection, so later ops
+    without ``sheet_name`` still default to the engine's active/target sheet.
+    """
     cell = op.get('cell')
     val = op.get('text', '')
     if not cell:
         return
-    if op.get('sheet_name') and hasattr(engine, 'select_sheet'):
-        _try_select_sheet(engine, op['sheet_name'])
-    if str(val).startswith('=') and hasattr(engine, 'set_formula'):
-        engine.set_formula(cell, val)
-    elif hasattr(engine, 'wb'):
-        engine.wb.active[cell] = val
+    ws = None
+    sheet = op.get('sheet_name')
+    if sheet and hasattr(engine, 'wb') and sheet in engine.wb.sheetnames:
+        ws = engine.wb[sheet]
+    elif hasattr(engine, '_ws'):
+        ws = engine._ws()
+    if ws is not None:
+        ws[cell] = val

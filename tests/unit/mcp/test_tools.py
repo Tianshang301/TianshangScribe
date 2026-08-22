@@ -916,3 +916,31 @@ class TestCompareMcpP0:
         assert res['success'] is False
         assert res['error_code'] == 1003
         assert 'Excel' in res['error_message'] and 'PowerPoint' in res['error_message']
+
+
+class TestEditSchemaMcpP1:
+    def test_edit_operation_per_action_builds(self) -> None:
+        from tianshang_scribe.mcp.schemas import EditOperation
+        samples = [
+            {'action': 'replace', 'old_text': 'a', 'new_text': 'b'},
+            {'action': 'delete', 'target': 'x'},
+            {'action': 'modify', 'old_text': 'a', 'new_text': 'b'},
+            {'action': 'style', 'style': 'bold'},
+            {'action': 'add', 'text': 'hi'},
+            {'action': 'clear'},
+            {'action': 'write_cell', 'cell': 'A1', 'text': 'v', 'style': 'bold'},
+            {'action': 'set_formula', 'cell': 'A1', 'formula': '=1'},
+            {'action': 'freeze_panes', 'range': 'A2'},
+            {'action': 'add_chart', 'chart_type': 'bar', 'chart_data_range': 'S!A1:B2'},
+            {'action': 'conditional_format', 'conditional_format': 'B1:B5=color_scale'},
+            {'action': 'data_validation', 'data_validation': 'C1:C5=list:yes,no'},
+            {'action': 'add_table', 'rows': [['H', 'K'], ['1', '2']]},
+            {'action': 'add_picture', 'path': 'p.png'},
+            {'action': 'add_shape', 'fill': 'FF0000'},
+            {'action': 'apply_layout', 'layout': 'Title'},
+            {'action': 'set_transition', 'transition': 'fade'},
+            {'action': 'add_notes', 'notes': 'n'},
+        ]
+        for s in samples:
+            op = EditOperation.model_validate(s)
+            assert op.action == s['action']

@@ -134,7 +134,7 @@ class PptEngine(DocumentABC):
         text: str,
         left: float = 1.0,
         top: float = 1.0,
-        width: float = 8.0,
+        width: float | None = None,
         height: float = 1.0,
         bold: bool = False,
         italic: bool = False,
@@ -154,6 +154,9 @@ class PptEngine(DocumentABC):
         if not (0 <= slide_index < len(self.prs.slides)):
             raise IndexError(f'slide_index out of range: {slide_index}')
         slide = self.prs.slides[slide_index]
+        if width is None:
+            slide_width_in = (self.prs.slide_width or 914400 * 10) / 914400
+            width = max(1.0, slide_width_in - 2 * left)
         box = slide.shapes.add_textbox(
             Inches(left), Inches(top), Inches(width), Inches(height)
         )
@@ -430,10 +433,19 @@ class PptEngine(DocumentABC):
         if omml is not None:
             paragraph._p.append(omml)
 
-    def _place_textbox(self, slide: Any, left: float = 1.0, width: float = 8.0, height: float = 1.0) -> Any:
+    def _place_textbox(
+        self,
+        slide: Any,
+        left: float = 1.0,
+        width: float | None = None,
+        height: float = 1.0,
+    ) -> Any:
         """Add a text box on ``slide``, stacking below previously placed boxes."""
         from pptx.util import Inches
 
+        if width is None:
+            slide_width_in = (self.prs.slide_width or 914400 * 10) / 914400
+            width = max(1.0, slide_width_in - 2 * left)
         sid = id(slide)
         top = self._text_cursors.get(sid, 1.0)
         self._text_cursors[sid] = top + height + 0.1

@@ -38,6 +38,12 @@ class TestPptEngine:
         with pytest.raises(IndexError, match='slide_index out of range'):
             engine.add_textbox(5, 'x')
 
+    def test_add_textbox_default_width_fits_slide(self, engine: PptEngine) -> None:
+        engine.add_slide()
+        box = engine.add_textbox(0, 'Auto width')
+        slide_width_in = engine.prs.slide_width / 914400
+        # default width is derived from slide width minus 2*left, never overflows
+        assert box.left / 914400 + box.width / 914400 <= slide_width_in + 1e-6
     # ---- Step 9 (P2): insert table ----
     def test_add_table_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
         engine.add_slide()

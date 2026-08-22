@@ -574,22 +574,33 @@ class ExcelEngine(DocumentABC):
         dv.add(cell_range)
 
     def set_range_style(self, cell_range: str, style: str) -> None:
-        """Apply border and/or fill to a range.
+        """Apply styling to a range.
 
-        ``style`` is a comma-separated key=value list supporting:
+        ``style`` is a comma-separated list of key=value pairs (or bare flags):
           border=<thin|medium|thick|double>  (all-side solid border)
           fill=<RRGGBB or color name>        (solid background fill)
+          font=<name>                        (font name)
+          size=<pt>                          (font size)
+          bold / italic                      (font flags)
+          color=<RRGGBB or color name>       (font color)
+          align=<left|center|right|justify>  (horizontal alignment)
+          numfmt=<format>                    (number format, e.g. 0.00% or yyyy-mm-dd)
         """
         import re
 
-        from openpyxl.styles import Border, PatternFill, Side
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         from openpyxl.utils import column_index_from_string
 
-        opts: dict[str, str] = {}
+        opts: dict[str, str | None] = {}
         for part in style.split(','):
+            part = part.strip()
+            if not part:
+                continue
             if '=' in part:
                 k, v = part.split('=', 1)
-                opts[k.strip()] = v.strip()
+                opts[k.strip()] = v.strip() or None
+            else:
+                opts[part] = None
 
         ws = self._ws()
         m = re.match(r'\s*([A-Z]+)(\d+)\s*:\s*([A-Z]+)(\d+)\s*$', cell_range)
@@ -603,10 +614,29 @@ class ExcelEngine(DocumentABC):
         side: Side | None = None
         if 'border' in opts:
             side = Side(style=opts['border'], color='FF000000')
-        fill: PatternFill | None = None
-        if 'fill' in opts:
-            fill = PatternFill(fill_type='solid', fgColor=opts['fill'])
         border = Border(left=side, right=side, top=side, bottom=side) if side else None
+        fill: PatternFill | None = None
+        if opts.get('fill'):
+            fill = PatternFill(fill_type='solid', fgColor=opts['fill'])
+        font: Font | None = None
+        if any(k in opts for k in ('font', 'size', 'bold', 'italic', 'color')):
+            size_val = opts.get('size')
+            font = Font(
+                name=opts.get('font'),
+                size=int(size_val) if size_val else None,
+                bold='bold' in opts,
+                italic='italic' in opts,
+                color=opts.get('color'),
+            )
+        align_map = {
+            'left': Alignment(horizontal='left'),
+            'center': Alignment(horizontal='center'),
+            'right': Alignment(horizontal='right'),
+            'justify': Alignment(horizontal='justify'),
+        }
+        align_val = opts.get('align')
+        alignment = align_map.get(align_val) if align_val else None
+        numfmt = opts.get('numfmt')
         for r in range(r1, r2 + 1):
             for c in range(c1, c2 + 1):
                 cell = ws.cell(row=r, column=c)
@@ -614,6 +644,12 @@ class ExcelEngine(DocumentABC):
                     cell.border = border
                 if fill is not None:
                     cell.fill = fill
+                if font is not None:
+                    cell.font = font
+                if alignment is not None:
+                    cell.alignment = alignment
+                if numfmt:
+                    cell.number_format = numfmt
 
     def add_hyperlink(self, cell: str, url: str) -> None:
         """Add a hyperlink to ``cell`` and give it a conventional link style."""

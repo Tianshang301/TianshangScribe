@@ -264,6 +264,22 @@ class TestExcelEngine:
         with pytest.raises(ValueError, match='Invalid cell range'):
             engine.set_range_style('bad', 'border=thin')
 
+    def test_set_range_style_font_alignment_number_format(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.set_range_style('B2:C3', 'font=Times,size=14,bold,italic,color=FF0000,align=center,numfmt=0.00%')
+        engine.wb.active['B2'] = 0.5
+        out = tmp_path / 'style2.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        cell = reopened.wb.active['B2']
+        assert cell.font.bold is True
+        assert cell.font.italic is True
+        assert cell.font.size == 14
+        assert cell.font.name == 'Times'
+        assert 'FF0000' in str(cell.font.color.rgb)
+        assert cell.alignment.horizontal == 'center'
+        assert cell.number_format == '0.00%'
+
     # ---- Step 7 (E7/E8/E9): hyperlink, named range, auto_fit ----
     def test_add_hyperlink_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
         engine.add_hyperlink('A1', 'https://example.com')

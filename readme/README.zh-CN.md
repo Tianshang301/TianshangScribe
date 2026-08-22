@@ -50,7 +50,7 @@ docker compose up -d
 **.deb 包**（Debian / Ubuntu）：
 ```bash
 # 从 GitHub Releases 下载
-sudo dpkg -i tianshang-scribe_0.7.1_all.deb
+sudo dpkg -i tianshang-scribe_0.8.0_all.deb
 tianshang-scribe --help
 ```
 
@@ -419,7 +419,7 @@ TIANSHANG_SCRIBE_AUTH_TOKEN="secret" python -m tianshang_scribe.mcp.server --tra
 
 # 健康检查
 curl http://localhost:8080/health
-# {"status":"ok","version":"0.7.1","active_sessions":3,"tools_available":7}
+# {"status":"ok","version":"0.8.0","active_sessions":3,"tools_available":7}
 
 # CORS 白名单
 python -m tianshang_scribe.mcp.server --transport sse --cors-origins "https://coze.com,https://dify.ai"

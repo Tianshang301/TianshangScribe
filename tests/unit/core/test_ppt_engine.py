@@ -74,7 +74,20 @@ class TestPptEngine:
         engine.set_protection('secret')
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         pres = engine.prs.part._element
-        assert pres.find(f'{{{ns}}}modifyVerifier') is not None
+        verifier = pres.find(f'{{{ns}}}modifyVerifier')
+        assert verifier is not None
+        # compliant: not plaintext, base64 hash of a 64-byte SHA-512 digest
+        assert verifier.get('hashData') != 'secret'
+        import base64
+
+        assert len(base64.b64decode(verifier.get('saltData'))) == 16
+        assert len(base64.b64decode(verifier.get('hashData'))) == 64
+        assert PptEngine.verify_modify_verifier(
+            'secret', verifier.get('saltData'), verifier.get('hashData')
+        )
+        assert not PptEngine.verify_modify_verifier(
+            'wrong', verifier.get('saltData'), verifier.get('hashData')
+        )
 
     def test_unprotect(self, engine: PptEngine) -> None:
         engine.set_protection('secret')
@@ -233,6 +246,23 @@ class TestPptEdge:
         engine.clear_content()
         assert engine.extract_text() == ''
 
+    def test_add_latex_content_stacks_non_overlapping(self, engine: PptEngine) -> None:
+        # heading + text + heading + text on the SAME slide => multiple text boxes
+        engine.add_latex_content('\\heading{1}{First} second \\heading{1}{Third} fourth')
+        slide = engine.prs.slides[-1]
+        boxes = [s for s in slide.shapes if s.has_text_frame]
+        tops = [round(float(b.top)) for b in boxes]
+        assert len(tops) >= 3
+        assert len(set(tops)) == len(tops)  # no two text boxes share the same position
+
+    def test_add_text_targets_existing_slide(self, engine: PptEngine) -> None:
+        engine.add_text('title')
+        initial_slides = len(engine.prs.slides)
+        engine.add_text('body', slide_index=0)
+        assert len(engine.prs.slides) == initial_slides
+        body_text = engine.extract_text()
+        assert 'title' in body_text and 'body' in body_text
+
     def test_merge_workbooks(self, engine: PptEngine, tmp_path: Path) -> None:
         other = tmp_path / 'other.pptx'
         e2 = PptEngine()
@@ -242,6 +272,31 @@ class TestPptEdge:
         initial = len(engine.prs.slides)
         engine.merge_workbooks([str(other)])
         assert len(engine.prs.slides) == initial + 1
+        # content must be faithfully copied, not just a blank slide
+        merged_text = engine.extract_text()
+        assert 'merged' in merged_text
+
+    def test_merge_workbooks_keeps_images(self, engine: PptEngine, tmp_path: Path) -> None:
+        from PIL import Image
+        from pptx.util import Inches
+
+        img = tmp_path / 'pic.png'
+        Image.new('RGB', (32, 32), 'red').save(img)
+        other = tmp_path / 'other.pptx'
+        e2 = PptEngine()
+        e2.create()
+        slide = e2.prs.slides.add_slide(e2.prs.slide_layouts[5])
+        slide.shapes.add_picture(str(img), Inches(1), Inches(1), Inches(2), Inches(2))
+        e2.save(other)
+
+        engine.merge_workbooks([str(other)])
+        out = tmp_path / 'merged.pptx'
+        engine.save(out)
+        # reopen and ensure the picture part survived the clone
+        reopened = PptEngine()
+        reopened.open(str(out))
+        last = reopened.prs.slides[-1]
+        assert any(shape.shape_type == 13 for shape in last.shapes)  # 13 == PICTURE
 
     def test_extract_tables(self, tmp_path: Path) -> None:
         from pptx import Presentation
@@ -337,15 +392,27 @@ class TestPptEdge:
         monkeypatch.setattr('shutil.which', lambda p: p if 'soffice' in p else None)
         out = tmp_path / 'imgs'
         engine.add_slide()
+        engine.add_slide()
         engine.save(str(tmp_path / 'deck.pptx'))
         calls = []
 
         def fake_run(cmd, **kw):
             calls.append(cmd)
-            (out / 'Slide1.png').write_bytes(b'png')
+            # LibreOffice convert-to pdf step: drop a pdf into the requested outdir
+            if 'pdf' in cmd:
+                outdir = cmd[cmd.index('--outdir') + 1]
+                (Path(outdir) / 'deck.pdf').write_bytes(b'%PDF')
+            return None
+
+        def fake_pdf_to_png(pdf_path, output_dir):
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
+            (Path(output_dir) / 'slide1.png').write_bytes(b'png')
+            (Path(output_dir) / 'slide2.png').write_bytes(b'png')
 
         monkeypatch.setattr(subprocess, 'run', fake_run)
+        monkeypatch.setattr(PptEngine, '_pdf_to_png', staticmethod(fake_pdf_to_png))
         result = engine.to_images(str(out))
+        assert len(result) == 2
         assert result == sorted(out.glob('*.png'))
 
     def test_compress_media_png(self, tmp_path: Path) -> None:

@@ -387,6 +387,43 @@ class TestExcelEdge:
         assert ws['A2'].value == 'b'
         assert ws['A3'].value == 'a'
 
+    def test_sort_preserves_row_integrity(self, engine: ExcelEngine) -> None:
+        ws = engine.wb.active
+        ws['A1'], ws['B1'] = 2, 'two'
+        ws['A2'], ws['B2'] = 1, 'one'
+        ws['A3'], ws['B3'] = 3, 'three'
+        engine.sort('A1:B3', 'asc')
+        assert (ws['A1'].value, ws['B1'].value) == (1, 'one')
+        assert (ws['A2'].value, ws['B2'].value) == (2, 'two')
+        assert (ws['A3'].value, ws['B3'].value) == (3, 'three')
+
+    def test_sort_multi_column_mixed_types(self, engine: ExcelEngine) -> None:
+        ws = engine.wb.active
+        # mixed types must not raise and rows stay intact
+        ws['A1'], ws['B1'] = 'x', 10
+        ws['A2'], ws['B2'] = 'x', 2
+        ws['A3'], ws['B3'] = 5, 99
+        engine.sort('A1:B3', 'asc', key_columns=[0, 1], orders=['asc', 'desc'])
+        # numbers sort before strings; within 'x', larger B comes first on desc
+        assert ws['A1'].value == 5
+        assert (ws['A2'].value, ws['B2'].value) == ('x', 10)
+        assert (ws['A3'].value, ws['B3'].value) == ('x', 2)
+
+    def test_sort_key_columns_out_of_range(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='out of range'):
+            engine.sort('A1:B3', 'asc', key_columns=[5])
+
+    def test_select_sheet_targets_operations(self, engine: ExcelEngine) -> None:
+        engine.add_sheet('Data')
+        engine.select_sheet('Data')
+        engine.add_text('hello')
+        # written to the selected sheet, not the default active sheet
+        assert engine.wb['Data']['A1'].value == 'hello'
+        assert engine.wb.active['A1'].value is None
+        with pytest.raises(ValueError, match='not found'):
+            engine.select_sheet('nonexistent')
+
+
     def test_clear_formats(self, engine: ExcelEngine) -> None:
         engine.add_text('styled', bold=True)
         engine.clear_formats()

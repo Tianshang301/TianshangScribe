@@ -4,6 +4,34 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-08-22
+
+### Fixed
+- PowerPoint `merge_workbooks`: slides are now deep-cloned with their content
+  (text, pictures, media, charts) via relationship-aware copying instead of
+  creating blank slides from the layout (`src/tianshang_scribe/core/ppt_engine.py`).
+- PowerPoint `add_text` / `add_styled_content`: multiple text blocks, headings and
+  formulas are placed on distinct, vertically stacked text boxes (previously they
+  all overlapped at the same fixed position); `add_text` gains a `slide_index`
+  argument to append onto an existing slide's body placeholder.
+- PowerPoint password protection: `set_protection` now writes a compliant
+  ECMA-376 agile `modifyVerifier` (SHA-512 + random salt + 100k iterations,
+  base64-encoded) instead of storing the plaintext password.
+- PowerPoint `to_images`: exports **every** slide by rendering the deck to PDF
+  first and rasterizing each page (PyMuPDF, else poppler `pdftoppm`), fixing the
+  LibreOffice `--convert-to png` path that only produced the first slide.
+- Excel `sort`: supports multi-column keys (`key_columns` / `orders`) and sorts
+  whole rows intact; mixed value types are ordered deterministically
+  (numbers < strings < other < None) instead of raising `TypeError`.
+
+### Added
+- Excel `--sheet` option to target a specific worksheet for the subsequent
+  operations (write, formula, sort, chart, import/export, comment); the engine
+  exposes `select_sheet` / `_ws()` (`src/tianshang_scribe/cli/main.py`,
+  `src/tianshang_scribe/core/excel_engine.py`).
+- Bumped `SERVER_VERSION` to `0.8.0` so the MCP health endpoint reports the
+  current release.
+
 ## [0.7.1] - 2026-08-19
 
 ### Fixed

@@ -118,6 +118,7 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 - `--column-width 2=20` ：设置第 2 列宽度（索引从 1 开始）
 - `--row-height 3=30` ：设置第 3 行行高
 - `--formula A1 "=SUM(B1:B10)"` ：设置公式
+- `--sheet "Sheet2"` ：指定后续 Excel 操作（写入/公式/排序/图表/导入导出等）的目标工作表，默认活动工作表
 - `--from-csv data.csv` ：从 CSV 导入数据
 - `--to-csv` ：导出为 CSV
 - `--to-json` ：导出为 JSON
@@ -326,3 +327,4 @@ src/                          # 构建隔离目录
 | v0.6.0 | 2026-08 | **破坏性变更**：环境变量前缀 `SCRIBE_*` → `TIANSHANG_SCRIBE_*`（pydantic-settings `env_prefix`，`config.py` 一处 + 全仓引用同步）；MCP Server 命令 `scribe-mcp` → `tianshang-scribe-server`（对标 TianshangCAD 的 `tianshangcad-server`，`python -m tianshang_scribe.mcp.server` 不变）；Dockerfile/docker-compose env 同步；Prometheus 指标名统一 `tianshang_scribe_` 前缀（`scribe_operation_duration_seconds`→`tianshang_scribe_operation_duration_seconds`、`scribe_operations_total`→`tianshang_scribe_operations_total`）；docker-compose 命名卷 `scribe_output`→`tianshang_scribe_output`；迁移说明见 `MIGRATION.md` |
 | v0.7.0 | 2026-08 | MathType MTEF 写入路径：`--math-mtef` 以真实 MathType OLE 对象（MTEF 二进制）嵌入 Word、`--math-font` 可配置 OMML 渲染字体（默认 Cambria Math）；数学公式转换器重构为递归下降解析器（表达式→项→因子→原子）+ 黄金快照回归套件 |
 | v0.7.1 | 2026-08 | 修复 `--comment` 在 PPT 上的索引解析崩溃（原将 slide_index 传为字符串导致 `TypeError`）；文档与实现对齐（`--split` 仅 Excel 支持、`--merge` 逗号分隔不支持通配符、`--comment` PPT 写备注区、ROADMAP `tools_available` 7） |
+| v0.8.0 | 2026-08 | **Excel/PPT 引擎缺陷修复与能力补全（MINOR）**：PPT `merge_workbooks` 改为关系感知的真实幻灯片深拷贝（含图片/媒体/图表，修复此前仅生成空白幻灯片）；PPT `add_text`/`add_styled_content` 修复多段文本/公式重叠定位并支持 `slide_index` 追加到已有幻灯片；PPT 修改保护改用合规 SHA-512+盐+10万次迭代的 ECMA-376 敏捷加密（原明文密码无效）；PPT `to_images` 改为「先转 PDF 全页再逐页栅格化」（PyMuPDF/pdftoppm），修复 LibreOffice 仅导出首屏；Excel `sort` 支持多列键与混合类型安全排序（整行保真，不再 `TypeError`）；Excel 新增 `--sheet` 选项选择目标工作表；`SERVER_VERSION` 同步至 0.8.0 |

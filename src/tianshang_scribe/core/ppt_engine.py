@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import base64
+import copy
+import hashlib
+import io
+import os
+import re
+import struct
 from pathlib import Path
 from typing import Any
 
 from lxml import etree
 from pptx import Presentation
+from pptx.opc.package import Part
+from pptx.oxml.ns import qn
 from pptx.presentation import Presentation as _PresentationType
 from pptx.util import Pt
 
@@ -22,6 +31,7 @@ class PptEngine(DocumentABC):
         super().__init__(path)
         self._prs: _PresentationType | None = None
         self._base_style: TextStyle = TextStyle.default_ppt()
+        self._text_cursors: dict[int, float] = {}
 
     @property
     def prs(self) -> _PresentationType:
@@ -67,11 +77,16 @@ class PptEngine(DocumentABC):
         color: str | None = None,
         alignment: str | None = None,
         text_style: TextStyle | None = None,
+        slide_index: int | None = None,
         **kwargs: Any,
     ) -> Any:
-        """Add text to a new slide title, supporting inline math markup."""
-        import re
+        """Add text to a slide.
 
+        By default a new slide is created and the text placed in its title
+        placeholder. When ``slide_index`` is given, the text is appended to that
+        existing slide (preferring its body placeholder, else a new text box).
+        Supports inline math markup such as ``$E=mc^2$``.
+        """
         inline = TextStyle(
             bold=bold or None,
             italic=italic or None,
@@ -85,6 +100,22 @@ class PptEngine(DocumentABC):
             final = final.merge(text_style)
         final = final.merge(inline)
 
+        if slide_index is not None and 0 <= slide_index < len(self.prs.slides):
+            slide = self.prs.slides[slide_index]
+            body = None
+            for shape in slide.shapes:
+                if shape.has_text_frame and shape is not slide.shapes.title:
+                    body = shape
+                    break
+            if body is not None and body.text_frame.text.strip():
+                tf = self._place_textbox(slide).text_frame
+            elif body is not None:
+                tf = body.text_frame
+            else:
+                tf = self._place_textbox(slide).text_frame
+            self._add_text_with_math(tf, text, final)
+            return slide
+
         slide_layout = self.prs.slide_layouts[1]
         slide = self.prs.slides.add_slide(slide_layout)
         shapes = slide.shapes
@@ -94,10 +125,18 @@ class PptEngine(DocumentABC):
             return slide
 
         tf = title_shape.text_frame
-        has_math = '$$' in text or ('$' in text and re.search(r'\$[^$]+\$', text))
+        self._add_text_with_math(tf, text, final)
+        return slide
 
+    def _add_text_with_math(self, tf: Any, text: str, style: TextStyle) -> None:
+        """Fill ``tf`` with ``text``, converting inline/display math to OMML."""
+        import re
+
+        from pptx.enum.text import PP_ALIGN
+
+        has_math = '$$' in text or ('$' in text and re.search(r'\$[^$]+\$', text))
         if has_math:
-            parts = re.split(r'(\$\$|\$)'.format(), text)
+            parts = re.split(r'(\$\$|\$)', text)
             p = tf.paragraphs[0]
             in_math = False
             math_display = False
@@ -120,25 +159,22 @@ class PptEngine(DocumentABC):
                 else:
                     run = p.add_run()
                     run.text = part
-                    self._apply_run_style(run, final)
+                    self._apply_run_style(run, style)
             if buffer and in_math:
                 self._add_omath_to_paragraph(p, buffer)
         else:
             tf.text = text
             for paragraph in tf.paragraphs:
                 for run in paragraph.runs:
-                    self._apply_run_style(run, final)
-                if final.alignment:
-                    from pptx.enum.text import PP_ALIGN
-
+                    self._apply_run_style(run, style)
+                if style.alignment:
                     align_map = {
                         'left': PP_ALIGN.LEFT,
                         'center': PP_ALIGN.CENTER,
                         'right': PP_ALIGN.RIGHT,
                         'justify': PP_ALIGN.JUSTIFY,
                     }
-                    paragraph.alignment = align_map.get(final.alignment, PP_ALIGN.LEFT)
-        return slide
+                    paragraph.alignment = align_map.get(style.alignment, PP_ALIGN.LEFT)
 
     def _apply_run_style(self, run: Any, style: TextStyle) -> None:
         if style.bold is not None and style.bold:
@@ -194,11 +230,9 @@ class PptEngine(DocumentABC):
         return slide
 
     def _add_omath_to_slide(self, slide: Any, latex: str, style: TextStyle) -> None:
-        from pptx.util import Inches
-
         from tianshang_scribe.rendering.math_omml import latex_to_omml
 
-        textbox = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
+        textbox = self._place_textbox(slide)
         tf = textbox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
@@ -213,12 +247,19 @@ class PptEngine(DocumentABC):
         if omml is not None:
             paragraph._p.append(omml)
 
+    def _place_textbox(self, slide: Any, left: float = 1.0, width: float = 8.0, height: float = 1.0) -> Any:
+        """Add a text box on ``slide``, stacking below previously placed boxes."""
+        from pptx.util import Inches
+
+        sid = id(slide)
+        top = self._text_cursors.get(sid, 1.0)
+        self._text_cursors[sid] = top + height + 0.1
+        return slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+
     def _append_text_to_slide(
         self, slide: Any, text: str, style: TextStyle, heading: bool = False
     ) -> None:
-        from pptx.util import Inches
-
-        textbox = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(8), Inches(1))
+        textbox = self._place_textbox(slide)
         tf = textbox.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
@@ -381,7 +422,14 @@ class PptEngine(DocumentABC):
         tf.text = text
 
     def to_images(self, output_dir: str | Path) -> list[Path]:
-        """Export every slide to a PNG image via LibreOffice."""
+        """Export every slide to a PNG image.
+
+        The deck is rendered to a PDF with LibreOffice (which captures *all*
+        slides) and each PDF page is then rasterized to PNG. Rasterization uses
+        PyMuPDF (``fitz``) when available, otherwise the poppler ``pdftoppm``
+        binary. This replaces the old direct ``--convert-to png`` path, which
+        LibreOffice limited to the first slide only.
+        """
         import shutil
         import subprocess
         from pathlib import Path
@@ -409,21 +457,53 @@ class PptEngine(DocumentABC):
             )
 
         self.save()
+        pdf_dir = output_dir / '.pdf_tmp'
+        pdf_dir.mkdir(parents=True, exist_ok=True)
         subprocess.run(  # noqa: S603  # fixed trusted binary; full path validated by exists()
-            [
-                lo_bin,
-                '--headless',
-                '--convert-to',
-                'png',
-                '--outdir',
-                str(output_dir),
-                str(self._path),
-            ],
+            [lo_bin, '--headless', '--convert-to', 'pdf', '--outdir', str(pdf_dir), str(self._path)],
             check=True,
             capture_output=True,
         )
-
+        pdf_path = next(pdf_dir.glob('*.pdf'), None)
+        if pdf_path is None:
+            shutil.rmtree(pdf_dir, ignore_errors=True)
+            raise RuntimeError('LibreOffice failed to produce a PDF for image export.')
+        self._pdf_to_png(pdf_path, output_dir)
+        shutil.rmtree(pdf_dir, ignore_errors=True)
         return sorted(output_dir.glob('*.png'))
+
+    def _pdf_to_png(self, pdf_path: str | Path, output_dir: str | Path) -> None:
+        """Rasterize each page of ``pdf_path`` to ``slideN.png`` in ``output_dir``."""
+        from pathlib import Path
+
+        out = Path(output_dir)
+
+        try:
+            import fitz
+        except ImportError:
+            fitz = None
+
+        if fitz is not None:
+            doc = fitz.open(str(pdf_path))
+            for i, page in enumerate(doc):
+                page.get_pixmap().save(str(out / f'slide{i + 1}.png'))
+            return
+
+        import shutil
+        import subprocess
+
+        if shutil.which('pdftoppm'):
+            subprocess.run(  # noqa: S603
+                ['pdftoppm', '-png', '-r', '150', str(pdf_path), str(out / 'slide')],  # noqa: S607
+                check=True,
+                capture_output=True,
+            )
+            return
+
+        raise RuntimeError(
+            'PDF rasterization requires PyMuPDF or poppler. '
+            'Install with: pip install pymupdf'
+        )
 
     def set_transition(self, transition_type: str, slide_index: int | None = None) -> None:
         """Set a transition effect on one slide or the whole deck."""
@@ -464,20 +544,49 @@ class PptEngine(DocumentABC):
             etree.SubElement(trans_el, f'{{{ns}}}{ttype}')
 
     def set_protection(self, password: str) -> None:
-        """Protect the presentation with a modify-verifier password."""
+        """Protect the presentation with a modify-verifier password.
+
+        Uses the ECMA-376 agile scheme: a random 16-byte salt plus a SHA-512
+        hash iterated ``spinCount`` times, stored base64-encoded (this matches
+        what PowerPoint expects, unlike a plaintext password).
+        """
         ns = 'http://schemas.openxmlformats.org/presentationml/2006/main'
         pres_elem = self.prs.part._element
         existing = pres_elem.findall(f'{{{ns}}}modifyVerifier')
         for el in existing:
             pres_elem.remove(el)
+        salt_b64, hash_b64 = self._modify_verifier_hash(password)
         verifier = etree.SubElement(pres_elem, f'{{{ns}}}modifyVerifier')
         verifier.set('cryptProviderType', 'rsaAES')
         verifier.set('cryptAlgorithmClass', 'hash')
         verifier.set('cryptAlgorithmType', 'typeAny')
         verifier.set('cryptAlgorithmSid', '14')
         verifier.set('cryptSpinCount', '100000')
-        verifier.set('hashData', password)
-        verifier.set('saltData', password)
+        verifier.set('hashData', hash_b64)
+        verifier.set('saltData', salt_b64)
+
+    @staticmethod
+    def _modify_verifier_hash(password: str, spin_count: int = 100000) -> tuple[str, str]:
+        """Return (salt_b64, hash_b64) for a modify-verifier password."""
+        salt = os.urandom(16)
+        digest = hashlib.sha512(password.encode('utf-16-le') + salt).digest()
+        for i in range(spin_count):
+            digest = hashlib.sha512(digest + struct.pack('<I', i)).digest()
+        return (
+            base64.b64encode(salt).decode('ascii'),
+            base64.b64encode(digest).decode('ascii'),
+        )
+
+    @staticmethod
+    def verify_modify_verifier(password: str, salt_b64: str, hash_b64: str, spin_count: int = 100000) -> bool:
+        """Return True if ``password`` matches the stored verifier values."""
+        import base64 as _b64
+
+        salt = _b64.b64decode(salt_b64)
+        digest = hashlib.sha512(password.encode('utf-16-le') + salt).digest()
+        for i in range(spin_count):
+            digest = hashlib.sha512(digest + struct.pack('<I', i)).digest()
+        return _b64.b64encode(digest).decode('ascii') == hash_b64
 
     def unprotect(self) -> None:
         """Remove the modify-verifier protection from the presentation."""
@@ -494,14 +603,96 @@ class PptEngine(DocumentABC):
                 if shape.has_text_frame:
                     shape.text_frame.clear()
 
-    def merge_workbooks(self, paths: list[str]) -> None:
-        """Merge slides from other presentations into this one."""
-        from pptx import Presentation
+    _SHARED_REL_SUFFIXES = (
+        '/slideLayout',
+        '/slideMaster',
+        '/theme',
+        '/notesMaster',
+        '/notesSlide',
+    )
 
+    def merge_workbooks(self, paths: list[str]) -> None:
+        """Merge slides (with their content) from other presentations into this one.
+
+        Each slide is deep-cloned, including embedded images/media/charts, by
+        re-mapping its relationships into this presentation's package.
+        """
         for p in paths:
             src = Presentation(p)
             for slide in src.slides:
-                self.prs.slides.add_slide(slide.slide_layout)
+                self._clone_slide(slide, src)
+
+    def _clone_slide(self, src_slide: Any, src_prs: Any) -> Any:
+        """Append a faithful copy of ``src_slide`` to this presentation."""
+        # map the source slide's layout to an equivalent one inside THIS package
+        src_layout = src_slide.slide_layout
+        try:
+            idx = list(src_prs.slide_layouts).index(src_layout)
+        except ValueError:
+            idx = 1
+        idx = min(idx, len(self.prs.slide_layouts) - 1)
+        new_slide = self.prs.slides.add_slide(self.prs.slide_layouts[idx])
+        # discard layout-provided default placeholders; real shapes are copied below
+        for shape in list(new_slide.shapes):
+            shape._element.getparent().remove(shape._element)
+
+        src_part = src_slide.part
+        dst_part = new_slide.part
+        dst_pkg = dst_part.package
+        r_ns = qn('r:id').split('}', 1)[0].lstrip('{')
+        part_cache: dict[int, Any] = {}
+
+        def copy_part(target: Any, reln_type: str) -> Any:
+            key = id(target)
+            if key in part_cache:
+                return part_cache[key]
+            if reln_type.endswith('/image'):
+                new_target = dst_pkg.get_or_add_image_part(io.BytesIO(target.blob))
+                part_cache[key] = new_target
+                return new_target
+            if reln_type.endswith('/media'):
+                new_target = dst_pkg.get_or_add_media_part(io.BytesIO(target.blob))
+                part_cache[key] = new_target
+                return new_target
+            tmpl = re.sub(r'(\d+)(?=\.[^/]*$|$)', '%d', str(target.partname))
+            new_target = Part(dst_pkg.next_partname(tmpl), target.content_type, dst_pkg, target.blob)
+            part_cache[key] = new_target
+            for sub_rel in target.rels:
+                if sub_rel.is_external:
+                    new_target.relate_to(sub_rel.target_ref, sub_rel.reln_type, is_external=True)
+                else:
+                    new_target.relate_to(copy_part(sub_rel.target_part, sub_rel.reln_type), sub_rel.reln_type)
+            return new_target
+
+        def remap(rel: Any) -> str:
+            if rel.is_external:
+                return str(dst_part.relate_to(rel.target_ref, rel.reln_type, is_external=True))
+            return str(dst_part.relate_to(copy_part(rel.target_part, rel.reln_type), rel.reln_type))
+
+        for shape in src_slide.shapes:
+            new_el = copy.deepcopy(shape._element)
+            drop = False
+            for el in new_el.iter():
+                for attr in list(el.attrib):
+                    if not (attr.startswith('{') and attr.split('}', 1)[0] == r_ns):
+                        continue
+                    if not (attr.endswith('}embed') or attr.endswith('}link') or attr == qn('r:id')):
+                        continue
+                    rel = src_part.rels.get(el.get(attr))
+                    if rel is None or rel.reln_type.endswith(self._SHARED_REL_SUFFIXES):
+                        drop = True
+                        break
+                    el.set(attr, remap(rel))
+                if drop:
+                    break
+            if drop:
+                continue
+            new_slide.shapes._spTree.append(new_el)
+
+        src_bg = src_slide.element.find(f'{qn("p:cSld")}/{qn("p:bg")}')
+        if src_bg is not None:
+            new_slide.element.find(qn('p:cSld')).append(copy.deepcopy(src_bg))
+        return new_slide
 
     def extract_text(self) -> str:
         """Extract all slide text as plain text lines."""

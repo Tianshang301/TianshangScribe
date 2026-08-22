@@ -21,6 +21,7 @@ class ExcelEngine(DocumentABC):
         super().__init__(path)
         self._wb: Workbook | None = None
         self._base_style: TextStyle = TextStyle.default_excel()
+        self._selected_sheet: str | None = None
 
     @property
     def wb(self) -> Workbook:
@@ -34,6 +35,7 @@ class ExcelEngine(DocumentABC):
         self._wb = Workbook()
         self._path = None
         self._base_style = TextStyle.default_excel()
+        self._selected_sheet = None
 
     def open(self, path: str | Path) -> None:
         """Open an existing workbook from the given path."""
@@ -42,6 +44,19 @@ class ExcelEngine(DocumentABC):
             raise FileNotFoundError(f'File not found: {self._path}')
         self._wb = load_workbook(str(self._path))
         self._base_style = TextStyle.default_excel()
+        self._selected_sheet = None
+
+    def select_sheet(self, name: str) -> None:
+        """Target subsequent operations at the worksheet named ``name``."""
+        if name not in self.wb.sheetnames:
+            raise ValueError(f'Sheet not found: {name}')
+        self._selected_sheet = name
+
+    def _ws(self) -> Any:
+        """Return the targeted worksheet, or the active sheet when none selected."""
+        if self._selected_sheet is not None and self._selected_sheet in self.wb.sheetnames:
+            return self.wb[self._selected_sheet]
+        return self.wb.active
 
     def save(self, path: str | Path | None = None) -> None:
         """Save the workbook to the given path or the current one."""
@@ -83,7 +98,7 @@ class ExcelEngine(DocumentABC):
             final = final.merge(text_style)
         final = final.merge(inline)
 
-        ws = self.wb.active
+        ws = self._ws()
         if ws.max_row is None or (ws.max_row == 1 and ws['A1'].value is None):
             row = 1
         else:
@@ -219,24 +234,24 @@ class ExcelEngine(DocumentABC):
 
     def set_column_width(self, col_index: int, width: float) -> None:
         """Set the width of the column at the 1-based index in the active sheet."""
-        ws = self.wb.active
+        ws = self._ws()
         ws.column_dimensions[get_column_letter(col_index)].width = width
 
     def set_row_height(self, row_index: int, height: float) -> None:
         """Set the height of the row at the given index in the active sheet."""
-        ws = self.wb.active
+        ws = self._ws()
         ws.row_dimensions[row_index].height = height
 
     def set_formula(self, cell_ref: str, formula: str) -> None:
         """Set a formula on the given cell reference in the active sheet."""
-        ws = self.wb.active
+        ws = self._ws()
         ws[cell_ref] = formula
 
     def import_csv(self, csv_path: str | Path) -> None:
         """Import data from a CSV file into the active sheet."""
         import csv
 
-        ws = self.wb.active
+        ws = self._ws()
         with open(csv_path, newline='', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row_idx, row_data in enumerate(reader, start=1):
@@ -253,7 +268,7 @@ class ExcelEngine(DocumentABC):
         if not isinstance(data, list) or not data:
             raise ValueError('import_json expects a non-empty JSON array')
 
-        ws = self.wb.active
+        ws = self._ws()
         if all(isinstance(item, dict) for item in data):
             headers = list(dict.fromkeys(k for item in data for k in item))
             for col_idx, header in enumerate(headers, start=1):
@@ -272,7 +287,7 @@ class ExcelEngine(DocumentABC):
         """Export the active sheet to a CSV file at the given path."""
         import csv
 
-        ws = self.wb.active
+        ws = self._ws()
         with open(output_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             for row in ws.iter_rows(values_only=True):
@@ -311,7 +326,7 @@ class ExcelEngine(DocumentABC):
         """Attach a comment to the given cell in the active sheet."""
         from openpyxl.comments import Comment
 
-        ws = self.wb.active
+        ws = self._ws()
         ws[cell_ref].comment = Comment(text, 'TianshangScribe')
 
     def set_protection(self, password: str) -> None:
@@ -326,7 +341,7 @@ class ExcelEngine(DocumentABC):
         """Export the active sheet to a JSON array of objects."""
         import json
 
-        ws = self.wb.active
+        ws = self._ws()
         rows = list(ws.iter_rows(values_only=True))
         if not rows:
             with open(output_path, 'w', encoding='utf-8') as f:
@@ -341,7 +356,7 @@ class ExcelEngine(DocumentABC):
 
     def export_html(self, output_path: str | Path) -> None:
         """Export the active sheet to an HTML table file."""
-        ws = self.wb.active
+        ws = self._ws()
         rows = list(ws.iter_rows(values_only=True))
         html_parts = [
             '<!DOCTYPE html><html><head><meta charset="utf-8"><title>',
@@ -362,30 +377,74 @@ class ExcelEngine(DocumentABC):
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(''.join(html_parts))
 
-    def sort(self, cell_range: str, order: str = 'asc') -> None:
-        """Sort a single-column range in the active sheet asc or desc."""
+    def sort(
+        self,
+        cell_range: str,
+        order: str = 'asc',
+        key_columns: list[int] | None = None,
+        orders: list[str] | None = None,
+    ) -> None:
+        """Sort a range of rows in the active sheet.
+
+        The whole row is moved together (column integrity preserved), unlike the
+        previous single-column implementation which only reordered one column.
+        ``key_columns`` are 0-based column offsets within the range; ``orders``
+        is the per-key ``'asc'``/``'desc'`` list. Mixed value types are sorted
+        deterministically (numbers < strings < other < None) without raising.
+        """
         import re
 
-        ws = self.wb.active
+        from openpyxl.utils import column_index_from_string
+
+        ws = self._ws()
         match = re.match(r'([A-Z]+)(\d+):([A-Z]+)(\d+)', cell_range)
         if not match:
             raise ValueError(f'Invalid cell range: {cell_range}')
-        c1, r1_s, _, r2_s = match.groups()
+        c1, r1_s, c2, r2_s = match.groups()
         r1 = int(r1_s)
         r2 = int(r2_s)
-        data = []
-        for row in range(r1, r2 + 1):
-            val = ws[f'{c1}{row}'].value
-            data.append((val, row))
-        data.sort(reverse=(order == 'desc'), key=lambda x: (x[0] is None, x[0] or ''))
-        for i, (val, _orig_row) in enumerate(data, start=r1):
-            ws[f'{c1}{i}'].value = val
+        col1 = column_index_from_string(c1)
+        col2 = column_index_from_string(c2)
+        width = col2 - col1 + 1
+
+        keys = key_columns if key_columns is not None else [0]
+        key_dirs = orders if orders is not None else [order] * len(keys)
+        if len(key_dirs) != len(keys):
+            raise ValueError('orders must have the same length as key_columns')
+
+        rows: list[list[Any]] = []
+        for r in range(r1, r2 + 1):
+            rows.append([ws.cell(row=r, column=c).value for c in range(col1, col2 + 1)])
+
+        def _norm(value: Any) -> tuple[Any, ...]:
+            if value is None:
+                return (3, 0, '')
+            if isinstance(value, bool):
+                return (2, int(value), '')
+            if isinstance(value, (int, float)):
+                return (0, value, '')
+            if isinstance(value, str):
+                return (1, 0, value.lower())
+            return (2, 0, str(value))
+
+        def _make_key(col_index: int) -> Any:
+            return lambda r: _norm(r[col_index])
+
+        for k, direction in reversed(list(zip(keys, key_dirs, strict=False))):
+            if not (0 <= k < width):
+                raise ValueError(f'key_columns index {k} out of range for width {width}')
+            rows.sort(key=_make_key(k), reverse=(direction == 'desc'))
+
+        for offset, row in enumerate(rows):
+            target = r1 + offset
+            for col_offset, value in enumerate(row):
+                ws.cell(row=target, column=col1 + col_offset).value = value
 
     def add_chart(self, chart_type: str, data_range: str, position: str = 'E2') -> None:
         """Add a bar, line or pie chart over the given data range."""
         from openpyxl.chart import BarChart, LineChart, PieChart, Reference
 
-        ws = self.wb.active
+        ws = self._ws()
         chart_classes = {'bar': BarChart, 'line': LineChart, 'pie': PieChart}
         chart_cls = chart_classes.get(chart_type)
         if chart_cls is None:

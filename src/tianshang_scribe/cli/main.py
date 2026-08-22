@@ -237,6 +237,13 @@ def main(
         str | None,
         typer.Option('--formula', help='Set formula (format: "A1 =SUM(B1:B10)")'),
     ] = None,
+    sheet: Annotated[
+        str | None,
+        typer.Option(
+            '--sheet',
+            help='Target worksheet by name for Excel operations (default: active sheet)',
+        ),
+    ] = None,
     from_csv: Annotated[
         str | None,
         typer.Option('--from-csv', help='Import data from CSV file'),
@@ -487,6 +494,13 @@ def main(
             else:
                 console.print('[red]Error:[/red] Either --create or an input file is required.')
                 raise typer.Exit(code=2)
+
+            if sheet and hasattr(engine, 'select_sheet'):
+                try:
+                    engine.select_sheet(sheet)
+                except ValueError as exc:
+                    console.print(f'[red]Error:[/red] {exc}')
+                    raise typer.Exit(code=2) from None
 
             if style:
                 engine.set_style(style)

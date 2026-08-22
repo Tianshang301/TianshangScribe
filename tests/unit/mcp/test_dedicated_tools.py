@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tianshang_scribe.core.document import create_document, open_document, DocumentType
+from tianshang_scribe.core.document import DocumentType, create_document
 from tianshang_scribe.mcp.tools.analyze_excel import analyze_excel_data
 
 

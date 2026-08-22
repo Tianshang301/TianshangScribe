@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from tianshang_scribe.core.ppt_engine import PptEngine
 from tianshang_scribe.mcp.tools._parse import (
     parse_conditional_format,
     parse_data_validation,
@@ -9,8 +10,6 @@ from tianshang_scribe.mcp.tools._parse import (
     parse_ppt_chart,
     resolve_slide_index,
 )
-
-from tianshang_scribe.core.ppt_engine import PptEngine
 
 
 def test_parse_number_format() -> None:

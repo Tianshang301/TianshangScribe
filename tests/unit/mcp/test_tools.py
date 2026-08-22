@@ -849,8 +849,7 @@ class TestEditMcpP0:
 
 
     def test_write_cell_respects_sheet_name(self, tmp_path: Path) -> None:
-        from tianshang_scribe.core.document import create_document, DocumentType
-        from tianshang_scribe.core.document import open_document
+        from tianshang_scribe.core.document import DocumentType, create_document, open_document
         book = tmp_path / 'b.xlsx'
         e = create_document(DocumentType.EXCEL)
         e.add_sheet('Sheet2')
@@ -909,7 +908,7 @@ class TestEditMcpP0:
 
 class TestCompareMcpP0:
     def test_compare_excel_reports_unsupported(self, tmp_path: Path) -> None:
-        from tianshang_scribe.core.document import create_document, DocumentType
+        from tianshang_scribe.core.document import DocumentType, create_document
         a = tmp_path / 'a.xlsx'
         b = tmp_path / 'b.xlsx'
         for p in (a, b):
@@ -962,8 +961,7 @@ class TestRegistryMcpP1:
 
 
     def test_write_cell_with_style(self, tmp_path: Path) -> None:
-        from tianshang_scribe.core.document import create_document, DocumentType
-        from tianshang_scribe.core.document import open_document
+        from tianshang_scribe.core.document import DocumentType, create_document, open_document
         book = tmp_path / 'b.xlsx'
         e = create_document(DocumentType.EXCEL)
         e.save(str(book))

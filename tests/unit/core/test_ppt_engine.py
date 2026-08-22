@@ -276,6 +276,31 @@ class TestPptEdge:
         engine.add_text('Hello')
         assert engine.replace_text('zzz', 'x') == 0
 
+    # ---- Step 12 (P4): format-preserving replace across runs ----
+    def test_replace_text_cross_run_baseline(self, engine: PptEngine, tmp_path: Path) -> None:
+        from pptx.util import Pt
+
+        engine.add_slide()
+        slide = engine.prs.slides[0]
+        tb = slide.shapes.add_textbox(Pt(1), Pt(1), Pt(100), Pt(50))
+        tf = tb.text_frame
+        p = tf.paragraphs[0]
+        r1 = p.add_run()
+        r1.text = 'Hello '
+        r2 = p.add_run()
+        r2.text = 'World'
+        r2.font.bold = True
+        count = engine.replace_text('Hello World', 'Hi there')
+        assert count == 1
+        combined = ''.join(r.text for r in p.runs)
+        assert combined == 'Hi there'
+        # original per-run styling is retained on its run
+        assert p.runs[1].font.bold is True
+        out = tmp_path / 'rt.pptx'
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+
     def test_metadata_all(self, engine: PptEngine) -> None:
         engine.set_metadata(
             author='a', title='t', subject='s', category='c', keywords='k', comments='m'

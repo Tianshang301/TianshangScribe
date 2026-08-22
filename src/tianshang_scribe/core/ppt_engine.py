@@ -430,24 +430,55 @@ class PptEngine(DocumentABC):
         return self.add_styled_content(tokens)
 
     def replace_text(self, old: str, new: str, regex: bool = False) -> int:
-        """Replace all occurrences of old text across slides; return count."""
+        """Replace all occurrences of ``old`` across slides, preserving run styles.
+
+        Unlike a naive per-run replace, this handles matches that span multiple
+        runs (e.g. a word split across styled runs) by keeping each run's font
+        and rewriting only the affected run text.
+        """
         import re as _re
 
         count = 0
         for slide in self.prs.slides:
             for shape in slide.shapes:
-                if shape.has_text_frame:
-                    for paragraph in shape.text_frame.paragraphs:
-                        for run in paragraph.runs:
-                            if regex:
-                                new_text = _re.sub(old, new, run.text)
-                                if new_text != run.text:
-                                    run.text = new_text
-                                    count += 1
-                            else:
-                                if old in run.text:
-                                    run.text = run.text.replace(old, new)
-                                    count += 1
+                if not shape.has_text_frame:
+                    continue
+                for paragraph in shape.text_frame.paragraphs:
+                    runs = paragraph.runs
+                    if not runs:
+                        current = paragraph.text
+                        new_text = _re.sub(old, new, current) if regex else current.replace(old, new)
+                        if new_text != current:
+                            paragraph.text = new_text
+                            count += 1
+                        continue
+                    full = ''.join(r.text for r in runs)
+                    matches = (
+                        list(_re.finditer(old, full))
+                        if regex
+                        else list(_re.finditer(_re.escape(old), full))
+                    )
+                    if not matches:
+                        continue
+                    spans = []
+                    idx = 0
+                    for r in runs:
+                        spans.append((idx, idx + len(r.text), r))
+                        idx += len(r.text)
+                    for m in matches:
+                        ms, me = m.start(), m.end()
+                        repl = m.expand(new) if regex else new
+                        covered = [s for s in spans if not (s[1] <= ms or s[0] >= me)]
+                        if not covered:
+                            continue
+                        first = covered[0]
+                        last = covered[-1]
+                        prefix = full[first[0] : ms]
+                        suffix = full[me : last[1]]
+                        first[2].text = prefix + repl + suffix
+                        for s in covered[1:]:
+                            s[2].text = ''
+                    count += len(matches)
         return count
 
     def set_style(self, style_str: str) -> None:

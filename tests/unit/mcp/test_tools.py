@@ -760,3 +760,46 @@ class TestSchemasMcpP0:
         assert d['action'] == 'set_formula'
         assert d['cell'] == 'A1'
         assert d['formula'] == '=SUM(B1:B10)'
+
+
+class TestCreateMcpP0:
+    def test_ppt_table_no_longer_crashes(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document('pptx', [ContentBlock(type='table', rows=[['H1', 'H2'], ['a', 'b']])], output_path=str(out))
+        assert result['success'] is True, result
+        assert Path(out).exists()
+
+    def test_ppt_single_slide_stacks_text_table_chart(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document('pptx', [
+            ContentBlock(type='paragraph', text='Title'),
+            ContentBlock(type='table', rows=[['H1', 'H2'], ['a', 'b']]),
+            ContentBlock(type='paragraph', text='Body'),
+            ContentBlock(type='paragraph', chart_type='bar', chart_data=[['', 'S1'], ['Cat1', 10], ['Cat2', 20]]),
+        ], output_path=str(out))
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+        eng = open_document(str(out))
+        shapes = list(eng.prs.slides[0].shapes)
+        assert any(sh.has_table for sh in shapes)
+        assert any(sh.has_chart for sh in shapes)
+        assert 'Title' in eng.extract_text()
+
+    def test_excel_capabilities_via_content_block(self, tmp_path: Path) -> None:
+        out = tmp_path / 'book.xlsx'
+        result = create_office_document('xlsx', [
+            ContentBlock(type='paragraph', text='hi', cell='A1', formula='=1+1',
+                      freeze='A2', number_format='A1:A1=0.00%',
+                      conditional_format='B1:B5=color_scale', data_validation='C1:C5=list:yes,no',
+                      chart_type='bar', chart_data_range='Sheet!A1:B2'),
+        ], output_path=str(out))
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+        eng = open_document(str(out))
+        ws = eng.wb.active
+        assert ws['A1'].value == '=1+1'
+        assert eng.wb.active.freeze_panes == 'A2'
+        assert ws['A1'].number_format == '0.00%'
+        assert len(list(eng.wb.active.conditional_formatting)) >= 1
+        assert 'list' in {dv.type for dv in eng.wb.active.data_validations.dataValidation}
+        assert len(ws._charts) >= 1

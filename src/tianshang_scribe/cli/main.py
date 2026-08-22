@@ -729,17 +729,25 @@ def main(
                 console.print(f'[green]Media compressed:[/green] saved {saved} byte(s).')
 
             if ppt_table and hasattr(engine, 'add_table'):
-                if len(engine.prs.slides) == 0:
+                if (
+                    hasattr(engine, 'add_slide')
+                    and hasattr(engine, 'prs')
+                    and len(engine.prs.slides) == 0
+                ):
                     engine.add_slide()
                 headers, rows = _parse_ppt_table(ppt_table)
-                slide_index = len(engine.prs.slides) - 1
+                slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
                 engine.add_table(slide_index, rows, col_names=headers or None)
                 console.print(f'[green]Table inserted on slide[/green] {slide_index}')
             if ppt_chart and hasattr(engine, 'add_chart'):
-                if len(engine.prs.slides) == 0:
+                if (
+                    hasattr(engine, 'add_slide')
+                    and hasattr(engine, 'prs')
+                    and len(engine.prs.slides) == 0
+                ):
                     engine.add_slide()
                 chart_type, data = _parse_ppt_chart(ppt_chart)
-                slide_index = len(engine.prs.slides) - 1
+                slide_index = len(engine.prs.slides) - 1 if hasattr(engine, 'prs') else 0
                 engine.add_chart(slide_index, chart_type, data)
                 console.print(f'[green]Chart ({chart_type}) inserted on slide[/green] {slide_index}')
 
@@ -1001,11 +1009,15 @@ def _parse_data_validation(spec: str) -> tuple[str, str, str | None, str | None]
 def _parse_ppt_table(spec: str) -> tuple[list[str], list[list[str]]]:
     from tianshang_scribe.cli.global_opts import parse_table_input
 
-    headers, rows = parse_table_input(spec)
-    return headers, rows
+    rows = parse_table_input(spec)
+    if not rows:
+        return [], []
+    headers = rows[0]
+    body = rows[1:]
+    return headers, body
 
 
-def _parse_ppt_chart(spec: str) -> tuple[str, list[list[object]]]:
+def _parse_ppt_chart(spec: str) -> tuple[str, list[list[Any]]]:
     segments = [s for s in spec.split('|') if s != '']
     if len(segments) < 3:
         raise ValueError(
@@ -1013,9 +1025,9 @@ def _parse_ppt_chart(spec: str) -> tuple[str, list[list[object]]]:
         )
     chart_type = segments[0].strip()
     series = [s.strip() for s in segments[1].split(',')]
-    data: list[list[object]] = [[None, *series]]
+    data: list[list[Any]] = [[None, *series]]
     for seg in segments[2:]:
-        cells = [c.strip() for c in seg.split(',')]
+        cells: list[Any] = [c.strip() for c in seg.split(',')]
         data.append(cells)
     return chart_type, data
 

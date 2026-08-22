@@ -1,0 +1,41 @@
+# A Short Note on the Existence of a Fixed Point
+
+## Abstract
+
+We prove the existence of a unique fixed point for a contraction mapping on a
+complete metric space, and discuss a simple application to the solution of a
+nonlinear equation.
+
+## 1 Introduction
+
+Let $(X, d)$ be a complete metric space. A map $f: X \to X$ is called a
+contraction if there exists a constant $k \in [0, 1)$ such that
+
+$$ d(f(x), f(y)) \le k \, d(x, y) \quad \text{for all } x, y \in X. $$
+
+Banach's contraction principle states that every contraction on a complete
+metric space admits exactly one fixed point.
+
+## 2 Main Result
+
+**Theorem 2.1.** Every contraction $f$ on a complete metric space $X$ has a
+unique fixed point $x^*$, and the sequence defined by
+
+$$ x_{n+1} = f(x_n) $$
+
+converges to $x^*$ for any starting point $x_0 \in X$.
+
+## 3 Application
+
+Consider the integral equation
+
+$$ u(x) = g(x) + \lambda \int_a^b K(x, t) \, u(t) \, dt, \qquad 0 < |\lambda| < 1, $$
+
+where $K$ is continuous on $[a, b] \times [a, b]$. Under a Lipschitz
+condition on the kernel, the right-hand side defines a contraction, and hence
+a unique solution $u$ exists by the theorem above. The error after $n$
+iterations is bounded by
+
+$$ \| u_n - u \| \le \frac{k^n}{1 - k} \, \| u_1 - u_0 \|. $$
+
+This completes the proof.

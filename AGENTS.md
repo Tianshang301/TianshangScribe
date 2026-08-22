@@ -125,6 +125,10 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 - `--to-html` ：导出为 HTML 表格
 - `--sort A1:A10 asc` ：排序
 - `--chart-add type=bar data=B1:C10` ：创建图表
+- `--freeze "A2"` ：冻结窗格（冻结 `A2` 上方的行与左侧的列）
+- `--number-format "A1:A10=0.00%"` ：设置数字格式（支持 `0.00%` / `yyyy-mm-dd` / `#,##0`）
+- `--conditional-format "B2:B100=color_scale"` ：条件格式（`color_scale` / `data_bar` / `cell_is:operator:formula`）
+- `--data-validation "C2:C50=list:yes,no"` ：数据验证（`list` / `whole` / `decimal` / `date` / `text_length`，`whole`/`decimal` 可用 `min:max`）
 
 > **反向转换**：`.md/.markdown/.html` 作为输入时自动转换为 Word（`tianshang-scribe doc.md -o out.docx`）；`.json`（对象数组/数组）作为输入时自动导入为 Excel。
 
@@ -137,6 +141,8 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 - `--toimg output_dir/` ：导出为图片序列
 - `--transition "fade"` ：设置幻灯片切换效果
 - `--compress-media "1920,80"` ：压缩媒体（最大边长,JPEG 质量）
+- `--ppt-table "H1,H2\|a1,a2"` ：在末张幻灯片插入表格（首行为表头）
+- `--ppt-chart "bar\|S1,S2\|Cat1,1,2\|Cat2,3,4"` ：在末张幻灯片插入图表（`type\|系列名\|分类行...`）
 
 #### 5. LaTeX 风格排版标记（Word / PPT 文本内容）
 
@@ -327,4 +333,4 @@ src/                          # 构建隔离目录
 | v0.6.0 | 2026-08 | **破坏性变更**：环境变量前缀 `SCRIBE_*` → `TIANSHANG_SCRIBE_*`（pydantic-settings `env_prefix`，`config.py` 一处 + 全仓引用同步）；MCP Server 命令 `scribe-mcp` → `tianshang-scribe-server`（对标 TianshangCAD 的 `tianshangcad-server`，`python -m tianshang_scribe.mcp.server` 不变）；Dockerfile/docker-compose env 同步；Prometheus 指标名统一 `tianshang_scribe_` 前缀（`scribe_operation_duration_seconds`→`tianshang_scribe_operation_duration_seconds`、`scribe_operations_total`→`tianshang_scribe_operations_total`）；docker-compose 命名卷 `scribe_output`→`tianshang_scribe_output`；迁移说明见 `MIGRATION.md` |
 | v0.7.0 | 2026-08 | MathType MTEF 写入路径：`--math-mtef` 以真实 MathType OLE 对象（MTEF 二进制）嵌入 Word、`--math-font` 可配置 OMML 渲染字体（默认 Cambria Math）；数学公式转换器重构为递归下降解析器（表达式→项→因子→原子）+ 黄金快照回归套件 |
 | v0.7.1 | 2026-08 | 修复 `--comment` 在 PPT 上的索引解析崩溃（原将 slide_index 传为字符串导致 `TypeError`）；文档与实现对齐（`--split` 仅 Excel 支持、`--merge` 逗号分隔不支持通配符、`--comment` PPT 写备注区、ROADMAP `tools_available` 7） |
-| v0.8.0 | 2026-08 | **Excel/PPT 引擎缺陷修复与能力补全（MINOR）**：PPT `merge_workbooks` 改为关系感知的真实幻灯片深拷贝（含图片/媒体/图表，修复此前仅生成空白幻灯片）；PPT `add_text`/`add_styled_content` 修复多段文本/公式重叠定位并支持 `slide_index` 追加到已有幻灯片；PPT 修改保护改用合规 SHA-512+盐+10万次迭代的 ECMA-376 敏捷加密（原明文密码无效）；PPT `to_images` 改为「先转 PDF 全页再逐页栅格化」（PyMuPDF/pdftoppm），修复 LibreOffice 仅导出首屏；Excel `sort` 支持多列键与混合类型安全排序（整行保真，不再 `TypeError`）；Excel 新增 `--sheet` 选项选择目标工作表；`SERVER_VERSION` 同步至 0.8.0 |
+| v0.8.0 | 2026-08 | **Excel/PPT 引擎缺陷修复与能力补全（MINOR）**：PPT `merge_workbooks` 改为关系感知的真实幻灯片深拷贝（含图片/媒体/图表，修复此前仅生成空白幻灯片）；PPT `add_text`/`add_styled_content` 修复多段文本/公式重叠定位并支持 `slide_index` 追加到已有幻灯片；PPT 修改保护改用合规 SHA-512+盐+10万次迭代的 ECMA-376 敏捷加密（原明文密码无效）；PPT `to_images` 改为「先转 PDF 全页再逐页栅格化」（PyMuPDF/pdftoppm），修复 LibreOffice 仅导出首屏；Excel `sort` 支持多列键与混合类型安全排序（整行保真，不再 `TypeError`）；Excel 新增 `--sheet` 选项选择目标工作表；Excel 新增冻结窗格 `--freeze`、数字格式 `--number-format`、条件格式 `--conditional-format`、数据验证 `--data-validation`、边框/填充 `set_range_style`、图表类型扩展（area/scatter/doughnut）、超链接/命名范围/自动列宽；PPT 新增精确文本框 `add_textbox`、表格 `add_table`、图表 `add_chart`、图片 `add_picture`、形状 `add_shape`、`replace_text` 跨 run 保留格式，以及 CLI `--ppt-table`/`--ppt-chart`；`SERVER_VERSION` 同步至 0.8.0 |

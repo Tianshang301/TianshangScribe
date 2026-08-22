@@ -187,6 +187,10 @@ When `-w/-e/-p` is omitted, the document type is inferred from the input file ex
 | `--from-csv` | Import CSV data | `--from-csv data.csv` |
 | `--sort` | Sort range | `--sort "A1:A10 asc"` |
 | `--chart-add` | Add chart | `--chart-add "type=bar data=B1:C10"` |
+| `--freeze` | Freeze panes | `--freeze "A2"` |
+| `--number-format` | Set number format | `--number-format "A1:A10=0.00%"` |
+| `--conditional-format` | Conditional format | `--conditional-format "B2:B100=color_scale"` |
+| `--data-validation` | Data validation | `--data-validation "C2:C50=list:yes,no"` |
 | `--protect` | Set password | `--protect "p@ss"` |
 | `--unprotect` | Remove password | `--unprotect` |
 | `--to-csv` | Export as CSV | |
@@ -355,6 +359,7 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Transitions | Set slide transitions —fade, push, wipe, etc. (`--transition`) |
 | Export | Save slides as images (`--toimg`), convert to PDF (`--topdf`) |
 | Media compression | Compress images (`--compress-media "1920,80"`) |
+| Tables & charts | Insert table/chart on the last slide (`--ppt-table "H1,H2\|a1,a2"`, `--ppt-chart "bar\|S1,S2\|Cat1,1,2"`) |
 | Protection | Set/remove password (`--protect`, `--unprotect`) |
 
 ## Exit Codes

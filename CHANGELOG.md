@@ -29,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   operations (write, formula, sort, chart, import/export, comment); the engine
   exposes `select_sheet` / `_ws()` (`src/tianshang_scribe/cli/main.py`,
   `src/tianshang_scribe/core/excel_engine.py`).
+- Excel engine capabilities: `freeze_panes` (CLI `--freeze`), `set_number_format`
+  (CLI `--number-format`), `add_conditional_format` (CLI `--conditional-format`,
+  supporting `color_scale` / `data_bar` / `cell_is` / `formula`), `add_data_validation`
+  (CLI `--data-validation`, `list`/`whole`/`decimal`/`date`/`text_length`),
+  `set_range_style` (border/fill), chart-type extension (`area`/`scatter`/`doughnut`
+  alongside `bar`/`line`/`pie`), `add_hyperlink`, `set_named_range`, `auto_fit`.
+- PowerPoint engine capabilities: `add_textbox` (precise inch positioning),
+  `add_table` (CLI `--ppt-table`), `add_chart` (CLI `--ppt-chart`,
+  `bar`/`column`/`line`/`pie`/`area`/`doughnut`), `add_picture`, `add_shape`
+  (autoshapes), and `replace_text` now preserves run-level styles across runs
+  that span a match.
 - Bumped `SERVER_VERSION` to `0.8.0` so the MCP health endpoint reports the
   current release.
 

@@ -185,6 +185,10 @@ tianshang-scribe budget.xlsx --formula "B10 =SUM(B2:B9)" --protect "p@ss" -o pro
 | `--from-csv` | 导入 CSV | `--from-csv data.csv` |
 | `--sort` | 排序 | `--sort "A1:A10 asc"` |
 | `--chart-add` | 添加图表 | `--chart-add "type=bar data=B1:C10"` |
+| `--freeze` | 冻结窗格 | `--freeze "A2"` |
+| `--number-format` | 设置数字格式 | `--number-format "A1:A10=0.00%"` |
+| `--conditional-format` | 条件格式 | `--conditional-format "B2:B100=color_scale"` |
+| `--data-validation` | 数据验证 | `--data-validation "C2:C50=list:yes,no"` |
 | `--protect` | 设置密码 | `--protect "p@ss"` |
 | `--unprotect` | 解除密码 | `--unprotect` |
 | `--to-csv` | 导出 CSV | |
@@ -354,6 +358,7 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 切换效果 | fade、push、wipe 等 17 种（`--transition`） |
 | 导出 | 图片序列（`--toimg`）、PDF（`--topdf`） |
 | 媒体压缩 | 压缩图片（`--compress-media "1920,80"`） |
+| 表格与图表 | 末张幻灯片插入表格/图表（`--ppt-table "H1,H2\|a1,a2"`、`--ppt-chart "bar\|S1,S2\|Cat1,1,2"`） |
 | 保护 | 设置/解除密码（`--protect`、`--unprotect`） |
 
 ## 退出码

@@ -32,8 +32,7 @@ def test_parse_data_validation() -> None:
 
 
 def test_parse_ppt_chart() -> None:
-    chart_type, data = parse_ppt_chart([['', 'S1', 'S2'], ['Cat1', 1, 2], ['Cat2', 3, 4]])
-    assert chart_type == 'bar'
+    data = parse_ppt_chart([['', 'S1', 'S2'], ['Cat1', 1, 2], ['Cat2', 3, 4]])
     assert data[0] == [None, 'S1', 'S2']
     assert data[1] == ['Cat1', 1, 2]
     assert data[2] == ['Cat2', 3, 4]

@@ -892,16 +892,19 @@ class TestEditMcpP0:
     def test_ppt_explicit_slide_index_overrides_stack(self, tmp_path: Path) -> None:
         out = tmp_path / 'deck.pptx'
         result = create_office_document('pptx', [
-            ContentBlock(type='paragraph', text='first'),
-            ContentBlock(type='paragraph', text='second', slide_index=1),
+            ContentBlock(type='paragraph', text='s0'),
+            ContentBlock(type='page_break'),
+            ContentBlock(type='paragraph', text='s1'),
+            ContentBlock(type='table', rows=[['H', 'K'], ['1', '2']], slide_index=1),
         ], output_path=str(out))
         assert result['success'] is True, result
         from tianshang_scribe.core.document import open_document
         eng = open_document(str(out))
         assert len(eng.prs.slides) == 2
-        assert 'first' in eng.prs.slides[0].shapes[0].text_frame.text
-        # second explicitly forced to slide index 1 (new slide)
-        assert 'second' in eng.extract_text()
+        shapes0 = list(eng.prs.slides[0].shapes)
+        shapes1 = list(eng.prs.slides[1].shapes)
+        assert not any(s.has_table for s in shapes0)
+        assert any(s.has_table for s in shapes1)
 
 
 class TestCompareMcpP0:

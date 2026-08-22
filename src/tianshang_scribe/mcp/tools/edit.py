@@ -111,7 +111,7 @@ def edit_office_document(
                     changes += 1
                 elif op.get('chart_data') and hasattr(engine, 'add_chart'):
                     idx = resolve_slide_index(engine, op.get('slide_index'))
-                    _, data = parse_ppt_chart(op['chart_data'])
+                    data = parse_ppt_chart(op['chart_data'])
                     engine.add_chart(idx, chart_type, data)
                     changes += 1
             elif action == 'conditional_format':

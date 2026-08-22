@@ -45,13 +45,14 @@ def parse_data_validation(spec: str) -> tuple[str, str, str | None, str | None]:
     return cell_range.strip(), dv_type, formula1, formula2
 
 
-def parse_ppt_chart(spec: list[list[Any]]) -> tuple[str, list[list[Any]]]:
+def parse_ppt_chart(spec: list[list[Any]]) -> list[list[Any]]:
     """Normalise PPT chart data.
 
     ``spec`` is a list of rows where ``spec[0]`` holds series names (its first
     cell is ignored) and each subsequent row is ``[category, *values]``. Returns
-    ``(chart_type_hint, normalized_data)`` where ``normalized_data`` matches the
-    shape expected by :meth:`PptEngine.add_chart` (first row ``[None, *series]``).
+    the normalised data matching the shape expected by
+    :meth:`PptEngine.add_chart` (first row ``[None, *series]``). The chart type
+    is taken from the ``chart_type`` field of the calling tool, not inferred here.
     """
     if not spec:
         raise ValueError('chart_data must contain at least one row of series names')
@@ -59,7 +60,7 @@ def parse_ppt_chart(spec: list[list[Any]]) -> tuple[str, list[list[Any]]]:
     data: list[list[Any]] = [[None, *series]]
     for row in spec[1:]:
         data.append(list(row))
-    return 'bar', data
+    return data
 
 
 def resolve_slide_index(engine: Any, slide_index: int | None) -> int:

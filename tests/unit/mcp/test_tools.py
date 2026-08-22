@@ -870,3 +870,35 @@ class TestEditMcpP0:
         assert res2['success'] is True, res2
         e3 = open_document(str(book))
         assert e3.wb['Sheet2']['B1'].value == '=1+1'
+
+
+    def test_ppt_blocks_stack_single_slide_without_index(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document('pptx', [
+            ContentBlock(type='paragraph', text='A'),
+            ContentBlock(type='table', rows=[['H1', 'H2'], ['x', 'y']]),
+            ContentBlock(type='paragraph', text='B'),
+            ContentBlock(type='paragraph', chart_type='bar', chart_data=[['', 'S'], ['Cat1', 1], ['Cat2', 2]]),
+        ], output_path=str(out))
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+        eng = open_document(str(out))
+        assert len(eng.prs.slides) == 1
+        shapes = list(eng.prs.slides[0].shapes)
+        assert any(s.has_table for s in shapes)
+        assert any(s.has_chart for s in shapes)
+        assert 'A' in eng.extract_text() and 'B' in eng.extract_text()
+
+    def test_ppt_explicit_slide_index_overrides_stack(self, tmp_path: Path) -> None:
+        out = tmp_path / 'deck.pptx'
+        result = create_office_document('pptx', [
+            ContentBlock(type='paragraph', text='first'),
+            ContentBlock(type='paragraph', text='second', slide_index=1),
+        ], output_path=str(out))
+        assert result['success'] is True, result
+        from tianshang_scribe.core.document import open_document
+        eng = open_document(str(out))
+        assert len(eng.prs.slides) == 2
+        assert 'first' in eng.prs.slides[0].shapes[0].text_frame.text
+        # second explicitly forced to slide index 1 (new slide)
+        assert 'second' in eng.extract_text()

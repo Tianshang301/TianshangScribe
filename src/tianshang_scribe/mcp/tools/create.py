@@ -135,7 +135,7 @@ def create_office_document(
                 if doc_type == DocumentType.PPT and rows and hasattr(engine, 'add_table'):
                     col_names = rows[0]
                     data = rows[1:]
-                    idx = resolve_slide_index(engine, item.get('slide_index'))
+                    idx = _resolve_ppt_slide(engine, item, current_slide_index)
                     engine.add_table(idx, data, col_names=col_names)
                 elif hasattr(engine, 'add_table'):
                     engine.add_table(rows=len(rows), cols=len(rows[0]) if rows else 1)
@@ -148,7 +148,7 @@ def create_office_document(
                     engine.add_latex_content(rf'\includegraphics{{{img_path}}}')
 
             # Excel/PPT capability fields are independent of the block type.
-            _apply_mcp_capabilities(engine, doc_type, item)
+            _apply_mcp_capabilities(engine, doc_type, item, current_slide_index)
 
             if item_style and hasattr(engine, 'set_style'):
                 engine.set_style(item_style)
@@ -209,7 +209,23 @@ def _get_stats(engine: Any, obj: Any) -> dict[str, int]:
     return {}
 
 
-def _apply_mcp_capabilities(engine: Any, doc_type: Any, item: dict[str, Any]) -> None:
+def _resolve_ppt_slide(engine: Any, item: dict[str, Any], current_slide_index: int | None) -> int:
+    """Resolve the target PPT slide for a block.
+
+    An explicit ``slide_index`` wins; otherwise, when content is being stacked
+    onto a slide (``current_slide_index`` is set) that slide is used so multiple
+    blocks land on the same slide. Falls back to the last slide when nothing
+    else applies.
+    """
+    idx = item.get('slide_index')
+    if idx is None and current_slide_index is not None:
+        return current_slide_index
+    return resolve_slide_index(engine, idx)
+
+
+def _apply_mcp_capabilities(
+    engine: Any, doc_type: Any, item: dict[str, Any], current_slide_index: int | None = None
+) -> None:
     """Apply the Excel/PPT capability fields carried by a ``ContentBlock``.
 
     These fields are optional and independent of the block's primary ``type``, so
@@ -243,14 +259,15 @@ def _apply_mcp_capabilities(engine: Any, doc_type: Any, item: dict[str, Any]) ->
             engine.set_named_range(name.strip(), rng.strip())
     elif doc_type == DocumentType.PPT:
         if item.get('slide_layout') is not None and hasattr(engine, 'apply_layout'):
-            idx = resolve_slide_index(engine, item.get('slide_index'))
+            idx = _resolve_ppt_slide(engine, item, current_slide_index)
             engine.apply_layout(idx, item['slide_layout'])
         if item.get('notes') is not None and hasattr(engine, 'add_notes'):
-            idx = resolve_slide_index(engine, item.get('slide_index'))
+            idx = _resolve_ppt_slide(engine, item, current_slide_index)
             engine.add_notes(idx, item['notes'])
         if item.get('transition') is not None and hasattr(engine, 'set_transition'):
-            engine.set_transition(item['transition'])
+            idx = _resolve_ppt_slide(engine, item, current_slide_index)
+            engine.set_transition(item['transition'], slide_index=idx)
         if item.get('chart_type') and item.get('chart_data') and hasattr(engine, 'add_chart'):
-            idx = resolve_slide_index(engine, item.get('slide_index'))
-            _, data = parse_ppt_chart(item['chart_data'])
+            idx = _resolve_ppt_slide(engine, item, current_slide_index)
+            data = parse_ppt_chart(item['chart_data'])
             engine.add_chart(idx, item['chart_type'], data)

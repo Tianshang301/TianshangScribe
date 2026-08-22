@@ -454,6 +454,10 @@ class ExcelEngine(DocumentABC):
         chart.add_data(data, titles_from_data=True)
         ws.add_chart(chart, position)
 
+    def freeze_panes(self, cell: str = 'A2') -> None:
+        """Freeze rows above / columns left of ``cell`` (e.g. 'A2', 'B1', 'C4')."""
+        self._ws().freeze_panes = cell
+
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""
         for p in paths:

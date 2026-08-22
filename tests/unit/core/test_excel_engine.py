@@ -181,6 +181,17 @@ class TestExcelEngine:
         engine.add_chart('bar', f"'{sheet_name}'!A1:B2")
         assert len(ws._charts) >= 1
 
+    # ---- Step 1 (E1): freeze panes ----
+    def test_freeze_panes_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.add_text('hdr', column=1)
+        engine.freeze_panes('A2')
+        assert engine.wb.active.freeze_panes == 'A2'
+        out = tmp_path / 'frozen.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        assert reopened.wb.active.freeze_panes == 'A2'
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
             engine.add_chart('scatter', 'A1:B2')

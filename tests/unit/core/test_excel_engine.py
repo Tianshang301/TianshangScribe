@@ -231,6 +231,24 @@ class TestExcelEngine:
         with pytest.raises(ValueError, match='Unsupported conditional format type'):
             engine.add_conditional_format('A1:A5', 'bogus')
 
+    # ---- Step 4 (E5): data validation ----
+    def test_add_data_validation_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.add_data_validation('A1:A10', 'list', 'yes,no')
+        engine.add_data_validation('B1:B10', 'whole', '1', '100')
+        out = tmp_path / 'dv.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        dvs = reopened.wb.active.data_validations.dataValidation
+        types = {dv.type for dv in dvs}
+        assert 'list' in types
+        assert 'whole' in types
+
+    def test_add_data_validation_list_quotes(self, engine: ExcelEngine) -> None:
+        engine.add_data_validation('A1:A5', 'list', 'x,y,z')
+        dv = engine.wb.active.data_validations.dataValidation[0]
+        assert dv.formula1 == '"x,y,z"'
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
             engine.add_chart('scatter', 'A1:B2')

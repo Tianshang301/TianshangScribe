@@ -528,6 +528,34 @@ class ExcelEngine(DocumentABC):
             raise ValueError(f'Unsupported conditional format type: {cf_type!r}')
         ws.conditional_formatting.add(cell_range, rule)
 
+    def add_data_validation(
+        self,
+        cell_range: str,
+        dv_type: str = 'list',
+        formula1: object = None,
+        formula2: object = None,
+        allow_blank: bool = True,
+    ) -> None:
+        """Add a data-validation rule to ``cell_range``.
+
+        ``dv_type`` is an openpyxl DV type: 'list', 'whole', 'decimal',
+        'date', 'textLength', etc. For 'list', ``formula1`` is a comma-
+        separated string (or an explicit list) of allowed values.
+        """
+        from openpyxl.worksheet.datavalidation import DataValidation
+
+        ws = self._ws()
+        if dv_type == 'list' and isinstance(formula1, str):
+            formula1 = '"' + formula1 + '"'
+        dv = DataValidation(
+            type=dv_type,
+            formula1=formula1,
+            formula2=formula2,
+            allow_blank=allow_blank,
+        )
+        ws.add_data_validation(dv)
+        dv.add(cell_range)
+
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""
         for p in paths:

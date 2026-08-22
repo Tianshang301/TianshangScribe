@@ -50,3 +50,88 @@ def test_analyze_excel_rejects_non_excel(tmp_path: Path) -> None:
     res = analyze_excel_data(str(doc))
     assert res['success'] is False
     assert res['error_code'] == 1003  # UNSUPPORTED_FORMAT
+
+
+def test_create_excel_workbook_baseline(tmp_path: Path) -> None:
+    from openpyxl import load_workbook
+
+    from tianshang_scribe.mcp.tools.excel_create import create_excel_workbook
+
+    out = tmp_path / 'book.xlsx'
+    res = create_excel_workbook(
+        str(out),
+        sheets=[
+            {
+                'name': 'Data',
+                'headers': ['name', 'score'],
+                'rows': [['alice', 10], ['bob', 20]],
+                'formulas': {'C1': '=SUM(B2:B3)'},
+                'number_format': 'B2:B3=0.00',
+            }
+        ],
+    )
+    assert res['success'] is True, res
+    assert res['data']['sheet_count'] == 1
+    wb = load_workbook(str(out))
+    assert 'Data' in wb.sheetnames
+    ws = wb['Data']
+    assert ws['A1'].value == 'name'
+    assert ws['C1'].value == '=SUM(B2:B3)'
+    assert ws['B2'].number_format == '0.00'
+
+
+def test_edit_excel_workbook_write_cell_and_sheet(tmp_path: Path) -> None:
+    from openpyxl import load_workbook
+
+    from tianshang_scribe.mcp.tools.excel_create import create_excel_workbook
+    from tianshang_scribe.mcp.tools.excel_edit import edit_excel_workbook
+
+    out = tmp_path / 'book.xlsx'
+    create_excel_workbook(str(out), sheets=[{'name': 'Data', 'rows': [['alice', 10]]}])
+    res = edit_excel_workbook(
+        str(out),
+        operations=[
+            {'action': 'write_cell', 'cell': 'C1', 'value': 42, 'sheet_name': 'Data'},
+            {'action': 'add_sheet', 'sheet_name': 'Extra'},
+        ],
+    )
+    assert res['success'] is True, res
+    wb = load_workbook(str(out))
+    assert wb['Data']['C1'].value == 42
+    assert 'Extra' in wb.sheetnames
+
+
+def test_create_presentation_baseline(tmp_path: Path) -> None:
+    from pptx import Presentation
+
+    from tianshang_scribe.mcp.tools.ppt_create import create_presentation
+
+    out = tmp_path / 'deck.pptx'
+    res = create_presentation(
+        str(out),
+        slides=[
+            {'title': 'Intro', 'bullets': ['a', 'b'], 'layout': 'Title and Content'},
+        ],
+    )
+    assert res['success'] is True, res
+    assert res['data']['slide_count'] == 1
+    prs = Presentation(str(out))
+    assert len(prs.slides) == 1
+
+
+def test_edit_presentation_add_slide(tmp_path: Path) -> None:
+    from pptx import Presentation
+
+    from tianshang_scribe.mcp.tools.ppt_create import create_presentation
+    from tianshang_scribe.mcp.tools.ppt_edit import edit_presentation
+
+    out = tmp_path / 'deck.pptx'
+    create_presentation(str(out), slides=[{'title': 'First'}])
+    res = edit_presentation(
+        str(out),
+        operations=[{'action': 'add_slide'}, {'action': 'add_text', 'text': 'hello', 'slide_index': 1}],
+    )
+    assert res['success'] is True, res
+    prs = Presentation(str(out))
+    assert len(prs.slides) == 2
+

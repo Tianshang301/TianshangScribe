@@ -164,6 +164,11 @@ class EditOperation(BaseModel):
         'apply_layout',
         'set_transition',
         'add_notes',
+        'add_slide',
+        'sort',
+        'add_sheet',
+        'set_range_style',
+        'number_format',
     ] = Field(
         description=(
             'Operation type. Only the listed fields are meaningful per action:\n'
@@ -181,17 +186,25 @@ class EditOperation(BaseModel):
             '- "data_validation": data_validation OR range (Excel)\n'
             '- "add_table": rows (first row = header), slide_index (PPT)\n'
             '- "add_picture": path, slide_index (PPT)\n'
-            '- "add_shape": slide_index, fill, line (PPT)\n'
+            '- "add_shape": slide_index, fill, line, shape_type (PPT)\n'
             '- "apply_layout": slide_index, layout (PPT)\n'
             '- "set_transition": slide_index, transition (PPT)\n'
             '- "add_notes": slide_index, notes (PPT)\n'
+            '- "add_slide": layout (PPT, optional)\n'
+            '- "sort": range, key_columns, orders, order (Excel)\n'
+            '- "add_sheet": sheet_name (Excel)\n'
+            '- "set_range_style": range, style (Excel)\n'
+            '- "number_format": number_format ("RANGE=FORMAT", e.g. "A1:A10=0.00%")\n'
             'Unused fields for an action are ignored.'
         ),
     )
     old_text: str | None = Field(default=None, description='Text to find (replace/modify).')
     new_text: str | None = Field(default=None, description='Replacement text (replace/modify).')
     target: str | None = Field(default=None, description='Text to delete (delete).')
-    text: str | None = Field(default=None, description='Text to add (add) or value to write (write_cell).')
+    text: str | int | float | bool | None = Field(
+        default=None,
+        description='Text to add (add) or scalar value to write (write_cell; formulas start with "=").',
+    )
     style: str | None = Field(default=None, description='Style string (style).')
     regex: bool | None = Field(default=None, description='Treat old_text/target as a regex.')
     apply_all: bool | None = Field(
@@ -225,6 +238,11 @@ class EditOperation(BaseModel):
     path: str | None = Field(default=None, description='Image path (add_picture).')
     fill: str | None = Field(default=None, description='Shape fill color hex (add_shape).')
     line: str | None = Field(default=None, description='Shape line color hex (add_shape).')
+    shape_type: str | None = Field(default=None, description='Autoshape type (add_shape), e.g. rectangle/oval/arrow/line.')
+    key_columns: list[int] | None = Field(default=None, description='0-based sort key columns (sort).')
+    orders: list[str] | None = Field(default=None, description='Per-key sort orders asc/desc (sort).')
+    order: str | None = Field(default=None, description='Single sort order asc/desc (sort).')
+    number_format: str | None = Field(default=None, description='Number format spec "RANGE=FORMAT" (number_format).')
 
 
 class ToolOptions(BaseModel):

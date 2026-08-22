@@ -62,6 +62,7 @@ class ExcelEditOp(BaseModel):
     - "sort": range, key_columns, orders (or order)
     - "add_sheet": sheet_name
     - "set_range_style": range, style
+    - "number_format": number_format ("RANGE=FORMAT")
     """
 
     model_config = _allow
@@ -77,6 +78,7 @@ class ExcelEditOp(BaseModel):
         'sort',
         'add_sheet',
         'set_range_style',
+        'number_format',
     ] = Field(description='Excel edit operation type (see class docstring for fields).')
     sheet_name: str | None = Field(default=None, description='Target worksheet.')
     cell: str | None = Field(default=None, description='Target cell, e.g. "A1".')
@@ -93,6 +95,7 @@ class ExcelEditOp(BaseModel):
     orders: list[str] | None = Field(default=None, description='Per-key orders asc/desc.')
     order: str | None = Field(default=None, description='Single sort order asc/desc.')
     style: str | None = Field(default=None, description='Style string (write_cell/set_range_style).')
+    number_format: str | None = Field(default=None, description='Number format spec "RANGE=FORMAT".')
 
 
 # --------------------------------------------------------------------------- #

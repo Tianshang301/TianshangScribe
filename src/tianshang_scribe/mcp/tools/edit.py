@@ -79,7 +79,8 @@ def edit_office_document(
             elif action == 'add':
                 text = op.get('text', '')
                 column = op.get('column', 1)
-                engine.add_text(text, column=column)
+                slide_index = op.get('slide_index')
+                engine.add_text(text, column=column, slide_index=slide_index)
                 changes += 1
             elif action == 'clear':
                 if hasattr(engine, 'clear_content'):
@@ -141,7 +142,47 @@ def edit_office_document(
             elif action == 'add_shape':
                 if hasattr(engine, 'add_shape'):
                     idx = resolve_slide_index(engine, op.get('slide_index'))
-                    engine.add_shape(idx, 'rectangle', fill=op.get('fill'), line=op.get('line'))
+                    engine.add_shape(
+                        idx,
+                        op.get('shape_type', 'rectangle'),
+                        fill=op.get('fill'),
+                        line=op.get('line'),
+                    )
+                    changes += 1
+            elif action == 'sort':
+                rng = op.get('range')
+                if rng and hasattr(engine, 'sort'):
+                    engine.sort(
+                        rng,
+                        key_columns=op.get('key_columns'),
+                        orders=op.get('orders'),
+                        order=op.get('order') or 'asc',
+                    )
+                    changes += 1
+            elif action == 'add_sheet':
+                if op.get('sheet_name') and hasattr(engine, 'add_sheet'):
+                    engine.add_sheet(op['sheet_name'])
+                    changes += 1
+            elif action == 'set_range_style':
+                rng = op.get('range')
+                if rng and op.get('style') and hasattr(engine, 'set_range_style'):
+                    engine.set_range_style(rng, op['style'])
+                    changes += 1
+            elif action == 'number_format':
+                spec = op.get('number_format')
+                if spec and '=' in spec and hasattr(engine, 'set_number_format'):
+                    rng, fmt = spec.split('=', 1)
+                    engine.set_number_format(rng.strip(), fmt.strip())
+                    changes += 1
+            elif action == 'add_slide':
+                if hasattr(engine, 'add_slide'):
+                    layout = op.get('layout')
+                    if isinstance(layout, str) and hasattr(engine, 'prs'):
+                        for i, lay in enumerate(engine.prs.slide_layouts):
+                            if lay.name == layout:
+                                layout = i
+                                break
+                    engine.add_slide(layout if isinstance(layout, int) else 1)
                     changes += 1
             elif action == 'apply_layout':
                 if op.get('layout') is not None and hasattr(engine, 'apply_layout'):

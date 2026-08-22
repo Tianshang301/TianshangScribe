@@ -249,6 +249,21 @@ class TestExcelEngine:
         dv = engine.wb.active.data_validations.dataValidation[0]
         assert dv.formula1 == '"x,y,z"'
 
+    # ---- Step 5 (E3): range style (border/fill) ----
+    def test_set_range_style_baseline(self, engine: ExcelEngine, tmp_path: Path) -> None:
+        engine.set_range_style('B2:C3', 'border=medium,fill=FFFF00')
+        out = tmp_path / 'style.xlsx'
+        engine.save(out)
+        reopened = ExcelEngine()
+        reopened.open(str(out))
+        cell = reopened.wb.active['B2']
+        assert cell.border.left is not None
+        assert 'FFFF00' in cell.fill.fgColor.rgb
+
+    def test_set_range_style_invalid_range_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Invalid cell range'):
+            engine.set_range_style('bad', 'border=thin')
+
     def test_add_chart_unsupported_raises(self, engine: ExcelEngine) -> None:
         with pytest.raises(ValueError, match='Unsupported chart type'):
             engine.add_chart('scatter', 'A1:B2')

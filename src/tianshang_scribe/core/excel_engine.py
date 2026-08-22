@@ -556,6 +556,48 @@ class ExcelEngine(DocumentABC):
         ws.add_data_validation(dv)
         dv.add(cell_range)
 
+    def set_range_style(self, cell_range: str, style: str) -> None:
+        """Apply border and/or fill to a range.
+
+        ``style`` is a comma-separated key=value list supporting:
+          border=<thin|medium|thick|double>  (all-side solid border)
+          fill=<RRGGBB or color name>        (solid background fill)
+        """
+        import re
+
+        from openpyxl.styles import Border, PatternFill, Side
+        from openpyxl.utils import column_index_from_string
+
+        opts: dict[str, str] = {}
+        for part in style.split(','):
+            if '=' in part:
+                k, v = part.split('=', 1)
+                opts[k.strip()] = v.strip()
+
+        ws = self._ws()
+        m = re.match(r'\s*([A-Z]+)(\d+)\s*:\s*([A-Z]+)(\d+)\s*$', cell_range)
+        if not m:
+            raise ValueError(f'Invalid cell range: {cell_range!r}')
+        c1 = column_index_from_string(m.group(1))
+        r1 = int(m.group(2))
+        c2 = column_index_from_string(m.group(3))
+        r2 = int(m.group(4))
+
+        side: Side | None = None
+        if 'border' in opts:
+            side = Side(style=opts['border'], color='FF000000')
+        fill: PatternFill | None = None
+        if 'fill' in opts:
+            fill = PatternFill(fill_type='solid', fgColor=opts['fill'])
+        border = Border(left=side, right=side, top=side, bottom=side) if side else None
+        for r in range(r1, r2 + 1):
+            for c in range(c1, c2 + 1):
+                cell = ws.cell(row=r, column=c)
+                if border is not None:
+                    cell.border = border
+                if fill is not None:
+                    cell.fill = fill
+
     def merge_workbooks(self, paths: list[str]) -> None:
         """Merge the sheets of other workbooks into this one."""
         for p in paths:

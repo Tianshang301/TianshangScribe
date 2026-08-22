@@ -47,10 +47,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `chart_data`, `rows`, `number_format`, `conditional_format`, `data_validation`,
   `freeze`, `hyperlink`, `named_range`) so agents can build formula cells, frozen
   panes, number formats, conditional formats, data validation, Excel/PPT charts,
-  PPT tables/pictures/shapes/layouts/transitions/notes. Fixed a crash where
-  `create_office_document` raised on a PPT `table` block (signature mismatch with
-  `PptEngine.add_table`); PPT content blocks now stack onto a single slide.
-  Parsing helpers live in `src/tianshang_scribe/mcp/tools/_parse.py`.
+   PPT tables/pictures/shapes/layouts/transitions/notes. Fixed a crash where
+   `create_office_document` raised on a PPT `table` block (signature mismatch with
+   `PptEngine.add_table`); PPT content blocks now stack onto a single slide.
+   Parsing helpers live in `src/tianshang_scribe/mcp/tools/_parse.py`.
+- MCP Server hardening (post-review P0/P1):
+  - Fixed `_edit_write_cell` writing to the active sheet instead of the
+    explicitly selected sheet (now resolves the target worksheet per-op without
+    mutating engine selection); a `write_cell` value starting with `=` is stored
+    as a formula.
+  - PPT blocks in `create_office_document` now default to the current stacked
+    slide (`current_slide_index`) unless an explicit `slide_index` is given
+    (table and capability fields included); `parse_ppt_chart` no longer returns a
+    dead chart-type hint.
+  - `compare_documents` / snapshot now return a clearer `UNSUPPORTED_FORMAT`
+    message stating Excel/PPT comparison is not yet available.
+  - `EditOperation` schema documents the per-action field mapping; the registry
+    tool descriptions for `create_office_document` / `edit_office_document` /
+    `compare_documents` now mention the new Excel/PPT capabilities and limits.
+  - `write_cell` honors an optional `style` (font/fill/alignment) applied to the
+    target cell.
+- Excel `set_range_style` now supports font name/size/bold/italic/color,
+  horizontal alignment and number format (previously border/fill only),
+  matching the cell-level style system.
+- PowerPoint `add_textbox` / internal `_place_textbox` derive the default width
+  from the slide width so 4:3 decks no longer overflow.
 - Bumped `SERVER_VERSION` to `0.8.0` so the MCP health endpoint reports the
   current release.
 

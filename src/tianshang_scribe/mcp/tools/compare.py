@@ -52,7 +52,8 @@ def snapshot_document(
         if not hasattr(engine, 'doc'):
             return error_response(
                 McpErrorCode.UNSUPPORTED_FORMAT,
-                'Snapshots are only supported for Word (.docx) files.',
+                'Snapshots are only supported for Word (.docx) files; '
+                'Excel (.xlsx) and PowerPoint (.pptx) are not supported.',
             )
         paragraphs = [p.text for p in engine.doc.paragraphs]
         store_dir = _snapshot_store_dir(path, snapshot_dir)
@@ -179,7 +180,8 @@ def compare_documents(
         if not hasattr(engine_a, 'doc') or not hasattr(engine_b, 'doc'):
             return error_response(
                 McpErrorCode.UNSUPPORTED_FORMAT,
-                'Document comparison is only supported for Word (.docx) files.',
+                'Document comparison is only supported for Word (.docx) files; '
+                'Excel (.xlsx) and PowerPoint (.pptx) comparison is not yet available.',
             )
 
         paras_a = [p.text for p in engine_a.doc.paragraphs]

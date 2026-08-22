@@ -902,3 +902,17 @@ class TestEditMcpP0:
         assert 'first' in eng.prs.slides[0].shapes[0].text_frame.text
         # second explicitly forced to slide index 1 (new slide)
         assert 'second' in eng.extract_text()
+
+
+class TestCompareMcpP0:
+    def test_compare_excel_reports_unsupported(self, tmp_path: Path) -> None:
+        from tianshang_scribe.core.document import create_document, DocumentType
+        a = tmp_path / 'a.xlsx'
+        b = tmp_path / 'b.xlsx'
+        for p in (a, b):
+            e = create_document(DocumentType.EXCEL)
+            e.save(str(p))
+        res = compare_documents(str(a), str(b))
+        assert res['success'] is False
+        assert res['error_code'] == 1003
+        assert 'Excel' in res['error_message'] and 'PowerPoint' in res['error_message']

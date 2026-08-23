@@ -137,10 +137,12 @@ TOOLS: list[ToolEntry] = [
         'description': (
             'Edit an existing .xlsx workbook with typed operations: write_cell, '
             'set_formula, freeze_panes, add_chart, conditional_format, '
-            'data_validation, add_table, sort, add_sheet, set_range_style, and '
-            'number_format. Rewrites the file — when output_path is omitted the '
-            'INPUT FILE IS OVERWRITTEN IN PLACE, so pass output_path or options '
-            '{"backup": true} to keep a .bak copy. To build a new workbook use '
+            'data_validation, add_table, sort, add_sheet, set_range_style, '
+            'number_format, row/column grouping (group_rows/group_columns/'
+            'ungroup), set_tab_color, set_print_area, and set_page_setup. '
+            'Rewrites the file — when output_path is omitted the INPUT FILE IS '
+            'OVERWRITTEN IN PLACE, so pass output_path or options {"backup": '
+            'true} to keep a .bak copy. To build a new workbook use '
             'create_excel_workbook; to inspect one first use analyze_excel_data.'
         ),
     },
@@ -160,11 +162,13 @@ TOOLS: list[ToolEntry] = [
         'fn': edit_presentation,
         'description': (
             'Edit an existing .pptx with typed operations: add_slide, add_text, '
-            'replace_text, add_table, add_chart, add_picture, add_shape, '
-            'apply_layout, set_transition, and add_notes. Rewrites the deck — '
-            'when output_path is omitted the INPUT FILE IS OVERWRITTEN IN PLACE, '
-            'so pass output_path or options {"backup": true} for a .bak copy. To '
-            'generate a new deck use create_presentation.'
+            'replace_text, add_table, add_chart, add_picture, add_media (video/'
+            'audio), add_shape, apply_layout, set_transition, add_notes, '
+            'apply_theme (office/dark), and set_master_options (slide numbers/'
+            'footer/date). Rewrites the deck — when output_path is omitted the '
+            'INPUT FILE IS OVERWRITTEN IN PLACE, so pass output_path or options '
+            '{"backup": true} for a .bak copy. To generate a new deck use '
+            'create_presentation.'
         ),
     },
     {

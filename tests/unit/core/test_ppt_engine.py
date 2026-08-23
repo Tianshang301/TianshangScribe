@@ -669,8 +669,6 @@ class TestPptApplyTheme:
         return etree.fromstring(theme_part.blob)
 
     def test_apply_dark_theme_roundtrip(self, engine: PptEngine, tmp_path: Path) -> None:
-        from lxml import etree
-
         out = tmp_path / 'dark.pptx'
         engine.apply_theme('dark')
         engine.save(out)

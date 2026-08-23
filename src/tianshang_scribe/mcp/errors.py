@@ -85,7 +85,19 @@ class McpErrorCode:
     TEMPLATE_ERROR = 1004
     CONVERSION_FAILED = 1005
     INVALID_PARAMETER = 1006
+    EXCEL_INVALID_CELL_REF = 1007
+    EXCEL_INVALID_RANGE = 1008
+    PPT_INVALID_SLIDE_INDEX = 1009
+    EXCEL_SHEET_NOT_FOUND = 1010
     INTERNAL_ERROR = 9999
+
+
+#: Canonical documentation anchor for structured errors (docs/mcp/README.md,
+#: "Error Handling"). Call sites attach it to refined error responses so Agents
+#: can self-serve without an extra lookup.
+DOCUMENTATION_URL = (
+    'https://github.com/Tianshang301/TianshangScribe/blob/main/docs/mcp/README.md#error-handling'
+)
 
 
 ERROR_DESCRIPTIONS: dict[int, tuple[str, str]] = {
@@ -113,22 +125,57 @@ ERROR_DESCRIPTIONS: dict[int, tuple[str, str]] = {
         'A required parameter is missing or invalid.',
         'Check the input schema and provide all required fields.',
     ),
+    McpErrorCode.EXCEL_INVALID_CELL_REF: (
+        'The Excel cell reference is invalid.',
+        'Use A1-style references like "B2" (columns A-XFD, rows 1-1048576).',
+    ),
+    McpErrorCode.EXCEL_INVALID_RANGE: (
+        'The Excel range is invalid.',
+        'Use "START:END" form like "A1:C10", or row/column form ("2:5"/"B:D") for grouping.',
+    ),
+    McpErrorCode.PPT_INVALID_SLIDE_INDEX: (
+        'The slide index is out of range.',
+        'Use a 0-based index within the deck; extract_presentation_data reports '
+        'the current slide count.',
+    ),
+    McpErrorCode.EXCEL_SHEET_NOT_FOUND: (
+        'The target worksheet does not exist.',
+        'Check the sheet name with analyze_excel_data, or create it with an '
+        'add_sheet operation first.',
+    ),
 }
 
 
-def error_response(error_code: int, detail: str = '') -> dict[str, Any]:
-    """Build a structured error response with description and suggested fix."""
+def error_response(
+    error_code: int,
+    detail: str = '',
+    *,
+    field: str | None = None,
+    documentation_url: str | None = None,
+) -> dict[str, Any]:
+    """Build a structured error response with description and suggested fix.
+
+    ``field`` and ``documentation_url`` are optional refinements: ``field``
+    names the offending parameter (e.g. ``operations[2].range``) and
+    ``documentation_url`` links to canonical docs. Both are included in the
+    payload only when provided, keeping responses backward compatible.
+    """
     desc, fix = ERROR_DESCRIPTIONS.get(
         error_code,
         ('An unexpected error occurred.', 'Try again or check the logs.'),
     )
-    return {
+    response: dict[str, Any] = {
         'success': False,
         'error_code': error_code,
         'error_message': desc + (' ' + detail if detail else ''),
         'suggested_fix': fix,
         'retryable': error_code != McpErrorCode.INTERNAL_ERROR,
     }
+    if field is not None:
+        response['field'] = field
+    if documentation_url is not None:
+        response['documentation_url'] = documentation_url
+    return response
 
 
 def success_response(

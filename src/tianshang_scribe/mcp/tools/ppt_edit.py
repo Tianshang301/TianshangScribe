@@ -1,8 +1,11 @@
 """edit_presentation — Edit an existing PowerPoint file with typed operations.
 
 Document-type-specific wrapper around ``edit_office_document``. The typed
-``PptEditOp`` list is normalised into ``EditOperation`` dicts and the shared
-dispatch in ``edit.py`` is reused, giving Agents a precise, PPT-only surface.
+``PptEditOp`` list is normalised and dispatched through the shared dispatcher
+in ``edit.py``, giving Agents a precise, PPT-only surface. Edge actions that
+are deliberately frozen out of the legacy ``EditOperation`` model
+(``apply_theme`` / ``set_master_options``, PLAN.md D-7) dispatch straight to
+the engine here.
 """
 
 from __future__ import annotations
@@ -13,12 +16,16 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from tianshang_scribe.mcp.errors import McpErrorCode, error_response
-from tianshang_scribe.mcp.schemas import EditOperation, ToolOptions, as_dict
+from tianshang_scribe.mcp.schemas import ToolOptions, as_dict
 from tianshang_scribe.mcp.tools._dedicated_schemas import PptEditOp
-from tianshang_scribe.mcp.tools.edit import edit_office_document
+from tianshang_scribe.mcp.tools.edit import (
+    _apply_edit_operation,
+    run_edit_session,
+)
 
 
 def _to_edit_op(op: dict[str, Any]) -> dict[str, Any]:
+    """Map a typed ``PptEditOp`` dict onto the shared dispatcher's fields."""
     action = op.get('action')
     idx = op.get('slide_index')
     if action == 'add_slide':
@@ -53,6 +60,19 @@ def _to_edit_op(op: dict[str, Any]) -> dict[str, Any]:
             'width': pic.get('width'),
             'height': pic.get('height'),
         }
+    if action == 'add_media':
+        media = op.get('media') or {}
+        return {
+            'action': 'add_media',
+            'path': media.get('path'),
+            'media_type': media.get('kind') or 'movie',
+            'slide_index': idx,
+            'left': media.get('left'),
+            'top': media.get('top'),
+            'width': media.get('width'),
+            'height': media.get('height'),
+            'poster': media.get('poster'),
+        }
     if action == 'add_shape':
         return {
             'action': 'add_shape',
@@ -67,7 +87,42 @@ def _to_edit_op(op: dict[str, Any]) -> dict[str, Any]:
         return {'action': 'set_transition', 'slide_index': idx, 'transition': op.get('transition')}
     if action == 'add_notes':
         return {'action': 'add_notes', 'slide_index': idx, 'notes': op.get('notes')}
+    if action == 'apply_theme':
+        return {'action': 'apply_theme', 'theme': op.get('theme')}
+    if action == 'set_master_options':
+        return {
+            'action': 'set_master_options',
+            'slide_number': op.get('slide_number'),
+            'footer_text': op.get('footer_text'),
+            'date_visible': op.get('date_visible'),
+            'date_text': op.get('date_text'),
+        }
     return {'action': action}
+
+
+def _dispatch_ppt_op(engine: Any, op: dict[str, Any]) -> int:
+    """Edge actions go straight to the engine; the rest via the shared dispatcher."""
+    action = op.get('action')
+    if action == 'apply_theme':
+        theme = op.get('theme')
+        if not theme:
+            raise ValueError('apply_theme requires a built-in theme name: "office" or "dark".')
+        engine.apply_theme(theme)
+        return 1
+    if action == 'set_master_options':
+        if not any([op.get('slide_number'), op.get('footer_text'), op.get('date_visible')]):
+            raise ValueError(
+                'set_master_options requires at least one of '
+                'slide_number / footer_text / date_visible.'
+            )
+        engine.set_master_options(
+            slide_number=bool(op.get('slide_number')),
+            footer_text=op.get('footer_text'),
+            date_visible=bool(op.get('date_visible')),
+            date_text=op.get('date_text'),
+        )
+        return 1
+    return _apply_edit_operation(engine, _to_edit_op(op))
 
 
 def edit_presentation(
@@ -94,6 +149,5 @@ def edit_presentation(
             McpErrorCode.INVALID_PARAMETER,
             'edit_presentation only accepts .pptx presentations.',
         )
-
-    edit_ops = [EditOperation(**_to_edit_op(o)) for o in ops_list]
-    return edit_office_document(input_path, edit_ops, output_path=output_path, options=options)
+    opts: dict[str, Any] = as_dict(options) or {}
+    return run_edit_session(input_path, output_path or input_path, ops_list, opts, _dispatch_ppt_op)

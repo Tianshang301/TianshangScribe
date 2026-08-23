@@ -112,14 +112,43 @@ class TestCompareExcelWorkbooks:
         assert res['success'] is False
         assert res['error_code'] == 1003
 
-    def test_error_formula_mode_pending(self, tmp_path: Path) -> None:
+    def test_formula_mode_diffs_formulas_only(self, tmp_path: Path) -> None:
         a, b = tmp_path / 'a.xlsx', tmp_path / 'b.xlsx'
-        _wb(a, {'S': [[1]]})
-        _wb(b, {'S': [[1]]})
+        _wb(a, {'S': [['=SUM(B1:B2)', '=A1*2'], [1, 2]]})
+        _wb(b, {'S': [['=SUM(B1:B2)', '=A1*3'], [1, 99]]})
         res = compare_excel_workbooks(str(a), str(b), mode='formula')
-        assert res['success'] is False
-        assert res['error_code'] == 1006
-        assert 'not available yet' in res['error_message']
+        assert res['success'] is True, res
+        data = res['data']
+        # B2 changed too but is a literal — invisible to formula mode.
+        assert data['cell_diff_count'] == 1
+        assert data['cells'][0] == {
+            'sheet': 'S',
+            'cell': 'B1',
+            'kind': 'formula',
+            'before': '=A1*2',
+            'after': '=A1*3',
+        }
+
+    def test_full_mode_reports_values_and_formulas(self, tmp_path: Path) -> None:
+        a, b = tmp_path / 'a.xlsx', tmp_path / 'b.xlsx'
+        _wb(a, {'S': [[1, '=A1+1']]})
+        _wb(b, {'S': [[2, '=A1+2']]})
+        res = compare_excel_workbooks(str(a), str(b), mode='full')
+        assert res['success'] is True, res
+        kinds = [(c['cell'], c['kind']) for c in res['data']['cells']]
+        assert kinds == [('A1', 'value'), ('B1', 'formula')]
+
+    def test_large_book_formula_warning(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        a, b = tmp_path / 'a.xlsx', tmp_path / 'b.xlsx'
+        _wb(a, {'S': [['=B2+1']]})
+        _wb(b, {'S': [['=B2+2']]})
+        monkeypatch.setattr('tianshang_scribe.mcp.tools.compare_excel.FORMULA_MODE_MAX_CELLS', 1)
+        res = compare_excel_workbooks(str(a), str(b), mode='formula')
+        assert res['success'] is True, res
+        assert any('cells' in w for w in res['data']['warnings'])
+        assert res['data']['cell_diff_count'] == 1  # scan still proceeds
 
 
 # --------------------------------------------------------------------------- #

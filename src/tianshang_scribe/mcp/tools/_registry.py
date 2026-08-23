@@ -184,11 +184,11 @@ TOOLS: list[ToolEntry] = [
         'fn': compare_excel_workbooks,
         'description': (
             'Compare two Excel workbooks without touching them: sheet-level '
-            'additions/removals/renames (with an optional name mapping) plus, in '
-            'data mode, cell-level value diffs with numeric tolerance. Read-only — '
-            'never modifies either input file; formula and full modes arrive in a '
-            'later 0.9.0 phase. For PowerPoint inspection use '
-            'extract_presentation_data.'
+            'additions/removals/renames (with an optional name mapping), plus '
+            'cell-level diffs — cached values (data), formula strings only '
+            '(formula), or all stored content (full) — with numeric tolerance '
+            'and truncation caps. Read-only — never modifies either input '
+            'file. For PowerPoint inspection use extract_presentation_data.'
         ),
     },
     {

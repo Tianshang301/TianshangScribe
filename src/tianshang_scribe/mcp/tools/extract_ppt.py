@@ -1,8 +1,9 @@
 """extract_presentation_data — Read-only semantic inspection of a .pptx deck.
 
 ``outline`` returns per-slide layout/title/bullets/notes/transition;
-``structure`` returns the shape-type distribution per slide and overall.
-``notes`` / ``master_info`` modes are wired in the 0.9.0 P2 phase.
+``structure`` returns the shape-type distribution per slide and overall;
+``notes`` returns the full speaker-notes text per slide; ``master_info``
+returns the slide-master/layout inventory with placeholder types.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from pydantic import Field
 from tianshang_scribe.mcp.errors import McpErrorCode, error_response, success_response
 
 _MODES = ('outline', 'notes', 'master_info', 'structure')
-_PENDING_MODES = ('notes', 'master_info')
 
 _TRANSITION_NS = 'http://schemas.openxmlformats.org/presentationml/2006/main'
 
@@ -49,6 +49,41 @@ def _slide_transition(slide: Any) -> str | None:
     return tag
 
 
+def _placeholder_types(shapes: Any) -> list[str]:
+    """Human-readable placeholder type list (``sldNum``/``ftr``/``dt`` audit)."""
+    kinds: list[str] = []
+    for shape in shapes:
+        fmt = getattr(shape, 'placeholder_format', None)
+        if fmt is None:
+            continue
+        raw = getattr(fmt, 'type', None)
+        name = getattr(raw, 'name', None) or str(raw)
+        kinds.append(f'{name}#{fmt.idx}')
+    return kinds
+
+
+def _master_inventory(prs: Any) -> list[dict[str, Any]]:
+    masters: list[dict[str, Any]] = []
+    for mi, master in enumerate(prs.slide_masters):
+        layouts = [
+            {
+                'name': layout.name,
+                'shape_count': len(layout.shapes),
+                'placeholders': _placeholder_types(layout.placeholders),
+            }
+            for layout in master.slide_layouts
+        ]
+        masters.append(
+            {
+                'index': mi,
+                'placeholders': _placeholder_types(master.placeholders),
+                'layout_count': len(layouts),
+                'layouts': layouts,
+            }
+        )
+    return masters
+
+
 def _shape_counts(slide: Any) -> dict[str, int]:
     counts = {'text': 0, 'table': 0, 'chart': 0, 'picture': 0, 'media': 0, 'other': 0}
     for shape in slide.shapes:
@@ -71,14 +106,21 @@ def extract_presentation_data(
     input_path: Annotated[str, Field(description='Path to the existing .pptx presentation.')],
     mode: Annotated[
         Literal['outline', 'notes', 'master_info', 'structure'],
-        Field(description="'outline' (per-slide semantics) or 'structure' (shape-type census)."),
+        Field(
+            description=(
+                "'outline' (per-slide semantics), 'structure' (shape-type census), "
+                "'notes' (full speaker-notes text) or 'master_info' "
+                '(masters/layouts inventory).'
+            )
+        ),
     ] = 'outline',
 ) -> dict[str, Any]:
     """Inspect a PowerPoint deck's structure without modifying it.
 
-    Read-only — never modifies the input file. ``notes`` and ``master_info``
-    modes arrive in a later 0.9.0 phase. For workbook analysis use
-    analyze_excel_data; to change slides use edit_presentation.
+    Read-only — never modifies the input file. ``notes`` returns the full
+    speaker-notes text per slide and ``master_info`` lists slide masters and
+    layouts (useful to audit master-level placeholders). For workbook analysis
+    use analyze_excel_data; to change slides use edit_presentation.
     """
     if not Path(input_path).exists():
         return error_response(McpErrorCode.DOCUMENT_NOT_FOUND, f"'{input_path}' not found.")
@@ -87,14 +129,15 @@ def extract_presentation_data(
             McpErrorCode.UNSUPPORTED_FORMAT,
             f"'{input_path}' is not a .pptx presentation.",
         )
-    if mode in _PENDING_MODES:
-        return error_response(
-            McpErrorCode.INVALID_PARAMETER,
-            f"mode {mode!r} is not available yet; use 'outline' or 'structure'.",
-        )
 
     try:
         prs = Presentation(input_path)
+        payload: dict[str, Any] = {'input_path': input_path, 'mode': mode}
+        if mode == 'master_info':
+            payload['slide_count'] = len(prs.slides)
+            payload['masters'] = _master_inventory(prs)
+            return success_response(payload)
+
         slides: list[dict[str, Any]] = []
         if mode == 'outline':
             for idx, slide in enumerate(prs.slides):
@@ -110,6 +153,19 @@ def extract_presentation_data(
                         'transition': _slide_transition(slide),
                     }
                 )
+        elif mode == 'notes':
+            for idx, slide in enumerate(prs.slides):
+                notes_text = (
+                    slide.notes_slide.notes_text_frame.text if slide.has_notes_slide else ''
+                )
+                slides.append(
+                    {
+                        'index': idx,
+                        'title': _slide_title(slide),
+                        'has_notes': bool(notes_text),
+                        'notes': notes_text,
+                    }
+                )
         else:
             totals = {'text': 0, 'table': 0, 'chart': 0, 'picture': 0, 'media': 0, 'other': 0}
             for idx, slide in enumerate(prs.slides):
@@ -118,7 +174,7 @@ def extract_presentation_data(
                     totals[key] += counts[key]
                 slides.append({'index': idx, **counts})
             payload_extra: dict[str, Any] = {'totals': totals, 'slide_count': len(prs.slides)}
-        payload: dict[str, Any] = {'input_path': input_path, 'mode': mode, 'slides': slides}
+        payload['slides'] = slides
         if mode == 'structure':
             payload.update(payload_extra)
         return success_response(payload)

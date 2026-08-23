@@ -196,10 +196,11 @@ TOOLS: list[ToolEntry] = [
         'fn': extract_presentation_data,
         'description': (
             "Inspect a PowerPoint deck's semantics without modifying it: outline "
-            '(per-slide layout/title/bullets/notes/transition) or structure (shape-'
-            'type census per slide and overall). Read-only — never modifies the '
-            'input file; notes and master_info modes arrive later. For workbooks '
-            'use analyze_excel_data; to change slides use edit_presentation.'
+            '(per-slide layout/title/bullets/notes/transition), structure (shape-'
+            'type census), notes (full speaker-notes text) or master_info '
+            '(masters/layouts inventory). Read-only — never modifies the input '
+            'file. For workbooks use analyze_excel_data; to change slides use '
+            'edit_presentation.'
         ),
     },
 ]

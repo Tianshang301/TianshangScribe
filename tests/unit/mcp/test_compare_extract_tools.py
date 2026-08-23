@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
+from tianshang_scribe.core.ppt_engine import PptEngine
 from tianshang_scribe.mcp.tools.compare_excel import (
     MAX_CELL_DIFFS_PER_SHEET,
     compare_excel_workbooks,
@@ -213,10 +214,31 @@ class TestExtractPresentationData:
         assert bad['success'] is False
         assert bad['error_code'] == 1003
 
-    def test_error_notes_mode_pending(self, tmp_path: Path) -> None:
+    def test_notes_mode(self, tmp_path: Path) -> None:
         deck = tmp_path / 'deck.pptx'
         self._deck(deck)
         res = extract_presentation_data(str(deck), mode='notes')
-        assert res['success'] is False
-        assert res['error_code'] == 1006
-        assert 'not available yet' in res['error_message']
+        assert res['success'] is True, res
+        slide = res['data']['slides'][0]
+        assert slide['index'] == 0
+        assert slide['title'] == 'Q3 Review'
+        assert slide['has_notes'] is True
+        assert slide['notes'] == 'Pause here'
+
+    def test_master_info_mode_lists_masters_and_layouts(self, tmp_path: Path) -> None:
+        deck = tmp_path / 'deck.pptx'
+        self._deck(deck)
+        engine = PptEngine(deck)
+        engine.open(deck)
+        engine.set_master_options(slide_number=True, footer_text='Acme')
+        engine.save()
+        res = extract_presentation_data(str(deck), mode='master_info')
+        assert res['success'] is True, res
+        data = res['data']
+        assert data['slide_count'] == 1
+        assert data['masters'] and data['masters'][0]['layout_count'] >= 1
+        layout_types = ' '.join(
+            p for lay in data['masters'][0]['layouts'] for p in lay['placeholders']
+        )
+        assert 'SLIDE_NUMBER' in layout_types
+        assert 'FOOTER' in layout_types

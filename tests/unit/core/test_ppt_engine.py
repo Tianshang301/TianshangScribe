@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -646,3 +647,64 @@ class TestPptCompressMedia:
         assert saved > 0
         e.save(str(pptx_path))
         assert pptx_path.stat().st_size < original
+
+
+class TestPptApplyTheme:
+    @pytest.fixture
+    def engine(self) -> PptEngine:
+        e = PptEngine()
+        e.create()
+        e.add_slide()
+        return e
+
+    @staticmethod
+    def _theme_xml(path: Path) -> Any:
+        from lxml import etree
+
+        e = PptEngine(path)
+        e.open(path)
+        theme_part = e.prs.slide_masters[0].part.part_related_by(
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme'
+        )
+        return etree.fromstring(theme_part.blob)
+
+    def test_apply_dark_theme_roundtrip(self, engine: PptEngine, tmp_path: Path) -> None:
+        from lxml import etree
+
+        out = tmp_path / 'dark.pptx'
+        engine.apply_theme('dark')
+        engine.save(out)
+
+        ns = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
+        root = self._theme_xml(out)
+        lt1 = root.find('.//a:clrScheme/a:lt1/a:srgbClr', ns)
+        accent1 = root.find('.//a:clrScheme/a:accent1/a:srgbClr', ns)
+        assert lt1 is not None and lt1.get('val') == '202124'
+        assert accent1 is not None and accent1.get('val') == '7AA2F7'
+        major = root.find('.//a:fontScheme/a:majorFont/a:latin', ns)
+        assert major is not None and major.get('typeface') == 'Calibri Light'
+
+    def test_apply_office_theme_resets(self, engine: PptEngine) -> None:
+        from lxml import etree
+
+        engine.apply_theme('dark')
+        engine.apply_theme('office')
+        ns = {'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
+        theme_part = engine.prs.slide_masters[0].part.part_related_by(
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme'
+        )
+        root = etree.fromstring(theme_part.blob)
+        lt1 = root.find('.//a:clrScheme/a:lt1/a:srgbClr', ns)
+        assert lt1 is not None and lt1.get('val') == 'FFFFFF'
+
+    def test_unknown_theme_raises(self, engine: PptEngine) -> None:
+        with pytest.raises(ValueError, match='Unknown theme'):
+            engine.apply_theme('solarized')
+
+    def test_saved_deck_still_opens(self, engine: PptEngine, tmp_path: Path) -> None:
+        out = tmp_path / 'themed.pptx'
+        engine.apply_theme('DARK')  # case-insensitive
+        engine.save(out)
+        reopened = open_document(out)
+        assert isinstance(reopened, PptEngine)
+        assert len(reopened.prs.slides) == 1

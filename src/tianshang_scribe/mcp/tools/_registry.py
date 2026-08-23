@@ -173,10 +173,10 @@ TOOLS: list[ToolEntry] = [
         'description': (
             'Analyze an Excel workbook without touching it: per-sheet row/column '
             'counts, headers, inferred column types (numeric min/max/mean, '
-            'categorical values), null counts, sample rows, and duplicate-row '
-            'detection. Read-only — never modifies the input file. After analysis '
-            'use edit_excel_workbook to apply fixes, or extract_document_data for '
-            'raw text and metadata.'
+            'categorical values), null counts, sample rows, duplicate-row '
+            'detection — or pivot_suggestion mode proposing rows/columns/values/'
+            'agg from type inference. Read-only — never modifies the input file. '
+            'After analysis use edit_excel_workbook to apply fixes.'
         ),
     },
     {

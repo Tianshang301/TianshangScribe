@@ -39,6 +39,59 @@ def test_analyze_excel_data_baseline(tmp_path: Path) -> None:
     assert by_name['name']['null_count'] == 0
 
 
+def test_analyze_excel_pivot_suggestion(tmp_path: Path) -> None:
+    e = create_document(DocumentType.EXCEL)
+    e.add_sheet('Sales')
+    ws = e.wb['Sales']
+    ws.append(['region', 'quarter', 'revenue'])
+    ws.append(['east', 'Q1', 100])
+    ws.append(['west', 'Q1', 80])
+    ws.append(['east', 'Q2', 120])
+    ws.append(['west', 'Q2', 90])
+    book = tmp_path / 'sales.xlsx'
+    e.save(str(book))
+
+    res = analyze_excel_data(str(book), mode='pivot_suggestion')
+    assert res['success'] is True, res
+    data = res['data']
+    assert data['mode'] == 'pivot_suggestion'
+    sheet = next(s for s in data['sheets'] if s['name'] == 'Sales')
+    assert sheet['suggested_rows'] == ['region']
+    assert sheet['suggested_columns'] == ['quarter']
+    assert sheet['suggested_values'] == [{'field': 'revenue', 'agg': 'sum'}]
+    assert 'candidate_dimensions' in sheet
+
+
+def test_analyze_excel_pivot_suggestion_no_dimensions(tmp_path: Path) -> None:
+    e = create_document(DocumentType.EXCEL)
+    e.add_sheet('Numbers')
+    ws = e.wb['Numbers']
+    ws.append(['a', 'b'])
+    ws.append([1, 2.5])
+    book = tmp_path / 'nums.xlsx'
+    e.save(str(book))
+
+    res = analyze_excel_data(str(book), mode='pivot_suggestion')
+    assert res['success'] is True, res
+    sheet = next(s for s in res['data']['sheets'] if s['name'] == 'Numbers')
+    assert sheet['suggested_rows'] == []
+    assert sheet['suggested_columns'] == []
+    assert sheet['suggested_values'] == [
+        {'field': 'a', 'agg': 'sum'},
+        {'field': 'b', 'agg': 'sum'},
+    ]
+    assert 'no low-cardinality' in sheet['rationale']
+
+
+def test_analyze_excel_profile_mode_unchanged(tmp_path: Path) -> None:
+    _make_workbook(tmp_path / 'data.xlsx')
+    res = analyze_excel_data(str(tmp_path / 'data.xlsx'), mode='profile')
+    assert res['success'] is True, res
+    assert res['data']['mode'] == 'profile'
+    assert res['data']['duplicate_row_count'] == 1
+    assert any(s.get('sample_rows') is not None for s in res['data']['sheets'])
+
+
 def test_analyze_excel_rejects_non_excel(tmp_path: Path) -> None:
     from tianshang_scribe.core.document import DocumentType
     from tianshang_scribe.mcp.tools.analyze_excel import analyze_excel_data

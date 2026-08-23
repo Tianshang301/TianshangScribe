@@ -648,3 +648,159 @@ class TestExcelExtract:
         e.create()
         struct = e.extract_structure()
         assert struct['sheets'] == ['Sheet']
+
+
+class TestExcelGrouping:
+    """0.9.0 P1: row/column grouping (outline levels)."""
+
+    @pytest.fixture
+    def engine(self) -> ExcelEngine:
+        e = ExcelEngine()
+        e.create()
+        return e
+
+    def test_group_rows_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.wb.active['A2'] = 'r2'
+        e.group_rows('2:5', outline_level=2, hidden=True)
+        assert e.wb.active.row_dimensions[2].outline_level == 2
+        assert e.wb.active.row_dimensions[5].outline_level == 2
+        assert e.wb.active.row_dimensions[3].hidden is True
+        out = tmp_path / 'g.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert reopened.wb.active.row_dimensions[4].outline_level == 2
+
+    def test_group_columns_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.group_columns('B:D', outline_level=1, hidden=False)
+        ws = e.wb.active
+        assert ws.column_dimensions['B'].outline_level == 1
+        assert ws.column_dimensions['D'].outline_level == 1
+        out = tmp_path / 'gc.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert reopened.wb.active.column_dimensions['C'].outline_level == 1
+
+    def test_ungroup_rows_and_columns(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.group_rows('2:3', outline_level=1, hidden=True)
+        e.group_columns('B:C', outline_level=2, hidden=True)
+        e.ungroup('2:3', axis='rows')
+        e.ungroup('B:C', axis='columns')
+        ws = e.wb.active
+        assert ws.row_dimensions[2].outline_level == 0
+        assert ws.row_dimensions[3].hidden is False
+        assert ws.column_dimensions['C'].outline_level == 0
+        out = tmp_path / 'u.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert reopened.wb.active.row_dimensions[3].outline_level == 0
+
+    @pytest.mark.parametrize('bad', ['5:2', '0:3', 'abc', '2', '2:3:4'])
+    def test_group_rows_invalid_range_raises(self, engine: ExcelEngine, bad: str) -> None:
+        with pytest.raises(ValueError, match='Invalid row range'):
+            engine.group_rows(bad)
+
+    def test_group_rows_bad_level_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='outline_level'):
+            engine.group_rows('2:3', outline_level=8)
+
+    def test_ungroup_bad_axis_raises(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='axis'):
+            engine.ungroup('2:3', axis='diagonal')
+
+
+class TestExcelTabColor:
+    """0.9.0 P1: sheet tab color."""
+
+    @pytest.fixture
+    def engine(self) -> ExcelEngine:
+        e = ExcelEngine()
+        e.create()
+        return e
+
+    def test_set_tab_color_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.set_tab_color('#ff0000')
+        assert str(e.wb.active.sheet_properties.tabColor.rgb).endswith('FF0000')
+        out = tmp_path / 'tab.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert str(reopened.wb.active.sheet_properties.tabColor.rgb).endswith('FF0000')
+
+    @pytest.mark.parametrize('bad', ['red', '#12345', '1234567', ''])
+    def test_set_tab_color_invalid_raises(self, engine: ExcelEngine, bad: str) -> None:
+        with pytest.raises(ValueError, match='Invalid RGB hex'):
+            engine.set_tab_color(bad)
+
+
+class TestExcelPageSetup:
+    """0.9.0 P1: print area and page setup (simplified)."""
+
+    @pytest.fixture
+    def engine(self) -> ExcelEngine:
+        e = ExcelEngine()
+        e.create()
+        return e
+
+    def test_set_print_area_baseline(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.set_print_area('A1:C10')
+        out = tmp_path / 'pa.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        assert '$A$1:$C$10' in str(reopened.wb.active.print_area)
+
+    @pytest.mark.parametrize('bad', ['A1:C', 'C10:A1', '1A:2B', 'A1'])
+    def test_set_print_area_invalid_raises(self, engine: ExcelEngine, bad: str) -> None:
+        with pytest.raises(ValueError, match='Invalid print area'):
+            engine.set_print_area(bad)
+
+    def test_set_page_setup_full(self, tmp_path: Path) -> None:
+        e = ExcelEngine()
+        e.create()
+        e.set_page_setup(
+            paper_size='a4',
+            orientation='landscape',
+            margins={'left': 0.5, 'top': 0.8},
+            header='Tianshang',
+            footer='Page 1',
+        )
+        assert e.wb.active.page_setup.orientation == 'landscape'
+        assert e.wb.active.page_margins.left == 0.5
+        assert e.wb.active.oddHeader.center.text == 'Tianshang'
+        out = tmp_path / 'ps.xlsx'
+        e.save(out)
+        reopened = ExcelEngine()
+        reopened.open(out)
+        ws = reopened.wb.active
+        assert ws.page_setup.orientation == 'landscape'
+        assert int(ws.page_setup.paperSize or 0) == 9
+        assert ws.oddFooter.center.text == 'Page 1'
+
+    def test_set_page_setup_partial(self, engine: ExcelEngine) -> None:
+        engine.set_page_setup(orientation='portrait')
+        assert engine.wb.active.page_setup.orientation == 'portrait'
+
+    def test_set_page_setup_bad_paper(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Unknown paper size'):
+            engine.set_page_setup(paper_size='a99')
+
+    def test_set_page_setup_bad_orientation(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='orientation'):
+            engine.set_page_setup(orientation='diagonal')
+
+    def test_set_page_setup_bad_margin_key(self, engine: ExcelEngine) -> None:
+        with pytest.raises(ValueError, match='Unknown margin keys'):
+            engine.set_page_setup(margins={'middle': 1.0})

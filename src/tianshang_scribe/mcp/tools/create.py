@@ -17,6 +17,7 @@ from tianshang_scribe.mcp.errors import (
     success_response,
 )
 from tianshang_scribe.mcp.schemas import ContentBlock, ToolOptions, as_dict
+from tianshang_scribe.mcp.tools._dryrun import build_content_plan
 from tianshang_scribe.mcp.tools._parse import (
     parse_conditional_format,
     parse_data_validation,
@@ -77,6 +78,7 @@ def create_office_document(
                 'dry_run': True,
                 'planned_content': len(content_blocks),
                 'planned_items': [c.get('type', 'paragraph') for c in content_blocks],
+                **build_content_plan(content_blocks),
             }
         )
 

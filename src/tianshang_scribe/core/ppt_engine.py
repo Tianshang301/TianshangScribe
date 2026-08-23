@@ -22,6 +22,63 @@ from pptx.util import Pt
 from tianshang_scribe.core.document import DocumentABC
 from tianshang_scribe.rendering.styles import TextStyle
 
+#: Extension → MIME type for media inserted via ``add_movie`` / ``add_audio``.
+_MEDIA_MIME: dict[str, str] = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.mkv': 'video/x-matroska',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/x-wav',
+    '.m4a': 'audio/mp4',
+}
+
+#: Master placeholder type → (standard idx, display name).
+_MASTER_PH_SPECS: dict[str, tuple[str, str]] = {
+    'sldNum': ('12', 'Slide Number Placeholder'),
+    'ftr': ('11', 'Footer Placeholder'),
+    'dt': ('10', 'Date Placeholder'),
+}
+
+#: Built-in themes for ``apply_theme``: slot → srgb hex (dk1/lt1 follow OOXML
+#: semantics — dk1 is text-on-background, lt1 the background itself).
+_THEME_PALETTES: dict[str, dict[str, str]] = {
+    'office': {
+        'dk1': '000000',
+        'lt1': 'FFFFFF',
+        'dk2': '44546A',
+        'lt2': 'E7E6E6',
+        'accent1': '4472C4',
+        'accent2': 'ED7D31',
+        'accent3': 'A5A5A5',
+        'accent4': 'FFC000',
+        'accent5': '5B9BD5',
+        'accent6': '70AD47',
+        'hlink': '0563C1',
+        'folHlink': '954F72',
+        'major_latin': 'Calibri Light',
+        'minor_latin': 'Calibri',
+    },
+    'dark': {
+        'dk1': 'FFFFFF',
+        'lt1': '202124',
+        'dk2': 'C9CDD6',
+        'lt2': '2B2B3A',
+        'accent1': '7AA2F7',
+        'accent2': 'BB9AF7',
+        'accent3': '9ECE6A',
+        'accent4': 'FFA06A',
+        'accent5': '7DCFFF',
+        'accent6': 'E0AF68',
+        'hlink': '7AA2F7',
+        'folHlink': 'BB9AF7',
+        'major_latin': 'Calibri Light',
+        'minor_latin': 'Calibri',
+    },
+}
+
+_DRAWINGML_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+
 
 class PptEngine(DocumentABC):
     """PowerPoint presentation engine: create, edit and style decks."""
@@ -286,6 +343,62 @@ class PptEngine(DocumentABC):
         if height is not None:
             kwargs['height'] = Inches(height)
         return slide.shapes.add_picture(str(path), Inches(left), Inches(top), **kwargs)
+
+    # ---- Media (video / audio) ------------------------------------------- #
+
+    def add_movie(
+        self,
+        slide_index: int,
+        media_path: str | Path,
+        left: float = 1.0,
+        top: float = 1.0,
+        width: float = 6.0,
+        height: float = 4.5,
+        poster: str | Path | None = None,
+    ) -> Any:
+        """Insert a video at inch coordinates on the given slide.
+
+        The video plays on click (autoplay timing injection is not supported
+        by python-pptx and is intentionally out of scope). MP4 is the most
+        interoperable container; some players reject other codecs.
+        """
+        from pptx.util import Inches
+
+        if not (0 <= slide_index < len(self.prs.slides)):
+            raise IndexError(f'slide_index out of range: {slide_index}')
+        path = Path(media_path)
+        if not path.exists():
+            raise FileNotFoundError(f'media file not found: {path}')
+        mime = _MEDIA_MIME.get(path.suffix.lower(), 'video/unknown')
+        poster_arg = str(poster) if poster is not None else None
+        slide = self.prs.slides[slide_index]
+        return slide.shapes.add_movie(
+            str(path),
+            Inches(left),
+            Inches(top),
+            Inches(width),
+            Inches(height),
+            poster_frame_image=poster_arg,
+            mime_type=mime,
+        )
+
+    def add_audio(
+        self,
+        slide_index: int,
+        media_path: str | Path,
+        left: float = 1.0,
+        top: float = 1.0,
+    ) -> Any:
+        """Insert an audio clip (rendered as a small speaker-shaped media shape).
+
+        python-pptx has no dedicated audio API, so this routes through
+        ``add_movie`` with an audio MIME type, which PowerPoint renders as a
+        clickable audio object.
+        """
+        ext = Path(media_path).suffix.lower()
+        if ext not in ('.mp3', '.wav', '.m4a'):
+            raise ValueError(f'Unsupported audio format: {ext!r}. Use one of: .mp3, .wav, .m4a')
+        return self.add_movie(slide_index, media_path, left=left, top=top, width=1.0, height=1.0)
 
     def add_shape(
         self,
@@ -780,6 +893,161 @@ class PptEngine(DocumentABC):
                 slide.element.remove(el)
             trans_el = etree.SubElement(slide.element, f'{{{ns}}}transition')
             etree.SubElement(trans_el, f'{{{ns}}}{ttype}')
+
+    # ---- Master-level footer / slide number / date ------------------------ #
+
+    @staticmethod
+    def _remove_master_placeholders(sp_tree: Any, ph_type: str) -> None:
+        for sp in list(sp_tree.findall(qn('p:sp'))):
+            nv_pr = sp.find(qn('p:nvSpPr'))
+            if nv_pr is None:
+                continue
+            ph = nv_pr.find(qn('p:nvPr'))
+            if ph is None:
+                continue
+            marker = ph.find(qn('p:ph'))
+            if marker is not None and marker.get('type') == ph_type:
+                sp_tree.remove(sp)
+
+    @staticmethod
+    def _next_shape_id(sp_tree: Any) -> int:
+        ids = [1]
+        for cnv in sp_tree.iter(qn('p:cNvPr')):
+            try:
+                ids.append(int(cnv.get('id') or 1))
+            except ValueError:
+                continue
+        return max(ids) + 1
+
+    def _inject_master_placeholder(self, sp_tree: Any, ph_type: str, body_builder: Any) -> None:
+        """Insert (or replace) a master-level placeholder shape on ``sp_tree``."""
+        idx, name = _MASTER_PH_SPECS[ph_type]
+        self._remove_master_placeholders(sp_tree, ph_type)
+        sp = etree.SubElement(sp_tree, qn('p:sp'))
+        nv_sp = etree.SubElement(sp, qn('p:nvSpPr'))
+        cnv = etree.SubElement(nv_sp, qn('p:cNvPr'))
+        cnv.set('id', str(self._next_shape_id(sp_tree)))
+        cnv.set('name', name)
+        cnv_sp = etree.SubElement(nv_sp, qn('p:cNvSpPr'))
+        etree.SubElement(cnv_sp, qn('a:spLocks')).set('noGrp', '1')
+        nv = etree.SubElement(nv_sp, qn('p:nvPr'))
+        ph = etree.SubElement(nv, qn('p:ph'))
+        ph.set('type', ph_type)
+        ph.set('sz', 'quarter')
+        ph.set('idx', idx)
+        etree.SubElement(sp, qn('p:spPr'))
+        tx_body = etree.SubElement(sp, qn('p:txBody'))
+        etree.SubElement(tx_body, qn('a:bodyPr'))
+        etree.SubElement(tx_body, qn('a:lstStyle'))
+        para = etree.SubElement(tx_body, qn('a:p'))
+        body_builder(para)
+
+    @staticmethod
+    def _static_text_run(para: Any, text: str) -> None:
+        run = etree.SubElement(para, qn('a:r'))
+        t = etree.SubElement(run, qn('a:t'))
+        t.text = text
+
+    @staticmethod
+    def _auto_field(para: Any, field_type: str, fallback: str) -> None:
+        import uuid
+
+        fld = etree.SubElement(para, qn('a:fld'))
+        fld.set('id', f'{{{str(uuid.uuid4()).upper()}}}')
+        fld.set('type', field_type)
+        t = etree.SubElement(fld, qn('a:t'))
+        t.text = fallback
+
+    def set_master_options(
+        self,
+        slide_number: bool = False,
+        footer_text: str | None = None,
+        date_visible: bool = False,
+        date_text: str | None = None,
+    ) -> None:
+        """Configure master-level slide numbers, footers and dates deck-wide.
+
+        Placeholder shapes are injected into every slide layout and every
+        slide so PowerPoint renders them without further per-slide work.
+        Calling again replaces the previous placeholders (idempotent).
+        """
+        if not any([slide_number, footer_text, date_visible]):
+            return
+        targets: list[Any] = []
+        for master in self.prs.slide_masters:
+            targets.extend(master.slide_layouts)
+        targets.extend(self.prs.slides)
+        for element in targets:
+            sp_tree = element.element.find(qn('p:cSld')).find(qn('p:spTree'))
+
+            def build_num(para: Any) -> None:
+                self._auto_field(para, 'slidenum', '\u2039#\u203a')
+
+            def build_footer(para: Any) -> None:
+                self._static_text_run(para, footer_text or '')
+
+            def build_date(para: Any) -> None:
+                if date_text:
+                    self._static_text_run(para, date_text)
+                else:
+                    self._auto_field(para, 'datetime1', '')
+
+            if slide_number:
+                self._inject_master_placeholder(sp_tree, 'sldNum', build_num)
+            if footer_text is not None:
+                self._inject_master_placeholder(sp_tree, 'ftr', build_footer)
+            if date_visible:
+                self._inject_master_placeholder(sp_tree, 'dt', build_date)
+
+    def apply_theme(self, name: str) -> None:
+        """Apply a built-in theme to every slide master's theme part.
+
+        Only the two built-in palettes ``office`` (stock Office look) and
+        ``dark`` are available; external .thmx files are out of scope. The
+        rewrite touches ``theme1.xml`` only — ``clrScheme`` and
+        ``fontScheme`` — so shapes with explicitly-set local fills keep their
+        colors, while everything bound to theme colors/fonts re-renders.
+        """
+        palette = _THEME_PALETTES.get(name.strip().lower())
+        if palette is None:
+            valid = ', '.join(sorted(_THEME_PALETTES))
+            raise ValueError(f'Unknown theme: {name!r}. Use one of: {valid}')
+        ns = {'a': _DRAWINGML_NS}
+        a = f'{{{_DRAWINGML_NS}}}'
+        for master in self.prs.slide_masters:
+            theme_part = master.part.part_related_by(
+                'http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme'
+            )
+            root = etree.fromstring(theme_part.blob)
+
+            clr_scheme = root.find('.//a:clrScheme', ns)
+            if clr_scheme is not None:
+                for slot in ('dk1', 'lt1', 'dk2', 'lt2', 'hlink', 'folHlink'):
+                    el = clr_scheme.find(f'a:{slot}', ns)
+                    if el is None:
+                        continue
+                    for child in list(el):
+                        el.remove(child)
+                    etree.SubElement(el, f'{a}srgbClr').set('val', palette[slot])
+                for i in range(1, 7):
+                    slot = f'accent{i}'
+                    el = clr_scheme.find(f'a:{slot}', ns)
+                    if el is None:
+                        continue
+                    for child in list(el):
+                        el.remove(child)
+                    etree.SubElement(el, f'{a}srgbClr').set('val', palette[slot])
+
+            font_scheme = root.find('.//a:fontScheme', ns)
+            if font_scheme is not None:
+                for tag, key in (('majorFont', 'major_latin'), ('minorFont', 'minor_latin')):
+                    latin = font_scheme.find(f'a:{tag}/a:latin', ns)
+                    if latin is not None:
+                        latin.set('typeface', palette[key])
+
+            theme_part._blob = etree.tostring(
+                root, xml_declaration=True, encoding='UTF-8', standalone=True
+            )
 
     def set_protection(self, password: str) -> None:
         """Protect the presentation with a modify-verifier password.

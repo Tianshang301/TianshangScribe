@@ -242,6 +242,155 @@ class ExcelEngine(DocumentABC):
         ws = self._ws()
         ws.row_dimensions[row_index].height = height
 
+    # ---- Row/column grouping (outline levels) ---------------------------- #
+    @staticmethod
+    def _parse_int_range(cell_range: str, what: str) -> tuple[int, int]:
+        import re as _re
+
+        m = _re.fullmatch(r'\s*(\d+)\s*:\s*(\d+)\s*', cell_range)
+        if not m:
+            raise ValueError(f'Invalid {what} range: {cell_range!r} (expected "2:5")')
+        start, end = int(m.group(1)), int(m.group(2))
+        if start < 1 or end < start:
+            raise ValueError(f'Invalid {what} range: {cell_range!r} (need 1 <= start <= end)')
+        return start, end
+
+    @staticmethod
+    def _parse_letter_range(cell_range: str, what: str) -> tuple[str, str]:
+        import re as _re
+
+        from openpyxl.utils import column_index_from_string
+
+        m = _re.fullmatch(r'\s*([A-Za-z]{1,3})\s*:\s*([A-Za-z]{1,3})\s*', cell_range)
+        if not m:
+            raise ValueError(f'Invalid {what} range: {cell_range!r} (expected "B:D")')
+        a, b = (
+            column_index_from_string(m.group(1).upper()),
+            column_index_from_string(m.group(2).upper()),
+        )
+        if b < a:
+            raise ValueError(f'Invalid {what} range: {cell_range!r} (start after end)')
+        return get_column_letter(a), get_column_letter(b)
+
+    def group_rows(self, row_range: str, outline_level: int = 1, hidden: bool = False) -> None:
+        """Group rows ``"2:5"`` of the active sheet into an outline level (1-7)."""
+        if not 1 <= outline_level <= 7:
+            raise ValueError(f'outline_level must be 1-7, got {outline_level}')
+        ws = self._ws()
+        start, end = self._parse_int_range(row_range, 'row')
+        for i in range(start, end + 1):
+            dim = ws.row_dimensions[i]
+            dim.outline_level = outline_level
+            dim.hidden = hidden
+
+    def group_columns(self, col_range: str, outline_level: int = 1, hidden: bool = False) -> None:
+        """Group columns ``"B:D"`` of the active sheet into an outline level (1-7)."""
+        if not 1 <= outline_level <= 7:
+            raise ValueError(f'outline_level must be 1-7, got {outline_level}')
+        ws = self._ws()
+        first, last = self._parse_letter_range(col_range, 'column')
+        from openpyxl.utils import column_index_from_string
+
+        for i in range(column_index_from_string(first), column_index_from_string(last) + 1):
+            dim = ws.column_dimensions[get_column_letter(i)]
+            dim.outline_level = outline_level
+            dim.hidden = hidden
+
+    def ungroup(self, cell_range: str, axis: str = 'rows') -> None:
+        """Remove grouping (outline level and hidden flag) from rows or columns."""
+        if axis not in ('rows', 'columns'):
+            raise ValueError(f"axis must be 'rows' or 'columns', got {axis!r}")
+        ws = self._ws()
+        if axis == 'rows':
+            start, end = self._parse_int_range(cell_range, 'row')
+            for i in range(start, end + 1):
+                dim = ws.row_dimensions[i]
+                dim.outline_level = 0
+                dim.hidden = False
+        else:
+            first, last = self._parse_letter_range(cell_range, 'column')
+            from openpyxl.utils import column_index_from_string
+
+            for i in range(column_index_from_string(first), column_index_from_string(last) + 1):
+                dim = ws.column_dimensions[get_column_letter(i)]
+                dim.outline_level = 0
+                dim.hidden = False
+
+    def set_tab_color(self, hex_color: str) -> None:
+        """Set the active sheet's tab color from an RGB hex string (``FF0000``)."""
+        import re as _re
+
+        clean = hex_color.strip().lstrip('#').upper()
+        if not _re.fullmatch(r'[0-9A-F]{6}', clean):
+            raise ValueError(f'Invalid RGB hex color: {hex_color!r} (expected e.g. "FF0000")')
+        self._ws().sheet_properties.tabColor = clean
+
+    # ---- Print area & page setup ------------------------------------------ #
+    def set_print_area(self, cell_range: str) -> None:
+        """Restrict printing to a single range of the active sheet, e.g. ``A1:C10``."""
+        import re as _re
+
+        from openpyxl.utils import column_index_from_string
+
+        m = _re.fullmatch(r'\s*([A-Za-z]{1,3})(\d+)\s*:\s*([A-Za-z]{1,3})(\d+)\s*', cell_range)
+        if not m:
+            raise ValueError(f'Invalid print area: {cell_range!r} (expected "A1:C10")')
+        if column_index_from_string(m.group(3).upper()) < column_index_from_string(
+            m.group(1).upper()
+        ) or int(m.group(4)) < int(m.group(2)):
+            raise ValueError(f'Invalid print area: {cell_range!r} (end before start)')
+        self._ws().print_area = cell_range.strip()
+
+    def set_page_setup(
+        self,
+        paper_size: str | int | None = None,
+        orientation: str | None = None,
+        margins: dict[str, float] | None = None,
+        header: str | None = None,
+        footer: str | None = None,
+    ) -> None:
+        """Configure print layout of the active sheet (all parameters optional).
+
+        ``paper_size`` accepts a name (``a3``/``a4``/``a5``/``letter``/``legal``
+        /``tabloid``) or an raw openpyxl paper-size integer. ``orientation`` is
+        ``portrait`` or ``landscape``. ``margins`` takes any subset of
+        ``left``/``right``/``top``/``bottom``/``header``/``footer`` in inches.
+        ``header`` / ``footer`` set the centred odd-page header/footer text.
+        """
+        ws = self._ws()
+        paper_names = {'a3': 8, 'a4': 9, 'a5': 11, 'letter': 1, 'legal': 5, 'tabloid': 3}
+        if paper_size is not None:
+            if isinstance(paper_size, str):
+                key = paper_size.strip().lower()
+                if key not in paper_names:
+                    raise ValueError(
+                        f'Unknown paper size: {paper_size!r}. '
+                        f'Use one of: {", ".join(sorted(paper_names))}'
+                    )
+                ws.page_setup.paperSize = paper_names[key]
+            else:
+                ws.page_setup.paperSize = int(paper_size)
+        if orientation is not None:
+            ori = orientation.strip().lower()
+            if ori not in ('portrait', 'landscape'):
+                raise ValueError(
+                    f"orientation must be 'portrait' or 'landscape', got {orientation!r}"
+                )
+            ws.page_setup.orientation = ori
+        if margins is not None:
+            valid_keys = {'left', 'right', 'top', 'bottom', 'header', 'footer'}
+            unknown = set(margins) - valid_keys
+            if unknown:
+                raise ValueError(
+                    f'Unknown margin keys: {sorted(unknown)}. Use subsets of {sorted(valid_keys)}'
+                )
+            for key, value in margins.items():
+                setattr(ws.page_margins, key, float(value))
+        if header is not None:
+            ws.oddHeader.center.text = header
+        if footer is not None:
+            ws.oddFooter.center.text = footer
+
     def set_formula(self, cell_ref: str, formula: str) -> None:
         """Set a formula on the given cell reference in the active sheet."""
         ws = self._ws()

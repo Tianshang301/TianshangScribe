@@ -21,7 +21,13 @@ WRITE_TOOLS = {
     'create_presentation',
     'edit_presentation',
 }
-READ_ONLY_TOOLS = {'extract_document_data', 'validate_template', 'analyze_excel_data'}
+READ_ONLY_TOOLS = {
+    'extract_document_data',
+    'validate_template',
+    'analyze_excel_data',
+    'compare_excel_workbooks',
+    'extract_presentation_data',
+}
 DESTRUCTIVE_TOOLS = {'edit_office_document', 'edit_excel_workbook', 'edit_presentation'}
 
 

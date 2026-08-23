@@ -4,6 +4,50 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-08-23
+
+### Added
+- `compare_excel_workbooks` gains `formula` and `full` diff modes alongside
+  `data`: formula mode streams both workbooks read-only and compares formula
+  strings only (O(1) memory, hash pre-filter, size caps with a truncation
+  warning), full mode reports every stored cell including cached values.
+  Empirical note: openpyxl `read_only=True, data_only=False` does return
+  formula strings, so PLAN.md D-5's assumption was corrected in the process.
+- `extract_presentation_data` gains `notes` mode (full speaker-notes text per
+  slide) and `master_info` mode (masters/layouts inventory with placeholder
+  types).
+- `analyze_excel_data` gains a `pivot_suggestion` mode proposing rows /
+  columns / values / aggregation from per-column type inference.
+- PowerPoint engine: `apply_theme` built-in themes (`office`, `dark`) rewrite
+  `theme1.xml` color/font schemes directly; `add_movie` / `add_audio` insert
+  click-to-play media (poster frame support for movies); master-level
+  `set_master_options` toggles slide-number / footer / date placeholders.
+- Excel engine: row/column grouping `group_rows` / `group_columns` / `ungroup`
+  (outline level 1-7, optional collapse), `set_tab_color`, `set_print_area`,
+  and a simplified `set_page_setup` (paper size name or raw int, orientation,
+  margins subset, centred header/footer text).
+- L2 schema wiring under the D-7 capability freeze: legacy `EditOperation`
+  absorbs only four core actions (`group_rows`, `group_columns`, `ungroup`,
+  `add_media`); edge capabilities stay exclusive to the dedicated tools via
+  `ExcelEditOp` (17 actions) and `PptEditOp` (13 actions). Both wrappers share
+  one edit session shell (`run_edit_session`) so operation order, backup and
+  error mapping stay uniform.
+- Cross-cutting error refinements: `error_response` accepts optional `field`
+  and `documentation_url`; four refined codes — `EXCEL_INVALID_CELL_REF`
+  (1007), `EXCEL_INVALID_RANGE` (1008), `PPT_INVALID_SLIDE_INDEX` (1009),
+  `EXCEL_SHEET_NOT_FOUND` (1010); live engine errors are classified onto them
+  with the offending `operations[i].field`. Formula syntax is deliberately not
+  validated.
+- New `_dryrun.py` pre-flight module: structural cell/range validation, sheet
+  existence and slide-index bounds (with running `add_sheet` / `add_slide`
+  context), per-operation impact estimates. `edit_*` and
+  `create_office_document` dry-run responses now carry `validations`,
+  `all_valid`, and `estimated_impacted_cells` next to their legacy keys.
+
+### Changed
+- Bumped `SERVER_VERSION` and package version to `0.9.0`; docs and AGENTS.md
+  feature matrix now list 14 tools.
+
 ## [0.8.1] - 2026-08-22
 
 ### Fixed

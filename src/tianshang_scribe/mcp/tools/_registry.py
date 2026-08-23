@@ -12,11 +12,13 @@ from typing import Any, cast
 
 from tianshang_scribe.mcp.tools.analyze_excel import analyze_excel_data
 from tianshang_scribe.mcp.tools.compare import compare_documents
+from tianshang_scribe.mcp.tools.compare_excel import compare_excel_workbooks
 from tianshang_scribe.mcp.tools.convert import convert_document, extract_document_data
 from tianshang_scribe.mcp.tools.create import create_office_document
 from tianshang_scribe.mcp.tools.edit import edit_office_document
 from tianshang_scribe.mcp.tools.excel_create import create_excel_workbook
 from tianshang_scribe.mcp.tools.excel_edit import edit_excel_workbook
+from tianshang_scribe.mcp.tools.extract_ppt import extract_presentation_data
 from tianshang_scribe.mcp.tools.ppt_create import create_presentation
 from tianshang_scribe.mcp.tools.ppt_edit import edit_presentation
 from tianshang_scribe.mcp.tools.template import fill_template
@@ -135,10 +137,12 @@ TOOLS: list[ToolEntry] = [
         'description': (
             'Edit an existing .xlsx workbook with typed operations: write_cell, '
             'set_formula, freeze_panes, add_chart, conditional_format, '
-            'data_validation, add_table, sort, add_sheet, set_range_style, and '
-            'number_format. Rewrites the file — when output_path is omitted the '
-            'INPUT FILE IS OVERWRITTEN IN PLACE, so pass output_path or options '
-            '{"backup": true} to keep a .bak copy. To build a new workbook use '
+            'data_validation, add_table, sort, add_sheet, set_range_style, '
+            'number_format, row/column grouping (group_rows/group_columns/'
+            'ungroup), set_tab_color, set_print_area, and set_page_setup. '
+            'Rewrites the file — when output_path is omitted the INPUT FILE IS '
+            'OVERWRITTEN IN PLACE, so pass output_path or options {"backup": '
+            'true} to keep a .bak copy. To build a new workbook use '
             'create_excel_workbook; to inspect one first use analyze_excel_data.'
         ),
     },
@@ -158,11 +162,13 @@ TOOLS: list[ToolEntry] = [
         'fn': edit_presentation,
         'description': (
             'Edit an existing .pptx with typed operations: add_slide, add_text, '
-            'replace_text, add_table, add_chart, add_picture, add_shape, '
-            'apply_layout, set_transition, and add_notes. Rewrites the deck — '
-            'when output_path is omitted the INPUT FILE IS OVERWRITTEN IN PLACE, '
-            'so pass output_path or options {"backup": true} for a .bak copy. To '
-            'generate a new deck use create_presentation.'
+            'replace_text, add_table, add_chart, add_picture, add_media (video/'
+            'audio), add_shape, apply_layout, set_transition, add_notes, '
+            'apply_theme (office/dark), and set_master_options (slide numbers/'
+            'footer/date). Rewrites the deck — when output_path is omitted the '
+            'INPUT FILE IS OVERWRITTEN IN PLACE, so pass output_path or options '
+            '{"backup": true} for a .bak copy. To generate a new deck use '
+            'create_presentation.'
         ),
     },
     {
@@ -171,10 +177,34 @@ TOOLS: list[ToolEntry] = [
         'description': (
             'Analyze an Excel workbook without touching it: per-sheet row/column '
             'counts, headers, inferred column types (numeric min/max/mean, '
-            'categorical values), null counts, sample rows, and duplicate-row '
-            'detection. Read-only — never modifies the input file. After analysis '
-            'use edit_excel_workbook to apply fixes, or extract_document_data for '
-            'raw text and metadata.'
+            'categorical values), null counts, sample rows, duplicate-row '
+            'detection — or pivot_suggestion mode proposing rows/columns/values/'
+            'agg from type inference. Read-only — never modifies the input file. '
+            'After analysis use edit_excel_workbook to apply fixes.'
+        ),
+    },
+    {
+        'name': 'compare_excel_workbooks',
+        'fn': compare_excel_workbooks,
+        'description': (
+            'Compare two Excel workbooks without touching them: sheet-level '
+            'additions/removals/renames (with an optional name mapping), plus '
+            'cell-level diffs — cached values (data), formula strings only '
+            '(formula), or all stored content (full) — with numeric tolerance '
+            'and truncation caps. Read-only — never modifies either input '
+            'file. For PowerPoint inspection use extract_presentation_data.'
+        ),
+    },
+    {
+        'name': 'extract_presentation_data',
+        'fn': extract_presentation_data,
+        'description': (
+            "Inspect a PowerPoint deck's semantics without modifying it: outline "
+            '(per-slide layout/title/bullets/notes/transition), structure (shape-'
+            'type census), notes (full speaker-notes text) or master_info '
+            '(masters/layouts inventory). Read-only — never modifies the input '
+            'file. For workbooks use analyze_excel_data; to change slides use '
+            'edit_presentation.'
         ),
     },
 ]

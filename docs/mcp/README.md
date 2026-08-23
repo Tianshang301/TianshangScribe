@@ -1,4 +1,4 @@
-﻿# TianshangScribe MCP Server
+# TianshangScribe MCP Server
 
 > [中文版](./README.zh-CN.md)
 
@@ -259,6 +259,31 @@ Read-only workbook profiling: per-sheet row/column counts, headers, inferred col
 }
 ```
 
+### 13. `compare_excel_workbooks`
+
+Compare two workbooks without touching them: sheet-level additions/removals/renames (with an optional `sheet_mapping`) plus, in `data` mode, cell-level value diffs with numeric `tolerance`. `formula` and `full` modes add formula-string diffs.
+
+```json
+{
+  "path_a": "old.xlsx",
+  "path_b": "new.xlsx",
+  "mode": "data",
+  "tolerance": 0.005,
+  "sheet_mapping": {"Data2024": "Data"}
+}
+```
+
+### 14. `extract_presentation_data`
+
+Read-only deck inspection: `outline` (per-slide layout/title/bullets/notes/transition) or `structure` (shape-type census). `notes` and `master_info` modes are also available.
+
+```json
+{
+  "input_path": "deck.pptx",
+  "mode": "outline"
+}
+```
+
 ## LaTeX Markup Reference
 
 All tools accept LaTeX-style markup in `text` fields:
@@ -303,7 +328,16 @@ All tools return structured error responses:
 | 1004 | TEMPLATE_ERROR | Yes |
 | 1005 | CONVERSION_FAILED | Yes |
 | 1006 | INVALID_PARAMETER | No |
+| 1007 | EXCEL_INVALID_CELL_REF | No |
+| 1008 | EXCEL_INVALID_RANGE | No |
+| 1009 | PPT_INVALID_SLIDE_INDEX | No |
+| 1010 | EXCEL_SHEET_NOT_FOUND | No |
 | 9999 | INTERNAL_ERROR | No |
+
+Refined responses may also carry an optional `field` (the offending parameter,
+e.g. `operations[0].cell`) and `documentation_url` pointing back to this
+section. `dry_run` returns the same taxonomy up front via a per-operation
+`validations` list plus `all_valid` and `estimated_impacted_cells`.
 
 ## Dry Run & Backup
 
@@ -382,7 +416,7 @@ How AI agents discover and call TianshangScribe tools in practice.
 
 **Protocol flow:**
 1. Agent sends `initialize` → server responds with server info & protocol version
-2. Agent sends `tools/list` → server responds with 12 tools and their schemas
+2. Agent sends `tools/list` → server responds with 14 tools and their schemas
 3. User makes a request → Agent selects tool + fills parameters
 4. Agent sends `tools/call` → server executes and returns result
 5. Agent presents result to user in natural language
@@ -413,7 +447,7 @@ How AI agents discover and call TianshangScribe tools in practice.
 
 > "What tools do you have available?"
 
-Claude should list 12 tools including `create_office_document`.
+Claude should list 14 tools including `create_office_document`.
 
 **Try it**:
 
@@ -435,7 +469,7 @@ Claude should list 12 tools including `create_office_document`.
 }
 ```
 
-**Verify**: `Ctrl+Shift+P` → "MCP: List Tools" → should show 12 tools.
+**Verify**: `Ctrl+Shift+P` → "MCP: List Tools" → should show 14 tools.
 
 #### VS Code (with MCP extension)
 
@@ -471,7 +505,7 @@ curl -N "http://localhost:8080/sse"
 curl -X POST "http://localhost:8080/message?session_id=abc123..." \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-# Expected: JSON response with 12 tools
+# Expected: JSON response with 14 tools
 ```
 
 #### Dify
@@ -479,7 +513,7 @@ curl -X POST "http://localhost:8080/message?session_id=abc123..." \
 1. Go to **Tools → MCP Tools → Add**
 2. Select **SSE** transport
 3. Enter URL: `http://your-server:8080/sse`
-4. Click **Test Connection** → should discover 12 tools
+4. Click **Test Connection** → should discover 14 tools
 5. Use in Workflow: drag `create_office_document` into a node
 
 #### Coze / FastGPT
@@ -488,7 +522,7 @@ In the plugin/tool marketplace, add an **MCP Server** with:
 - **URL**: `http://your-server:8080/sse`
 - **Transport**: SSE
 
-The platform will auto-discover the 12 tools via SSE handshake.
+The platform will auto-discover the 14 tools via SSE handshake.
 
 ### Verification
 
@@ -531,7 +565,7 @@ sequenceDiagram
     MCP-->>Agent: protocolVersion, serverInfo, capabilities
 
     Agent->>MCP: tools/list
-    MCP-->>Agent: 12 tools with schemas
+    MCP-->>Agent: 14 tools with schemas
 
     Note over Agent: User asks "Convert CSV to PDF"
 

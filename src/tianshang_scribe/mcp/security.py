@@ -49,6 +49,8 @@ TOOL_PERMISSIONS: dict[str, PermissionLevel] = {
     'create_presentation': PermissionLevel.STANDARD,
     'edit_presentation': PermissionLevel.DESTRUCTIVE,
     'analyze_excel_data': PermissionLevel.READ_ONLY,
+    'compare_excel_workbooks': PermissionLevel.READ_ONLY,
+    'extract_presentation_data': PermissionLevel.READ_ONLY,
 }
 
 #: Permission levels each role is allowed to exercise (escalating).
@@ -78,7 +80,13 @@ ROLE_TOOL_MATRIX: dict[Role, frozenset[str]] = {
 #: (each call re-writes, possibly creating temp output files), so they are
 #: excluded even though the final bytes could in principle converge.
 IDEMPOTENT_TOOLS: frozenset[str] = frozenset(
-    {'extract_document_data', 'validate_template', 'analyze_excel_data'}
+    {
+        'extract_document_data',
+        'validate_template',
+        'analyze_excel_data',
+        'compare_excel_workbooks',
+        'extract_presentation_data',
+    }
 )
 
 

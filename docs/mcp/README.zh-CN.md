@@ -1,4 +1,4 @@
-﻿# TianshangScribe MCP Server
+# TianshangScribe MCP Server
 
 > [English](./README.md)
 
@@ -253,6 +253,31 @@ Agent：  create_office_document(format="docx", content=[...])
 }
 ```
 
+### 13. `compare_excel_workbooks`
+
+只读对比两个工作簿：工作表级增删/重命名（支持 `sheet_mapping` 映射），`data` 模式输出带数值容差 `tolerance` 的单元格级差异；`formula` 与 `full` 模式追加公式串对比。
+
+```json
+{
+  "path_a": "old.xlsx",
+  "path_b": "new.xlsx",
+  "mode": "data",
+  "tolerance": 0.005,
+  "sheet_mapping": {"Data2024": "Data"}
+}
+```
+
+### 14. `extract_presentation_data`
+
+只读演示文稿语义检查：`outline`（逐页版式/标题/要点/备注/切换）或 `structure`（形状类型分布）；`notes` 与 `master_info` 模式同样可用。
+
+```json
+{
+  "input_path": "deck.pptx",
+  "mode": "outline"
+}
+```
+
 ## LaTeX 标记参考
 
 所有 `text` 字段支持 LaTeX 风格标记：
@@ -297,7 +322,16 @@ Agent：  create_office_document(format="docx", content=[...])
 | 1004 | 模板错误 | 是 |
 | 1005 | 转换失败 | 是 |
 | 1006 | 参数无效 | 否 |
+| 1007 | Excel 单元格引用无效 | 否 |
+| 1008 | Excel 区域无效 | 否 |
+| 1009 | PPT 幻灯片索引越界 | 否 |
+| 1010 | Excel 工作表不存在 | 否 |
 | 9999 | 内部错误 | 否 |
+
+细化后的错误响应还可携带可选 `field`（指出问题的参数，如
+`operations[0].cell`）与 `documentation_url`（指回本节）。`dry_run` 通过逐操作
+的 `validations` 列表以及 `all_valid`、`estimated_impacted_cells`
+提前给出同一套错误分类。
 
 ## Dry Run 与备份
 
@@ -376,7 +410,7 @@ AI Agent 如何在实际使用中发现和调用 TianshangScribe 工具。
 
 **协议交互过程：**
 1. Agent 发送 `initialize` → 服务端返回协议版本和服务信息
-2. Agent 发送 `tools/list` → 服务端返回 12 个工具及其参数 schema
+2. Agent 发送 `tools/list` → 服务端返回 14 个工具及其参数 schema
 3. 用户提出请求 → Agent 选择合适的工具 + 填写参数
 4. Agent 发送 `tools/call` → 服务端执行并返回结果
 5. Agent 将结果以自然语言呈现给用户
@@ -407,7 +441,7 @@ AI Agent 如何在实际使用中发现和调用 TianshangScribe 工具。
 
 > "你现在有哪些工具可用？"
 
-Claude 应列出 12 个工具，包括 `create_office_document`。
+Claude 应列出 14 个工具，包括 `create_office_document`。
 
 **试用**：
 
@@ -429,7 +463,7 @@ Claude 应列出 12 个工具，包括 `create_office_document`。
 }
 ```
 
-**验证**：`Ctrl+Shift+P` → "MCP: List Tools" → 应显示 12 个工具。
+**验证**：`Ctrl+Shift+P` → "MCP: List Tools" → 应显示 14 个工具。
 
 #### VS Code（安装 MCP 扩展后）
 
@@ -465,7 +499,7 @@ curl -N "http://localhost:8080/sse"
 curl -X POST "http://localhost:8080/message?session_id=abc123..." \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-# 预期：返回 12 个工具的 JSON
+# 预期：返回 14 个工具的 JSON
 ```
 
 #### Dify 接入
@@ -473,7 +507,7 @@ curl -X POST "http://localhost:8080/message?session_id=abc123..." \
 1. 进入 **工具 → MCP 工具 → 添加**
 2. 选择 **SSE** 传输方式
 3. 输入 URL：`http://your-server:8080/sse`
-4. 点击 **测试连接** → 应发现 12 个工具
+4. 点击 **测试连接** → 应发现 14 个工具
 5. 在 Workflow 中将 `create_office_document` 拖入节点即可使用
 
 #### Coze / FastGPT
@@ -482,7 +516,7 @@ curl -X POST "http://localhost:8080/message?session_id=abc123..." \
 - **URL**：`http://your-server:8080/sse`
 - **Transport**：SSE
 
-平台会通过 SSE 握手自动发现 12 个工具。
+平台会通过 SSE 握手自动发现 14 个工具。
 
 ### 验证方法
 
@@ -525,7 +559,7 @@ sequenceDiagram
     MCP-->>Agent: 协议版本、服务信息、能力声明
 
     Agent->>MCP: tools/list
-    MCP-->>Agent: 12 个工具及参数 schema
+    MCP-->>Agent: 14 个工具及参数 schema
 
     Note over Agent: 用户说"把 CSV 转成 PDF"
 

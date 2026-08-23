@@ -169,6 +169,10 @@ class EditOperation(BaseModel):
         'add_sheet',
         'set_range_style',
         'number_format',
+        'group_rows',
+        'group_columns',
+        'ungroup',
+        'add_media',
     ] = Field(
         description=(
             'Operation type. Only the listed fields are meaningful per action:\n'
@@ -195,6 +199,11 @@ class EditOperation(BaseModel):
             '- "add_sheet": sheet_name (Excel)\n'
             '- "set_range_style": range, style (Excel)\n'
             '- "number_format": number_format ("RANGE=FORMAT", e.g. "A1:A10=0.00%")\n'
+            '- "group_rows": range ("2:5"), outline_level (1-7), hidden, sheet_name (Excel)\n'
+            '- "group_columns": range ("B:D"), outline_level, hidden, sheet_name (Excel)\n'
+            '- "ungroup": range, axis ("rows"/"columns"), sheet_name (Excel)\n'
+            '- "add_media": path, slide_index, media_type ("movie"/"audio"), '
+            'left/top/width/height (inches), poster (PPT)\n'
             'Unused fields for an action are ignored.'
         ),
     )
@@ -272,6 +281,30 @@ class EditOperation(BaseModel):
     order: str | None = Field(default=None, description='Single sort order asc/desc (sort).')
     number_format: str | None = Field(
         default=None, description='Number format spec "RANGE=FORMAT" (number_format).'
+    )
+    outline_level: int | None = Field(
+        default=None,
+        ge=1,
+        le=7,
+        description='Outline level 1-7 for grouping (group_rows/group_columns).',
+    )
+    hidden: bool | None = Field(
+        default=None, description='Collapse the grouped rows/columns (group_rows/group_columns).'
+    )
+    axis: str | None = Field(default=None, description='"rows" or "columns" (ungroup).')
+    media_type: str | None = Field(default=None, description='"movie" or "audio" (add_media, PPT).')
+    left: float | None = Field(
+        default=None, description='Left position in inches (add_media, PPT).'
+    )
+    top: float | None = Field(default=None, description='Top position in inches (add_media, PPT).')
+    width: float | None = Field(
+        default=None, description='Width in inches (add_media movie frames).'
+    )
+    height: float | None = Field(
+        default=None, description='Height in inches (add_media movie frames).'
+    )
+    poster: str | None = Field(
+        default=None, description='Poster frame image path (add_media movies).'
     )
 
 

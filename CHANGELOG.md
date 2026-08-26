@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- REPL environment files: `tianshang-scribe open` now loads rc files
+  (`--env-file` wins, then project `.scribe/repl.rc` over user
+  `~/.tianshang-scribe/repl.rc`; corrupt files degrade to a warning). The INI
+  file supports `[repl] latex_style`, `[aliases]` command aliases and
+  `[startup]` commands executed before the interactive loop — default fonts
+  are best set via a `style` startup command (`set_style` merges persistently).
+- REPL `env` command: `env` shows the effective environment, `env alias <name>
+  <command...>` / `env unalias <name>` manage session aliases at runtime
+  (single-level expansion; aliasing `env` itself is refused, shadowing other
+  built-ins warns).
+
+### Changed
+- The interactive session now enters the document's directory on start and
+  restores the previous working directory on exit, so relative paths such as
+  `table @data.csv`, `path out.docx` and `save rel.docx` resolve against the
+  document location instead of the launch directory. Session paths are
+  normalized to absolute at construction, keeping no-argument `save` in the
+  original document location.
+
 ## [0.9.0] - 2026-08-23
 
 ### Added

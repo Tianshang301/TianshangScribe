@@ -362,6 +362,40 @@ Supports JSON, CSV, and YAML data sources. Replaces `{{placeholder}}` in documen
 | Tables & charts | Insert table/chart on the last slide (`--ppt-table "H1,H2\|a1,a2"`, `--ppt-chart "bar\|S1,S2\|Cat1,1,2"`) |
 | Protection | Set/remove password (`--protect`, `--unprotect`) |
 
+## Interactive Session (open)
+
+`tianshang-scribe open <file> [--latex-style] [--env-file <file>] [-w|-e|-p]` opens a document in an interactive REPL that holds it in memory; `save` persists, `quit` prompts on unsaved changes.
+
+```
+doc.docx> add "Hello"
+doc.docx> table @data.csv              # relative paths resolve against the document's directory
+doc.docx> env alias h1 "heading 1"     # define a command alias
+doc.docx> h1 "Summary"                 # use it immediately
+doc.docx> save
+doc.docx> quit
+```
+
+Commands: `add` `heading` `table` `math` `replace` `delete` `style` `extract` `info` `path` `save` `env` `help` `quit`.
+
+The session automatically enters the document's directory on start (restored on exit), so `@data.csv`, `path out.docx`, and `save rel.docx` all resolve relative to the document.
+
+REPL environment files configure defaults per project or user. Load order: `--env-file` wins, then `<project>/.scribe/repl.rc` over `~/.tianshang-scribe/repl.rc`.
+
+```ini
+[repl]
+latex_style = true
+
+[aliases]
+h1 = heading 1
+
+[startup]
+commands = style font=Times New Roman,size=12,cjk-font=SimSun
+    latex on
+```
+
+- `env` shows the current environment; `env alias <name> <command...>` / `env unalias <name>` manage aliases at runtime.
+- Default fonts go through `[startup]` `style` commands (`set_style` merges persistently); `[repl]` only holds `latex_style`.
+
 ## Exit Codes
 
 | Code | Meaning |

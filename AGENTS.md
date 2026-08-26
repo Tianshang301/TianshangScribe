@@ -173,7 +173,7 @@ tianshang-scribe [全局选项] <输入文件> [操作选项...] [-o 输出文�
 
 #### 6. 交互式文件界面（`open` 子命令）
 
-`tianshang-scribe open <文件> [--latex-style] [-w|-e|-p]` 打开文档并进入交互式 REPL，可持续对内存中的文档进行操作：
+`tianshang-scribe open <文件> [--latex-style] [--env-file <文件>] [-w|-e|-p]` 打开文档并进入交互式 REPL，可持续对内存中的文档进行操作：
 
 ```
 doc.docx> add "Hello \bfseries{World}"
@@ -181,12 +181,29 @@ doc.docx> heading 2 "报告标题"
 doc.docx> table "H1,H2|a1,a2"          # 或 table @data.csv
 doc.docx> replace "旧" "新"
 doc.docx> extract tables
+doc.docx> env alias h1 "heading 1"     # 定义别名，h1 即可当作命令使用
 doc.docx> save                         # 显式保存（默认写回原文件）
 doc.docx> quit                         # 有未保存修改时先询问
 ```
 
-- **命令集**：`add` `heading` `table` `math` `replace` `delete` `style` `extract` `info` `path` `save` `help` `quit`
+- **命令集**：`add` `heading` `table` `math` `replace` `delete` `style` `extract` `info` `path` `save` `env` `help` `quit`
 - 交互会话在**单线程**持有文档对象，命令实时修改内存；`save` 才落盘，`quit` 时若有未保存修改会询问
+- **工作目录**：会话启动自动切换到文档所在目录、退出时恢复；相对路径（如 `table @data.csv`、`path out.docx`、`save rel.docx`）均以文档目录为基准解析
+- **REPL 环境文件**：加载顺序为 `--env-file` > 项目 `.scribe/repl.rc` > 用户 `~/.tianshang-scribe/repl.rc`（项目覆盖用户）；损坏文件降级为警告并跳过。INI 格式三节：
+  ```ini
+  [repl]
+  latex_style = true
+
+  [aliases]
+  h1 = heading 1
+  red = style color=FF0000
+
+  [startup]
+  commands = style font=Times New Roman,size=12,cjk-font=SimSun
+      latex on
+  ```
+- **环境命令**：`env` 显示当前环境；`env alias <名> <命令...>` 定义别名（遮蔽内建命令仅警告，`env` 本身不可遮蔽）；`env unalias <名>` 移除。别名展开为单层（结果不再二次展开）
+- 默认字体等样式通过 `[startup]` 的 `style` 命令设置（`set_style` 为合并持久化语义），`[repl]` 节仅含 `latex_style`
 - 双 app 分发：`open` 走 `open_app`（`src/tianshang_scribe/cli/repl.py` 的 `InteractiveSession`），其余走一键式 `app`；两者共享 `--latex-style`/`-w/-e/-p` 选项定义（`src/tianshang_scribe/cli/main.py` 中的共享常量），保证 CLI 参数同步
 - 一键式命令为普通 Typer 命令，选项可在位置参数 `input_file` 之前或之后（如 `tianshang-scribe file.docx --add "hi"`）
 
@@ -267,6 +284,7 @@ src/                          # 构建隔离目录
         ├── config.py      # pydantic-settings 集中配置（TIANSHANG_SCRIBE_* env + .env）
         ├── logging.py     # structlog 结构化日志（console/JSON，uvicorn 统一格式）
         ├── store.py       # SQLite 持久化（ScheduleStore：调度 + 运行历史）
+        ├── repl_env.py    # REPL 环境文件加载（别名 / 启动命令 / latex 开关）
         └── file_utils.py  # check_overwrite / ensure_parent_dir
 ```
 

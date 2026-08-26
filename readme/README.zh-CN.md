@@ -361,6 +361,40 @@ Word OOXML 原生分离 `w:ascii`（西文）与 `w:eastAsia`（CJK）字体，�
 | 表格与图表 | 末张幻灯片插入表格/图表（`--ppt-table "H1,H2\|a1,a2"`、`--ppt-chart "bar\|S1,S2\|Cat1,1,2"`） |
 | 保护 | 设置/解除密码（`--protect`、`--unprotect`） |
 
+## 交互式会话（open）
+
+`tianshang-scribe open <文件> [--latex-style] [--env-file <文件>] [-w|-e|-p]` 打开文档进入交互式 REPL，文档常驻内存；`save` 落盘，`quit` 时有未保存修改会询问。
+
+```
+doc.docx> add "Hello"
+doc.docx> table @data.csv              # 相对路径以文档所在目录为基准
+doc.docx> env alias h1 "heading 1"     # 定义命令别名
+doc.docx> h1 "摘要"                    # 立即可用
+doc.docx> save
+doc.docx> quit
+```
+
+命令集：`add` `heading` `table` `math` `replace` `delete` `style` `extract` `info` `path` `save` `env` `help` `quit`。
+
+会话启动自动切换到文档所在目录（退出时恢复），因此 `@data.csv`、`path out.docx`、`save rel.docx` 均按文档目录解析。
+
+REPL 环境文件可按项目或用户配置默认行为。加载顺序：`--env-file` 优先，其次项目 `.scribe/repl.rc` 覆盖用户 `~/.tianshang-scribe/repl.rc`。
+
+```ini
+[repl]
+latex_style = true
+
+[aliases]
+h1 = heading 1
+
+[startup]
+commands = style font=Times New Roman,size=12,cjk-font=SimSun
+    latex on
+```
+
+- `env` 显示当前环境；`env alias <名> <命令...>` / `env unalias <名>` 运行时管理别名。
+- 默认字体通过 `[startup]` 的 `style` 命令设置（`set_style` 为合并持久化语义）；`[repl]` 节仅含 `latex_style`。
+
 ## 退出码
 
 | 码 | 含义 |

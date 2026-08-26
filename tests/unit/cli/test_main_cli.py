@@ -1329,6 +1329,85 @@ class TestOpenApp:
         result = runner.invoke(cli.open_app, [str(docx)])
         assert result.exit_code == 0
 
+    def _record_session(self, monkeypatch, calls: list) -> None:
+        import tianshang_scribe.cli.repl as repl
+
+        class _S:
+            def __init__(self, *a, **k) -> None:
+                calls.append(('init', a, k))
+
+            def run(self) -> None:
+                calls.append(('run',))
+
+        monkeypatch.setattr(repl, 'InteractiveSession', _S)
+
+    def test_open_env_file_wiring(self, tmp_path: Path, monkeypatch) -> None:
+        import tianshang_scribe.utils.repl_env as repl_env_mod
+
+        docx = tmp_path / 't.docx'
+        docx.write_bytes(b'x' * 10)
+        rc = tmp_path / 'custom.rc'
+        rc.write_text('[repl]\nlatex_style = true\n\n[aliases]\nh1 = heading 1\n', encoding='utf-8')
+        monkeypatch.setattr(repl_env_mod, 'USER_RC_PATH', tmp_path / 'no' / 'repl.rc')
+        monkeypatch.setattr(cli, 'open_document', lambda p: _Base())
+        calls: list = []
+        self._record_session(monkeypatch, calls)
+        result = runner.invoke(cli.open_app, ['--env-file', str(rc), str(docx)])
+        assert result.exit_code == 0
+        _, init_kwargs = next(c[1:] for c in calls if c[0] == 'init')
+        assert init_kwargs['latex_style'] is True
+        assert init_kwargs['env'].aliases == {'h1': 'heading 1'}
+
+    def test_open_latex_style_union_with_rc(self, tmp_path: Path, monkeypatch) -> None:
+        import tianshang_scribe.utils.repl_env as repl_env_mod
+
+        docx = tmp_path / 't.docx'
+        docx.write_bytes(b'x' * 10)
+        rc = tmp_path / 'off.rc'
+        rc.write_text('[repl]\nlatex_style = false\n', encoding='utf-8')
+        monkeypatch.setattr(repl_env_mod, 'USER_RC_PATH', tmp_path / 'no' / 'repl.rc')
+        monkeypatch.setattr(cli, 'open_document', lambda p: _Base())
+        calls: list = []
+        self._record_session(monkeypatch, calls)
+        result = runner.invoke(cli.open_app, ['--latex-style', '--env-file', str(rc), str(docx)])
+        assert result.exit_code == 0
+        _, init_kwargs = next(c[1:] for c in calls if c[0] == 'init')
+        assert init_kwargs['latex_style'] is True  # CLI flag ORs over the rc value
+
+    def test_open_project_rc_default_location(self, tmp_path: Path, monkeypatch) -> None:
+        import tianshang_scribe.utils.repl_env as repl_env_mod
+
+        work = tmp_path / 'work'
+        work.mkdir()
+        docx = work / 't.docx'
+        docx.write_bytes(b'x' * 10)
+        (work / '.scribe').mkdir()
+        (work / '.scribe' / 'repl.rc').write_text('[aliases]\np = path\n', encoding='utf-8')
+        monkeypatch.setattr(repl_env_mod, 'USER_RC_PATH', tmp_path / 'no' / 'repl.rc')
+        monkeypatch.setattr(cli, 'open_document', lambda p: _Base())
+        calls: list = []
+        self._record_session(monkeypatch, calls)
+        result = runner.invoke(cli.open_app, [str(docx)])
+        assert result.exit_code == 0
+        _, init_kwargs = next(c[1:] for c in calls if c[0] == 'init')
+        assert init_kwargs['env'].aliases == {'p': 'path'}
+
+    def test_open_corrupt_env_file_warns_and_opens(self, tmp_path: Path, monkeypatch) -> None:
+        import tianshang_scribe.utils.repl_env as repl_env_mod
+
+        docx = tmp_path / 't.docx'
+        docx.write_bytes(b'x' * 10)
+        rc = tmp_path / 'bad.rc'
+        rc.write_text('not an ini header\n', encoding='utf-8')
+        monkeypatch.setattr(repl_env_mod, 'USER_RC_PATH', tmp_path / 'no' / 'repl.rc')
+        monkeypatch.setattr(cli, 'open_document', lambda p: _Base())
+        calls: list = []
+        self._record_session(monkeypatch, calls)
+        result = runner.invoke(cli.open_app, ['--env-file', str(rc), str(docx)])
+        assert result.exit_code == 0
+        assert 'skipping REPL config' in result.output
+        assert any(c[0] == 'run' for c in calls)  # session still opens
+
 
 def test_open_engine_unsupported_explicit(monkeypatch) -> None:
     class _FakeDocType:

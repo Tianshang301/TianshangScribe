@@ -6,9 +6,11 @@ memory (main thread); commands mutate it in place and ``save`` persists.
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import io
 import json
+import os
 import shlex
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +20,30 @@ from rich.console import Console
 from rich.prompt import Prompt
 
 from tianshang_scribe.cli.global_opts import parse_table_input
+from tianshang_scribe.utils.repl_env import ReplEnvironment
+
+# Keep in sync with the handlers dict in ``execute`` (and the alias hook there).
+BUILTIN_COMMANDS: frozenset[str] = frozenset(
+    {
+        'help',
+        '?',
+        'quit',
+        'exit',
+        'q',
+        'add',
+        'heading',
+        'table',
+        'math',
+        'replace',
+        'delete',
+        'style',
+        'extract',
+        'info',
+        'path',
+        'save',
+        'env',
+    }
+)
 
 
 class InteractiveSession:
@@ -29,44 +55,110 @@ class InteractiveSession:
         path: str | Path,
         console: Console,
         latex_style: bool = False,
+        env: ReplEnvironment | None = None,
     ) -> None:
         """Initialize the session bound to a document engine and path."""
         self.engine = engine
-        self.path = Path(path)
+        # Resolve eagerly so saves land in the launch location even after run()
+        # chdirs into the document directory.
+        self.path = Path(path).expanduser().resolve()
         self.console = console
         self.latex_style = latex_style
         self.dirty = False
+        self.env = env if env is not None else ReplEnvironment()
+        # Anchored at construction; ``path <new>`` never re-anchors it, keeping
+        # "process cwd == relative-path anchor" true for the whole session.
+        self._doc_dir = self.path.parent
+        # Never chdir here: direct execute() callers (tests) must be unaffected.
+        self._original_cwd = Path.cwd()
+        self._entered_doc_dir = False
 
     # -- lifecycle ---------------------------------------------------------
 
     def run(self) -> None:
         """Enter the interactive loop until the user quits."""
+        try:
+            # Must precede startup commands (@file.csv resolves against the
+            # process cwd); the engine was already opened by main against the
+            # original cwd — this ordering is load-bearing.
+            self._enter_doc_dir()
+            self._print_banner()
+            if not self._run_startup_commands():
+                return  # e.g. literal 'quit' in rc ends the session
+            while True:
+                try:
+                    line = Prompt.ask(f'[bold cyan]{self.path.name}[/bold cyan]')
+                except (EOFError, KeyboardInterrupt):
+                    self.console.print()
+                    self._quit([])
+                    return
+                if not line or not line.strip():
+                    continue
+                try:
+                    keep = self.execute(line)
+                except KeyboardInterrupt:
+                    self.console.print('[dim]interrupted[/dim]')
+                    continue
+                except (ValueError, NotImplementedError) as e:
+                    self.console.print(f'[red]Error:[/red] {e}')
+                    continue
+                except Exception as e:  # interactive robustness, never crash the session
+                    self.console.print(f'[red]Unexpected error:[/red] {e}')
+                    continue
+                if not keep:
+                    return
+        finally:
+            self._restore_cwd()
+
+    def _print_banner(self) -> None:
+        """Print the opening banner and the effective working directory."""
         self.console.print(
             f'[bold]Opened[/bold] {self.path} — '
             'type [cyan]help[/cyan] for commands, [cyan]quit[/cyan] to exit.'
         )
-        while True:
-            try:
-                line = Prompt.ask(f'[bold cyan]{self.path.name}[/bold cyan]')
-            except (EOFError, KeyboardInterrupt):
-                self.console.print()
-                self._quit([])
-                return
-            if not line or not line.strip():
+        if self._entered_doc_dir and self._doc_dir != self._original_cwd:
+            self.console.print(f'[dim]Working directory: {self._doc_dir}[/dim]')
+
+    def _enter_doc_dir(self) -> None:
+        """Change the process working directory to the document's directory."""
+        try:
+            os.chdir(self._doc_dir)
+            self._entered_doc_dir = True
+        except OSError as e:
+            self.console.print(f'[yellow]Warning:[/yellow] could not enter {self._doc_dir}: {e}')
+
+    def _restore_cwd(self) -> None:
+        """Restore the original working directory (best effort)."""
+        if not self._entered_doc_dir:
+            return
+        self._entered_doc_dir = False
+        with contextlib.suppress(OSError):
+            os.chdir(self._original_cwd)
+
+    def _resolve_doc_path(self, raw: str) -> Path:
+        """Resolve a user path relative to the document directory."""
+        resolved = Path(raw).expanduser()
+        if not resolved.is_absolute():
+            resolved = self._doc_dir / resolved
+        return resolved.resolve()
+
+    def _run_startup_commands(self) -> bool:
+        """Execute rc startup commands; ``False`` when the session should end."""
+        for command in self.env.startup_commands:
+            if not command.strip():
                 continue
+            self.console.print(f'[dim]> {command}[/dim]')
             try:
-                keep = self.execute(line)
+                keep = self.execute(command)
             except KeyboardInterrupt:
                 self.console.print('[dim]interrupted[/dim]')
-                continue
-            except (ValueError, NotImplementedError) as e:
-                self.console.print(f'[red]Error:[/red] {e}')
-                continue
-            except Exception as e:  # interactive robustness, never crash the session
-                self.console.print(f'[red]Unexpected error:[/red] {e}')
+                break
+            except Exception as e:  # one bad rc line must not kill the session
+                self.console.print(f'[yellow]Startup command failed:[/yellow] {e}')
                 continue
             if not keep:
-                return
+                return False
+        return True
 
     # -- dispatch ----------------------------------------------------------
 
@@ -77,6 +169,15 @@ class InteractiveSession:
             return True
         cmd = parts[0].lower()
         args = parts[1:]
+        # Single-level alias expansion: the expanded head is never re-checked
+        # against aliases, so cycles are impossible. ``env`` stays exempt so the
+        # environment can never be locked out.
+        if cmd != 'env' and cmd in self.env.aliases:
+            parts = _split_tokens(self.env.aliases[cmd]) + args
+            if not parts:
+                return True
+            cmd = parts[0].lower()
+            args = parts[1:]
         handlers: dict[str, Callable[[list[str]], bool]] = {
             'help': self._help,
             '?': self._help,
@@ -94,6 +195,7 @@ class InteractiveSession:
             'info': self._info,
             'path': self._path,
             'save': self._save,
+            'env': self._env,
         }
         handler = handlers.get(cmd)
         if handler is None:
@@ -108,7 +210,7 @@ class InteractiveSession:
             'Commands: add <text> | heading [level] <text> | table <inline|@file.csv> | '
             'math <latex> | replace <old> <new> | delete <text> | style key=value,... | '
             'extract <text|tables|structure|metadata> | info | path [path] | save [path] | '
-            'help | quit'
+            'env [alias <name> <cmd...> | unalias <name>] | help | quit'
         )
         return True
 
@@ -239,18 +341,62 @@ class InteractiveSession:
 
     def _path(self, args: list[str]) -> bool:
         if args:
-            self.path = Path(args[0])
+            self.path = self._resolve_doc_path(args[0])
             self.console.print(f'[green]Path set:[/green] {self.path}')
         else:
             self.console.print(str(self.path))
         return True
 
     def _save(self, args: list[str]) -> bool:
-        path = Path(args[0]) if args else self.path
+        path = self._resolve_doc_path(args[0]) if args else self.path
         self.engine.save(path)
         self.path = Path(path)
         self.dirty = False
         self.console.print(f'[green]Saved:[/green] {path}')
+        return True
+
+    # -- environment -------------------------------------------------------
+
+    def _env(self, args: list[str]) -> bool:
+        """Show or modify the REPL environment (aliases, latex flag)."""
+        sub = args[0].lower() if args else 'show'
+        if sub in ('show', ''):
+            self.console.print('[bold]REPL Environment[/bold]')
+            self.console.print(f'  latex_style: {self.latex_style}')
+            self.console.print(f'  startup commands: {len(self.env.startup_commands)}')
+            if self.env.aliases:
+                self.console.print('  aliases:')
+                for name in sorted(self.env.aliases):
+                    self.console.print(f'    {name} = {self.env.aliases[name]}')
+            else:
+                self.console.print('  aliases: (none)')
+            return True
+        if sub == 'alias':
+            if len(args) < 3:
+                raise ValueError('env alias requires <name> <command...>')
+            name = args[1].lower()
+            target = ' '.join(args[2:])
+            if name == 'env':
+                self.console.print('[red]Cannot shadow the env command.[/red]')
+                return True
+            if name in BUILTIN_COMMANDS:
+                self.console.print(
+                    f'[yellow]Warning:[/yellow] "{name}" shadows a built-in command.'
+                )
+            self.env.aliases[name] = target
+            self.console.print(f'[green]Alias set:[/green] {name} = {target}')
+            return True
+        if sub == 'unalias':
+            if len(args) < 2:
+                raise ValueError('env unalias requires <name>')
+            name = args[1].lower()
+            if name not in self.env.aliases:
+                self.console.print(f'[yellow]No such alias:[/yellow] {name}')
+                return True
+            del self.env.aliases[name]
+            self.console.print(f'[green]Alias removed:[/green] {name}')
+            return True
+        self.console.print('Usage: env | env alias <name> <command...> | env unalias <name>')
         return True
 
 

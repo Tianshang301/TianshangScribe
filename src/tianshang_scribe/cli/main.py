@@ -1265,6 +1265,13 @@ def open_cmd(
         bool,
         typer.Option('--latex-style', help=LATEX_STYLE_HELP),
     ] = False,
+    env_file: Annotated[
+        str | None,
+        typer.Option(
+            '--env-file',
+            help='REPL env file ([repl]/[aliases]/[startup]); skips default rc locations',
+        ),
+    ] = None,
     word: Annotated[
         bool,
         typer.Option('-w', '--word', help=WORD_HELP),
@@ -1286,10 +1293,19 @@ def open_cmd(
         explicit = DocumentType.EXCEL
     elif ppt:
         explicit = DocumentType.PPT
-    engine = _open_engine(file, explicit)
     from tianshang_scribe.cli.repl import InteractiveSession
+    from tianshang_scribe.utils.repl_env import load_repl_env
 
-    InteractiveSession(engine, file, console, latex_style=latex_style).run()
+    doc_dir = Path(file).expanduser().resolve().parent
+    repl_env, env_warnings = load_repl_env(env_file, doc_dir)
+    for warning in env_warnings:
+        console.print(f'[yellow]Warning:[/yellow] {warning}')
+
+    engine = _open_engine(file, explicit)  # opened against the original cwd; run() chdirs later
+
+    InteractiveSession(
+        engine, file, console, latex_style=latex_style or repl_env.latex_style, env=repl_env
+    ).run()
 
 
 def main_cli() -> None:
